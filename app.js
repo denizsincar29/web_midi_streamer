@@ -3,6 +3,19 @@
  * Handles MIDI I/O, WebRTC connections, and UI interactions
  */
 
+// PeerJS Configuration
+const PEERJS_CONFIG = {
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    }
+};
+
 class MIDIStreamer {
     constructor() {
         // Configuration
@@ -334,18 +347,8 @@ class MIDIStreamer {
             // This ensures each instance gets a unique ID while keeping room-based discovery possible
             const peerId = `midi-${this.roomName}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
             
-            // Create PeerJS connection
-            this.peer = new Peer(peerId, {
-                host: '0.peerjs.com',
-                port: 443,
-                secure: true,
-                config: {
-                    iceServers: [
-                        { urls: 'stun:stun.l.google.com:19302' },
-                        { urls: 'stun:stun1.l.google.com:19302' }
-                    ]
-                }
-            });
+            // Create PeerJS connection with configuration
+            this.peer = new Peer(peerId, PEERJS_CONFIG);
             
             this.peer.on('open', (id) => {
                 this.addMessage(`Connected to PeerJS. Your ID: ${id}`, 'success');
