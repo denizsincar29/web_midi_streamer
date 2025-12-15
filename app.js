@@ -11,28 +11,9 @@ const PEERJS_CONFIG = {
     config: {
         iceServers: [
             // STUN servers for NAT traversal (public IP discovery)
+            // Using 2 STUN servers for redundancy without slowing down discovery
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:voice.denizsincar.ru:3478' },
-            // Russian/European STUN servers for better connectivity in Russia
-            { urls: 'stun:stun.voipgate.com:3478' },
-            { urls: 'stun:stun.sipnet.ru:3478' },
-            // Public TURN servers (free, with default credentials for public use)
-            {
-                urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:a.relay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ],
         iceCandidatePoolSize: 10,
         iceTransportPolicy: 'all'
