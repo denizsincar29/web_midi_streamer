@@ -52,18 +52,19 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
 ## Quick Start
 
 1. **Deploy the app** (choose one):
-   - Upload `index.html`, `app.js`, and `style.css` to any static hosting service
+   - Upload `index.html`, `app.js`, `peerjs.min.js` (included), and `style.css` to any static hosting service
    - Or run locally: `python3 -m http.server 8080`
 
-2. **User 1**: Open the app with a room name:
+2. **User 1**: Open the app:
    ```
-   https://your-domain.com/?room=myroom
+   https://your-domain.com/
    ```
    - Click "Connect to Room"
-   - Copy the shareable URL that appears
+   - Copy the shareable URL that appears (e.g., `https://your-domain.com/?peer=midi-123456-abc`)
 
 3. **User 2**: Open the shareable URL from User 1
-   - Both users will connect automatically!
+   - The app will automatically connect - **no button click needed!**
+   - Wait for "Data channel open" message
 
 4. **Configure MIDI**:
    - Grant MIDI access when prompted
