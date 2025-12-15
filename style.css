@@ -74,6 +74,37 @@ h2 {
     font-weight: bold;
 }
 
+/* Share URL Section */
+.share-url-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f0f8ff;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.share-url-section p {
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #667eea;
+}
+
+.share-url-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 0.95em;
+    border: 2px solid #667eea;
+    border-radius: 5px;
+    background: white;
+    margin-bottom: 10px;
+    font-family: monospace;
+}
+
+.share-url-input:focus {
+    outline: none;
+    border-color: #764ba2;
+}
+
 /* Settings */
 .setting-group {
     margin-bottom: 20px;
