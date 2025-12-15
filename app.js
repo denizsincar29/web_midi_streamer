@@ -407,6 +407,18 @@ class MIDIStreamer {
             this.updateConnectionStatus(`WebRTC: ${this.peerConnection.connectionState}`);
             if (this.peerConnection.connectionState === 'connected') {
                 this.addMessage('WebRTC connection established!', 'success');
+            } else if (this.peerConnection.connectionState === 'failed') {
+                this.addMessage('WebRTC connection failed. Try reconnecting or check network/firewall settings.', 'error');
+            } else if (this.peerConnection.connectionState === 'disconnected') {
+                this.addMessage('WebRTC connection lost', 'warning');
+            }
+        };
+        
+        // Handle ICE connection state changes
+        this.peerConnection.oniceconnectionstatechange = () => {
+            console.log('ICE connection state:', this.peerConnection.iceConnectionState);
+            if (this.peerConnection.iceConnectionState === 'failed') {
+                this.addMessage('ICE connection failed. Network or firewall may be blocking connection. Consider using a TURN server.', 'error');
             }
         };
         
@@ -495,16 +507,34 @@ class MIDIStreamer {
      * Handle incoming WebRTC answer
      */
     async handleAnswer(answer) {
-        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        this.remoteDescriptionSet = true;
-        
-        // Process any pending ICE candidates
-        for (const candidate of this.pendingICECandidates) {
-            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        try {
+            if (!this.peerConnection) {
+                console.error('Cannot handle answer: peer connection not initialized');
+                this.addMessage('Error: Peer connection not ready', 'error');
+                return;
+            }
+            
+            // Check if we're in the correct state to receive an answer
+            if (this.peerConnection.signalingState !== 'have-local-offer') {
+                console.error(`Cannot set remote answer in state: ${this.peerConnection.signalingState}`);
+                this.addMessage(`WebRTC state error: ${this.peerConnection.signalingState}`, 'error');
+                return;
+            }
+            
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            this.remoteDescriptionSet = true;
+            
+            // Process any pending ICE candidates
+            for (const candidate of this.pendingICECandidates) {
+                await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+            this.pendingICECandidates = [];
+            
+            this.addMessage('Received WebRTC answer', 'info');
+        } catch (error) {
+            console.error('Error handling answer:', error);
+            this.addMessage(`Failed to handle answer: ${error.message}`, 'error');
         }
-        this.pendingICECandidates = [];
-        
-        this.addMessage('Received WebRTC answer', 'info');
     }
     
     /**
