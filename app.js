@@ -332,7 +332,7 @@ class MIDIStreamer {
         try {
             // Create a unique peer ID based on room name and timestamp
             // This ensures each instance gets a unique ID while keeping room-based discovery possible
-            const peerId = `midi-${this.roomName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const peerId = `midi-${this.roomName}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
             
             // Create PeerJS connection
             this.peer = new Peer(peerId, {
@@ -424,10 +424,21 @@ class MIDIStreamer {
             const copyBtn = document.createElement('button');
             copyBtn.textContent = 'Copy URL';
             copyBtn.className = 'btn btn-secondary';
-            copyBtn.onclick = () => {
-                urlInput.select();
-                document.execCommand('copy');
-                this.addMessage('URL copied to clipboard!', 'success');
+            copyBtn.onclick = async () => {
+                try {
+                    // Try modern Clipboard API first
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(urlInput.value);
+                        this.addMessage('URL copied to clipboard!', 'success');
+                    } else {
+                        // Fallback to execCommand for older browsers
+                        urlInput.select();
+                        document.execCommand('copy');
+                        this.addMessage('URL copied to clipboard!', 'success');
+                    }
+                } catch (err) {
+                    this.addMessage('Failed to copy URL. Please copy manually.', 'error');
+                }
             };
             shareSection.appendChild(copyBtn);
             
