@@ -6,15 +6,41 @@ Handles room management and WebRTC signaling between peers
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import json
 from typing import Dict, Set
 import logging
 import os
+from dotenv import load_dotenv
 
-logging.basicConfig(level=logging.INFO)
+# Load environment variables from .env file
+load_dotenv()
+
+# Configuration from environment variables
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Web MIDI Streamer")
+
+# Configure CORS
+if CORS_ORIGINS:
+    origins = [origin.strip() for origin in CORS_ORIGINS.split(",")] if CORS_ORIGINS != "*" else ["*"]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Store active rooms: {room_name: {peer1_ws, peer2_ws}}
 rooms: Dict[str, Set[WebSocket]] = {}
@@ -118,7 +144,8 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str):
             del rooms[room_name]
             logger.info(f"Room '{room_name}' deleted (empty)")
 
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    logger.info(f"Starting Web MIDI Streamer on {HOST}:{PORT}")
+    logger.info(f"Log level: {LOG_LEVEL}")
+    uvicorn.run(app, host=HOST, port=PORT)

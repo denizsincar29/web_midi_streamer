@@ -27,6 +27,32 @@ pip install uv
 
 2. The dependencies will be automatically installed when you run the server using `uv run`.
 
+## Configuration
+
+The server can be configured using environment variables. Create a `.env` file in the project root:
+
+```bash
+# Copy the example configuration
+cp .env.example .env
+```
+
+Available configuration options:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HOST` | Server host address | `0.0.0.0` |
+| `PORT` | Server port | `8000` |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | `INFO` |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated or `*` for all) | `*` |
+
+Example `.env`:
+```env
+HOST=0.0.0.0
+PORT=9000
+LOG_LEVEL=DEBUG
+CORS_ORIGINS=http://localhost:3000,https://example.com
+```
+
 ## Usage
 
 ### Quick Start
@@ -41,7 +67,7 @@ Or using Python directly:
 python server.py
 ```
 
-The server will start on `http://localhost:8000`
+The server will start on `http://localhost:8000` by default (or the port specified in your `.env` file).
 
 ### Connecting Users
 
