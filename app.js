@@ -33,6 +33,7 @@ class MIDIStreamer {
             count: 0,
             totalPings: 0,
             times: [],
+            sentTimes: {},
             inProgress: false
         };
         
@@ -202,6 +203,10 @@ class MIDIStreamer {
         }
         
         if (deviceId) {
+            if (!this.midiAccess) {
+                this.addMessage('MIDI access not available', 'error');
+                return;
+            }
             this.selectedInput = this.midiAccess.inputs.get(deviceId);
             this.selectedInput.onmidimessage = (event) => {
                 this.handleMIDIMessage(event);
@@ -217,6 +222,10 @@ class MIDIStreamer {
      */
     selectMIDIOutput(deviceId) {
         if (deviceId) {
+            if (!this.midiAccess) {
+                this.addMessage('MIDI access not available', 'error');
+                return;
+            }
             this.selectedOutput = this.midiAccess.outputs.get(deviceId);
             // Don't announce successful device selection, only failures
         } else {
@@ -722,6 +731,7 @@ class MIDIStreamer {
                 count: 0,
                 totalPings: 5,
                 times: [],
+                sentTimes: {},
                 inProgress: true
             };
             
@@ -740,9 +750,6 @@ class MIDIStreamer {
                     }));
                     
                     // Store the sent timestamp
-                    if (!this.pingStats.sentTimes) {
-                        this.pingStats.sentTimes = {};
-                    }
                     this.pingStats.sentTimes[pingId] = timestamp;
                     
                 }, i * 100);
@@ -770,6 +777,12 @@ class MIDIStreamer {
      * Handle incoming pong
      */
     handlePong(message) {
+        // Validate message has required fields
+        if (!message || typeof message.timestamp !== 'number' || !message.pingId) {
+            console.error('Invalid pong message received:', message);
+            return;
+        }
+        
         const now = performance.now();
         const roundTripTime = now - message.timestamp;
         
