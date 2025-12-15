@@ -28,6 +28,15 @@ class MIDIStreamer {
         // MIDI note names for accessibility
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         
+        // Ping statistics
+        this.pingStats = {
+            count: 0,
+            totalPings: 0,
+            times: [],
+            sentTimes: {},
+            inProgress: false
+        };
+        
         // Initialize
         this.init();
     }
@@ -159,6 +168,12 @@ class MIDIStreamer {
         inputSelect.innerHTML = '<option value="">No device selected</option>';
         outputSelect.innerHTML = '<option value="">No device selected</option>';
         
+        // Check if MIDI access is available
+        if (!this.midiAccess) {
+            this.addMessage('MIDI access not available. Check browser permissions or try refreshing.', 'warning');
+            return;
+        }
+        
         // Populate inputs
         for (let input of this.midiAccess.inputs.values()) {
             const option = document.createElement('option');
@@ -188,6 +203,10 @@ class MIDIStreamer {
         }
         
         if (deviceId) {
+            if (!this.midiAccess) {
+                this.addMessage('MIDI access not available', 'error');
+                return;
+            }
             this.selectedInput = this.midiAccess.inputs.get(deviceId);
             this.selectedInput.onmidimessage = (event) => {
                 this.handleMIDIMessage(event);
@@ -203,6 +222,10 @@ class MIDIStreamer {
      */
     selectMIDIOutput(deviceId) {
         if (deviceId) {
+            if (!this.midiAccess) {
+                this.addMessage('MIDI access not available', 'error');
+                return;
+            }
             this.selectedOutput = this.midiAccess.outputs.get(deviceId);
             // Don't announce successful device selection, only failures
         } else {
@@ -464,9 +487,9 @@ class MIDIStreamer {
                 
                 // Check if it's a special control message
                 if (message.type === 'ping') {
-                    this.handlePing();
+                    this.handlePing(message);
                 } else if (message.type === 'pong') {
-                    this.handlePong();
+                    this.handlePong(message);
                 } else if (message.type === 'test_note') {
                     this.handleTestNote(message.data);
                 } else {
@@ -697,11 +720,40 @@ class MIDIStreamer {
      */
     sendPing() {
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
-            this.dataChannel.send(JSON.stringify({
-                type: 'ping',
-                timestamp: Date.now()
-            }));
-            this.addMessage('Sent ping', 'info');
+            // Check if a ping test is already in progress
+            if (this.pingStats.inProgress) {
+                this.addMessage('Ping test already in progress', 'warning');
+                return;
+            }
+            
+            // Reset ping statistics
+            this.pingStats = {
+                count: 0,
+                totalPings: 5,
+                times: [],
+                sentTimes: {},
+                inProgress: true
+            };
+            
+            this.addMessage('Starting ping test (5 pings)...', 'info');
+            
+            // Send 5 pings with 100ms delay between each
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const pingId = i + 1;
+                    const timestamp = performance.now();
+                    
+                    this.dataChannel.send(JSON.stringify({
+                        type: 'ping',
+                        timestamp: timestamp,
+                        pingId: pingId
+                    }));
+                    
+                    // Store the sent timestamp
+                    this.pingStats.sentTimes[pingId] = timestamp;
+                    
+                }, i * 100);
+            }
         } else {
             this.addMessage('Data channel not open', 'error');
         }
@@ -710,12 +762,13 @@ class MIDIStreamer {
     /**
      * Handle incoming ping
      */
-    handlePing() {
-        this.addMessage('Received ping - sending pong', 'success');
+    handlePing(message) {
+        // Echo back the ping with the original timestamp and pingId
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
             this.dataChannel.send(JSON.stringify({
                 type: 'pong',
-                timestamp: Date.now()
+                timestamp: message.timestamp,
+                pingId: message.pingId
             }));
         }
     }
@@ -723,8 +776,42 @@ class MIDIStreamer {
     /**
      * Handle incoming pong
      */
-    handlePong() {
-        this.addMessage('Received pong - WebRTC working!', 'success');
+    handlePong(message) {
+        // Validate message has required fields
+        if (!message || typeof message.timestamp !== 'number' || !message.pingId) {
+            console.error('Invalid pong message received:', message);
+            return;
+        }
+        
+        const now = performance.now();
+        const roundTripTime = now - message.timestamp;
+        
+        this.pingStats.count++;
+        this.pingStats.times.push(roundTripTime);
+        
+        // Display individual ping result
+        this.addMessage(`Ping ${message.pingId}/5: ${roundTripTime.toFixed(2)}ms`, 'success');
+        
+        // Check if all pings are complete
+        if (this.pingStats.count >= this.pingStats.totalPings) {
+            this.displayPingStatistics();
+            this.pingStats.inProgress = false;
+        }
+    }
+    
+    /**
+     * Display ping statistics summary
+     */
+    displayPingStatistics() {
+        const times = this.pingStats.times;
+        const min = Math.min(...times);
+        const max = Math.max(...times);
+        const avg = times.reduce((a, b) => a + b, 0) / times.length;
+        
+        this.addMessage(
+            `Ping test complete - Min: ${min.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Avg: ${avg.toFixed(2)}ms`,
+            'success'
+        );
     }
     
     /**
@@ -741,6 +828,12 @@ class MIDIStreamer {
 }
 
 // Initialize application when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Check if DOM is already loaded (in case script loads after DOMContentLoaded)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        new MIDIStreamer();
+    });
+} else {
+    // DOM is already ready, initialize immediately
     new MIDIStreamer();
-});
+}
