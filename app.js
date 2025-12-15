@@ -17,18 +17,7 @@ const PEERJS_CONFIG = {
             // Russian/European STUN servers for better connectivity in Russia
             { urls: 'stun:stun.voipgate.com:3478' },
             { urls: 'stun:stun.sipnet.ru:3478' },
-            // Primary TURN servers - voice.denizsincar.ru (anonymous access)
-            {
-                urls: 'turn:voice.denizsincar.ru:3478'
-            },
-            {
-                urls: 'turn:voice.denizsincar.ru:5349',
-                transport: 'tcp'
-            },
-            {
-                urls: 'turns:voice.denizsincar.ru:5349?transport=tcp'
-            },
-            // Backup TURN servers - free public servers (fallback)
+            // TURN servers with proper credentials
             {
                 urls: 'turn:openrelay.metered.ca:80',
                 username: 'openrelayproject',
@@ -53,7 +42,6 @@ const PEERJS_CONFIG = {
 class MIDIStreamer {
     constructor() {
         // Configuration
-        this.roomName = this.getRoomFromURL();
         this.remotePeerId = this.getRemotePeerIdFromURL();
         this.peer = null;
         this.dataChannel = null;
@@ -85,14 +73,6 @@ class MIDIStreamer {
     }
     
     /**
-     * Get room name from URL parameter
-     */
-    getRoomFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('room') || null;
-    }
-    
-    /**
      * Get remote peer ID from URL parameter
      */
     getRemotePeerIdFromURL() {
@@ -107,12 +87,12 @@ class MIDIStreamer {
         this.setupUI();
         await this.initMIDI();
         
-        if (this.roomName) {
-            document.getElementById('roomName').textContent = this.roomName;
-            this.addMessage(`Room "${this.roomName}" ready to connect`, 'info');
+        if (this.remotePeerId) {
+            document.getElementById('roomName').textContent = `Connecting to peer...`;
+            this.addMessage(`Ready to connect to peer: ${this.remotePeerId}`, 'info');
         } else {
-            this.addMessage('No room specified. Add ?room=yourRoomName to URL', 'warning');
-            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('roomName').textContent = 'Create Connection';
+            this.addMessage('Click "Connect" to generate a shareable link', 'info');
         }
     }
     
@@ -371,26 +351,24 @@ class MIDIStreamer {
      * Connect to PeerJS and establish P2P connection
      */
     async connect() {
-        if (!this.roomName) {
-            this.addMessage('No room specified in URL', 'error');
-            return;
-        }
-        
         try {
-            // Create a unique peer ID based on room name and timestamp
-            // This ensures each instance gets a unique ID while keeping room-based discovery possible
+            // Generate a unique peer ID without room-based legacy patterns
+            // Using timestamp and random UUID for true uniqueness
             const randomPart = crypto.randomUUID ? crypto.randomUUID().split('-')[0] : Math.random().toString(36).slice(2, 11);
-            const peerId = `midi-${this.roomName}-${Date.now()}-${randomPart}`;
+            const peerId = `midi-${Date.now()}-${randomPart}`;
             
             // Create PeerJS connection with configuration
             this.peer = new Peer(peerId, PEERJS_CONFIG);
             
             this.peer.on('open', (id) => {
-                this.addMessage(`Connected to PeerJS. Your ID: ${id}`, 'success');
+                this.addMessage(`✅ Connected to PeerJS signaling server`, 'success');
                 this.updateConnectionStatus('Waiting for peer...', 'connecting');
                 
-                // Generate shareable URL with our peer ID
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${this.roomName}&peer=${id}`;
+                // Update room name display
+                document.getElementById('roomName').textContent = 'Connected';
+                
+                // Generate shareable URL with our peer ID (no room parameter needed)
+                const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
                 this.addMessage(`Share this URL with peer: ${shareUrl}`, 'info');
                 
                 // Display the share URL in the room name section
@@ -398,9 +376,10 @@ class MIDIStreamer {
                 
                 // If we have a remote peer ID from URL, try to connect
                 if (this.remotePeerId) {
-                    this.addMessage(`Attempting to connect to peer: ${this.remotePeerId}`, 'info');
+                    this.addMessage(`🔗 Attempting to connect to peer: ${this.remotePeerId}`, 'info');
                     const conn = this.peer.connect(this.remotePeerId, {
-                        reliable: true
+                        reliable: true,
+                        serialization: 'json'
                     });
                     this.setupDataConnection(conn);
                 }

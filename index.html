@@ -19,7 +19,7 @@
         <main>
             <!-- Room Information -->
             <section class="room-info">
-                <h2>Room: <span id="roomName">Not connected</span></h2>
+                <h2>Status: <span id="roomName">Not connected</span></h2>
                 <div class="status-container">
                     <span class="status-indicator" id="statusIndicator" aria-hidden="true"></span>
                     <span id="connectionStatus">Disconnected</span>
@@ -117,14 +117,12 @@
         </main>
 
         <footer>
-            <p>Instructions: Add ?room=yourRoomName to the URL to create or join a room</p>
+            <p>Instructions: Click "Connect to Room" to generate a shareable link for peer-to-peer connection</p>
         </footer>
     </div>
 
     <!-- PeerJS Library for WebRTC signaling -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" 
-            integrity="sha384-PMNj1TmCgXfW24/rfIyxYSAWwj2mffkMfguUWv08iNFcy0kTC0JN7E/tE+pJ7+fa"
-            crossorigin="anonymous"></script>
+    <script src="peerjs.min.js"></script>
     
     <script>
         // Cache-busting: append timestamp to script URL
