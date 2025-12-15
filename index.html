@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Web MIDI Streamer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Web MIDI Streamer</h1>
+            <p>Real-time MIDI streaming over WebRTC</p>
+        </header>
+
+        <main>
+            <!-- Room Information -->
+            <section class="room-info">
+                <h2>Room: <span id="roomName">Not connected</span></h2>
+                <p>Status: <span id="connectionStatus">Disconnected</span></p>
+            </section>
+
+            <!-- Settings -->
+            <section class="settings">
+                <h2>Settings</h2>
+                
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="sysexEnabled" aria-describedby="sysex-desc">
+                        Enable SysEx Support
+                    </label>
+                    <p id="sysex-desc" class="description">Allow System Exclusive messages (required for advanced keyboard features)</p>
+                </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="timestampEnabled" aria-describedby="timestamp-desc">
+                        Enable Timestamp Sync (Experimental)
+                    </label>
+                    <p id="timestamp-desc" class="description">Send MIDI data with timestamps for better timing on slow connections</p>
+                </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="audioFeedbackEnabled" aria-describedby="audio-desc">
+                        Enable Audio Feedback
+                    </label>
+                    <p id="audio-desc" class="description">Hear announcements of MIDI events (accessibility feature)</p>
+                </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="showMidiActivity" aria-describedby="midi-activity-desc">
+                        Show MIDI Activity
+                    </label>
+                    <p id="midi-activity-desc" class="description">Display and announce MIDI events via screen reader</p>
+                </div>
+            </section>
+
+            <!-- MIDI Devices -->
+            <section class="midi-devices">
+                <h2>MIDI Devices</h2>
+                
+                <div class="device-group">
+                    <label for="midiInput">Input Device:</label>
+                    <select id="midiInput" aria-label="Select MIDI input device">
+                        <option value="">No device selected</option>
+                    </select>
+                </div>
+
+                <div class="device-group">
+                    <label for="midiOutput">Output Device:</label>
+                    <select id="midiOutput" aria-label="Select MIDI output device">
+                        <option value="">No device selected</option>
+                    </select>
+                </div>
+
+                <button id="refreshDevices" class="btn btn-secondary">Refresh Devices</button>
+            </section>
+
+            <!-- Connection Controls -->
+            <section class="controls">
+                <h2>Connection</h2>
+                <button id="connectBtn" class="btn btn-primary">Connect to Room</button>
+                <button id="disconnectBtn" class="btn btn-danger" disabled>Disconnect</button>
+            </section>
+
+            <!-- Debug Tools -->
+            <details class="debug">
+                <summary><h2>Debug Tools</h2></summary>
+                <div class="debug-content">
+                    <button id="sendTestNoteBtn" class="btn btn-secondary" disabled>Send Test Note (C4)</button>
+                    <button id="sendPingBtn" class="btn btn-secondary" disabled>Send Ping</button>
+                    <label>
+                        <input type="checkbox" id="midiEchoEnabled">
+                        MIDI Echo (send back all received MIDI)
+                    </label>
+                    <p class="description">Test WebRTC data channel connectivity and MIDI echo</p>
+                </div>
+            </details>
+
+            <!-- Status Messages -->
+            <details class="messages" open>
+                <summary><h2>Messages</h2></summary>
+                <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
+            </details>
+
+            <!-- MIDI Activity (for accessibility) -->
+            <div id="midiActivity" role="status" aria-atomic="true" class="sr-only" aria-live="off"></div>
+        </main>
+
+        <footer>
+            <p>Instructions: Add ?room=yourRoomName to the URL to create or join a room</p>
+        </footer>
+    </div>
+
+    <script>
+        // Cache-busting: append timestamp to script URL
+        const script = document.createElement('script');
+        script.src = 'app.js?v=' + Date.now();
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
