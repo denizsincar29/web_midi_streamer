@@ -45,10 +45,3 @@ Thumbs.db
 
 # Temporary files
 /tmp/
-
-# Node.js / Playwright
-node_modules/
-package-lock.json
-playwright-report/
-test-results/
-playwright/.cache/
