@@ -33,19 +33,36 @@ def server_process():
         bufsize=1
     )
     
-    # Wait for server to be ready
-    time.sleep(3)
-    
-    # Check if server is running
-    if process.poll() is not None:
-        stdout, stderr = process.communicate()
-        raise RuntimeError(f"Server failed to start.\nStdout: {stdout}\nStderr: {stderr}")
-    
-    print(f"✅ Server started successfully (PID: {process.pid})")
+    # Wait for server to be ready with retry mechanism
+    max_retries = 10
+    retry_delay = 0.5
+    for i in range(max_retries):
+        time.sleep(retry_delay)
+        
+        # Check if process crashed
+        if process.poll() is not None:
+            stdout, stderr = process.communicate()
+            raise RuntimeError(f"Server failed to start.\nStdout: {stdout}\nStderr: {stderr}")
+        
+        # Try to connect to server
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((SERVER_HOST, int(SERVER_PORT)))
+            sock.close()
+            if result == 0:
+                print(f"✅ Server started successfully (PID: {process.pid})")
+                break
+        except Exception:
+            pass
+    else:
+        process.terminate()
+        raise RuntimeError(f"Server did not become ready within {max_retries * retry_delay}s")
     
     yield process
     
-    # Cleanup: terminate server
+    # Cleanup: terminate server gracefully
     print("\n🛑 Stopping server...")
     process.terminate()
     try:
@@ -221,7 +238,7 @@ async def test_two_tabs_connection(server_process):
             assert any("Connected to signaling server" in m for m in msg2), "Page 2 should connect to signaling server"
             assert any("Joined room" in m for m in msg1), "Page 1 should join room"
             assert any("Joined room" in m for m in msg2), "Page 2 should join room"
-            assert any("Both peers connected" in m for m in msg1 or any("Both peers connected" in m for m in msg2)), "Should detect both peers"
+            assert any("Both peers connected" in m for m in msg1 + msg2), "Should detect both peers"
             
             # Check that WebRTC offer/answer was exchanged
             has_offer = any("offer" in m.lower() for m in msg1 + msg2)
@@ -372,7 +389,7 @@ async def test_bidirectional_communication(server_process):
             assert any("Connected to signaling server" in m for m in msg1), "Page 1 should connect"
             assert any("Connected to signaling server" in m for m in msg2), "Page 2 should connect"
             
-            # Verify both have disconnect buttons  enabled (meaning they're connected)
+            # Verify both have disconnect buttons enabled (meaning they're connected)
             disconnect1_disabled = await page1.locator('#disconnectBtn').is_disabled()
             disconnect2_disabled = await page2.locator('#disconnectBtn').is_disabled()
             
