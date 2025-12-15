@@ -13,12 +13,22 @@ const PEERJS_CONFIG = {
             // STUN servers for NAT traversal (public IP discovery)
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun.relay.metered.ca:80' },
+            { urls: 'stun:voice.denizsincar.ru:3478' },
             // Russian/European STUN servers for better connectivity in Russia
             { urls: 'stun:stun.voipgate.com:3478' },
             { urls: 'stun:stun.sipnet.ru:3478' },
-            // TURN servers for relaying when direct P2P fails
-            // Free public TURN servers (limited bandwidth, use for testing)
+            // Primary TURN servers - voice.denizsincar.ru (anonymous access)
+            {
+                urls: 'turn:voice.denizsincar.ru:3478'
+            },
+            {
+                urls: 'turn:voice.denizsincar.ru:5349',
+                transport: 'tcp'
+            },
+            {
+                urls: 'turns:voice.denizsincar.ru:5349?transport=tcp'
+            },
+            // Backup TURN servers - free public servers (fallback)
             {
                 urls: 'turn:openrelay.metered.ca:80',
                 username: 'openrelayproject',
@@ -30,23 +40,7 @@ const PEERJS_CONFIG = {
                 credential: 'openrelayproject'
             },
             {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            // Additional TURN server with global coverage
-            {
                 urls: 'turn:a.relay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:a.relay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:a.relay.metered.ca:443?transport=tcp',
                 username: 'openrelayproject',
                 credential: 'openrelayproject'
             }
