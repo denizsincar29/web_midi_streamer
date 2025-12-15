@@ -18,6 +18,7 @@ class MIDIStreamer {
         this.sysexEnabled = false;
         this.timestampEnabled = false;
         this.audioFeedbackEnabled = false;
+        this.showMidiActivity = false;
         
         // MIDI note names for accessibility
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -68,6 +69,23 @@ class MIDIStreamer {
         document.getElementById('audioFeedbackEnabled').addEventListener('change', (e) => {
             this.audioFeedbackEnabled = e.target.checked;
             this.addMessage(`Audio feedback ${this.audioFeedbackEnabled ? 'enabled' : 'disabled'}`, 'info');
+        });
+        
+        document.getElementById('showMidiActivity').addEventListener('change', (e) => {
+            this.showMidiActivity = e.target.checked;
+            const midiActivity = document.getElementById('midiActivity');
+            
+            // Enable/disable ARIA live region
+            if (this.showMidiActivity) {
+                midiActivity.setAttribute('aria-live', 'assertive');
+                midiActivity.classList.remove('sr-only');
+            } else {
+                midiActivity.setAttribute('aria-live', 'off');
+                midiActivity.classList.add('sr-only');
+                midiActivity.textContent = ''; // Clear any existing content
+            }
+            
+            this.addMessage(`MIDI activity display ${this.showMidiActivity ? 'enabled' : 'disabled'}`, 'info');
         });
         
         // MIDI device selection
@@ -216,7 +234,8 @@ class MIDIStreamer {
      * Announce MIDI events for accessibility
      */
     announceMIDIEvent(data) {
-        if (!this.audioFeedbackEnabled) return;
+        // Only announce if MIDI activity display is enabled
+        if (!this.showMidiActivity) return;
         
         const status = data[0] & 0xF0;
         const note = data[1];

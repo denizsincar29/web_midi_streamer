@@ -47,6 +47,14 @@
                     </label>
                     <p id="audio-desc" class="description">Hear announcements of MIDI events (accessibility feature)</p>
                 </div>
+
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="showMidiActivity" aria-describedby="midi-activity-desc">
+                        Show MIDI Activity
+                    </label>
+                    <p id="midi-activity-desc" class="description">Display and announce MIDI events via screen reader</p>
+                </div>
             </section>
 
             <!-- MIDI Devices -->
@@ -84,7 +92,7 @@
             </section>
 
             <!-- MIDI Activity (for accessibility) -->
-            <div id="midiActivity" role="status" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+            <div id="midiActivity" role="status" aria-atomic="true" class="sr-only" aria-live="off"></div>
         </main>
 
         <footer>
