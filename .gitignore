@@ -23,6 +23,7 @@ wheels/
 
 # Virtual environments
 venv/
+.venv/
 ENV/
 env/
 
@@ -45,3 +46,8 @@ Thumbs.db
 
 # Temporary files
 /tmp/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
