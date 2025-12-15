@@ -110,8 +110,8 @@ async def websocket_endpoint(websocket: WebSocket, room_name: str):
                     "type": "peer_disconnected",
                     "message": "Other peer disconnected"
                 })
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Error notifying peer: {e}")
         
         # Clean up empty rooms
         if len(rooms[room_name]) == 0:

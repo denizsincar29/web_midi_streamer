@@ -205,12 +205,8 @@ class MIDIStreamer {
         
         const { data, timestamp } = messageData;
         
-        // If timestamp is enabled, calculate delay
-        if (this.timestampEnabled && timestamp !== undefined) {
-            const delay = performance.now() - timestamp;
-            // For now, just send immediately. In a real implementation,
-            // you might use this to adjust timing
-        }
+        // If timestamp is enabled, we could use it for timing adjustment
+        // Currently sending immediately; timestamp info available for future enhancement
         
         // Send to MIDI output
         this.selectedOutput.send(data);
