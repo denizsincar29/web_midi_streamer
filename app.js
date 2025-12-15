@@ -161,7 +161,7 @@ class MIDIStreamer {
         
         // Check if MIDI access is available
         if (!this.midiAccess) {
-            this.addMessage('MIDI access not available. Please grant MIDI permission.', 'warning');
+            this.addMessage('MIDI access not available. Check browser permissions or try refreshing.', 'warning');
             return;
         }
         
