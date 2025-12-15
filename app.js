@@ -17,7 +17,7 @@ const PEERJS_CONFIG = {
             // Russian/European STUN servers for better connectivity in Russia
             { urls: 'stun:stun.voipgate.com:3478' },
             { urls: 'stun:stun.sipnet.ru:3478' },
-            // TURN servers with proper credentials
+            // Public TURN servers (free, with default credentials for public use)
             {
                 urls: 'turn:openrelay.metered.ca:80',
                 username: 'openrelayproject',
@@ -378,8 +378,7 @@ class MIDIStreamer {
                 if (this.remotePeerId) {
                     this.addMessage(`🔗 Attempting to connect to peer: ${this.remotePeerId}`, 'info');
                     const conn = this.peer.connect(this.remotePeerId, {
-                        reliable: true,
-                        serialization: 'json'
+                        reliable: true
                     });
                     this.setupDataConnection(conn);
                 }
