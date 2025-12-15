@@ -163,10 +163,31 @@ h2 {
 .btn-secondary {
     background: #6c757d;
     color: white;
+    margin: 5px;
 }
 
 .btn-secondary:hover:not(:disabled) {
     background: #5a6268;
+}
+
+/* Debug section */
+.debug {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.debug h2 {
+    color: #856404;
+    margin-top: 0;
+}
+
+.debug .description {
+    color: #856404;
+    font-size: 0.9em;
+    margin-top: 10px;
 }
 
 .btn-danger {

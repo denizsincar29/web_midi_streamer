@@ -20,6 +20,10 @@ class MIDIStreamer {
         this.audioFeedbackEnabled = false;
         this.showMidiActivity = false;
         
+        // Queue for ICE candidates received before remote description is set
+        this.pendingICECandidates = [];
+        this.remoteDescriptionSet = false;
+        
         // MIDI note names for accessibility
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         
@@ -108,6 +112,15 @@ class MIDIStreamer {
         
         document.getElementById('disconnectBtn').addEventListener('click', () => {
             this.disconnect();
+        });
+        
+        // Debug buttons
+        document.getElementById('sendTestNoteBtn').addEventListener('click', () => {
+            this.sendTestNote();
+        });
+        
+        document.getElementById('sendPingBtn').addEventListener('click', () => {
+            this.sendPing();
         });
     }
     
@@ -353,6 +366,10 @@ class MIDIStreamer {
      * Create WebRTC peer connection
      */
     async createPeerConnection(isInitiator) {
+        // Reset state for new connection
+        this.remoteDescriptionSet = false;
+        this.pendingICECandidates = [];
+        
         const configuration = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -408,18 +425,31 @@ class MIDIStreamer {
     setupDataChannel() {
         this.dataChannel.onopen = () => {
             this.addMessage('Data channel open - ready to stream MIDI!', 'success');
+            this.updateDebugButtonsState(true);
         };
         
         this.dataChannel.onclose = () => {
             this.addMessage('Data channel closed', 'warning');
+            this.updateDebugButtonsState(false);
         };
         
         this.dataChannel.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                this.handlePeerMIDIMessage(message);
+                
+                // Check if it's a special control message
+                if (message.type === 'ping') {
+                    this.handlePing();
+                } else if (message.type === 'pong') {
+                    this.handlePong();
+                } else if (message.type === 'test_note') {
+                    this.handleTestNote(message.data);
+                } else {
+                    // Regular MIDI message
+                    this.handlePeerMIDIMessage(message);
+                }
             } catch (error) {
-                console.error('Error parsing MIDI message:', error);
+                console.error('Error parsing message:', error);
             }
         };
     }
@@ -430,6 +460,13 @@ class MIDIStreamer {
     async handleOffer(offer) {
         await this.createPeerConnection(false);
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        this.remoteDescriptionSet = true;
+        
+        // Process any pending ICE candidates
+        for (const candidate of this.pendingICECandidates) {
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        this.pendingICECandidates = [];
         
         const answer = await this.peerConnection.createAnswer();
         await this.peerConnection.setLocalDescription(answer);
@@ -446,6 +483,14 @@ class MIDIStreamer {
      */
     async handleAnswer(answer) {
         await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        this.remoteDescriptionSet = true;
+        
+        // Process any pending ICE candidates
+        for (const candidate of this.pendingICECandidates) {
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        this.pendingICECandidates = [];
+        
         this.addMessage('Received WebRTC answer', 'info');
     }
     
@@ -454,9 +499,15 @@ class MIDIStreamer {
      */
     async handleICECandidate(candidate) {
         try {
-            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            if (this.peerConnection && this.remoteDescriptionSet) {
+                await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+                // Queue ICE candidates received before remote description is set
+                this.pendingICECandidates.push(candidate);
+            }
         } catch (error) {
             console.error('Error adding ICE candidate:', error);
+            this.addMessage(`ICE candidate error: ${error.message}`, 'error');
         }
     }
     
@@ -548,6 +599,89 @@ class MIDIStreamer {
         // Limit messages to 50
         while (messageLog.children.length > 50) {
             messageLog.removeChild(messageLog.firstChild);
+        }
+    }
+    
+    /**
+     * Update debug buttons state
+     */
+    updateDebugButtonsState(enabled) {
+        document.getElementById('sendTestNoteBtn').disabled = !enabled;
+        document.getElementById('sendPingBtn').disabled = !enabled;
+    }
+    
+    /**
+     * Send test MIDI note (C4 note on)
+     */
+    sendTestNote() {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            // MIDI: Note On, Channel 1, Note 60 (C4), Velocity 100
+            const noteOnData = [0x90, 60, 100];
+            
+            this.dataChannel.send(JSON.stringify({
+                type: 'test_note',
+                data: noteOnData
+            }));
+            
+            this.addMessage('Sent test note (C4) via WebRTC', 'info');
+            
+            // Send note off after 500ms
+            setTimeout(() => {
+                const noteOffData = [0x80, 60, 0];
+                this.dataChannel.send(JSON.stringify({
+                    type: 'test_note',
+                    data: noteOffData
+                }));
+            }, 500);
+        } else {
+            this.addMessage('Data channel not open', 'error');
+        }
+    }
+    
+    /**
+     * Send ping message
+     */
+    sendPing() {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'ping',
+                timestamp: Date.now()
+            }));
+            this.addMessage('Sent ping', 'info');
+        } else {
+            this.addMessage('Data channel not open', 'error');
+        }
+    }
+    
+    /**
+     * Handle incoming ping
+     */
+    handlePing() {
+        this.addMessage('Received ping - sending pong', 'success');
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'pong',
+                timestamp: Date.now()
+            }));
+        }
+    }
+    
+    /**
+     * Handle incoming pong
+     */
+    handlePong() {
+        this.addMessage('Received pong - WebRTC working!', 'success');
+    }
+    
+    /**
+     * Handle test note from peer
+     */
+    handleTestNote(data) {
+        this.addMessage(`Received test note via WebRTC: ${data}`, 'success');
+        
+        // Play the note if output is selected
+        if (this.selectedOutput) {
+            this.selectedOutput.send(data);
         }
     }
 }
