@@ -89,6 +89,28 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
 3. PeerJS handles all WebRTC negotiation automatically
 4. MIDI data flows directly peer-to-peer (bypasses PeerJS server)
 
+## Network Connectivity & TURN Servers
+
+The app includes **TURN servers** for global connectivity:
+
+- ✅ **Works globally** - connects across different networks and the internet
+- ✅ **No setup required** - free public TURN servers included
+- ✅ **Automatic fallback** - tries direct P2P first, then TURN relay if needed
+
+### Connection Types
+
+1. **Direct P2P** (best) - Low latency, works on same network or friendly NAT
+2. **TURN relay** (fallback) - Higher latency, works globally even with strict firewalls
+
+### For Production Use
+
+The app uses free public TURN servers by default. For production deployments or better performance:
+
+- **Set up your own TURN server** - See [TURN_SERVER_SETUP.md](TURN_SERVER_SETUP.md) for instructions
+- **Use commercial TURN service** - Twilio, Xirsys, or Metered
+
+The included free TURN servers should work fine for personal use and testing.
+
 ## Legacy Backend Setup
 
 <details>
