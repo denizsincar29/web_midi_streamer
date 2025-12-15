@@ -63,8 +63,8 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
    - Copy the shareable URL that appears (e.g., `https://your-domain.com/?peer=midi-123456-abc`)
 
 3. **User 2**: Open the shareable URL from User 1
-   - Click "Connect to Room"
-   - Both users will connect automatically via WebRTC!
+   - The app will automatically connect - **no button click needed!**
+   - Wait for "Data channel open" message
 
 4. **Configure MIDI**:
    - Grant MIDI access when prompted

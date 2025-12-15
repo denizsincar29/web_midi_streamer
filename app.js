@@ -71,6 +71,9 @@ class MIDIStreamer {
         if (this.remotePeerId) {
             document.getElementById('roomName').textContent = `Connecting to peer...`;
             this.addMessage(`Ready to connect to peer: ${this.remotePeerId}`, 'info');
+            // Automatically connect when peer ID is provided in URL
+            this.addMessage(`Auto-connecting to peer...`, 'info');
+            this.connect();
         } else {
             document.getElementById('roomName').textContent = 'Create Connection';
             this.addMessage('Click "Connect" to generate a shareable link', 'info');
@@ -348,12 +351,15 @@ class MIDIStreamer {
                 // Update room name display
                 document.getElementById('roomName').textContent = 'Connected';
                 
-                // Generate shareable URL with our peer ID (no room parameter needed)
-                const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
-                this.addMessage(`Share this URL with peer: ${shareUrl}`, 'info');
-                
-                // Display the share URL in the room name section
-                this.displayShareableUrl(shareUrl);
+                // Only display shareable URL if we're creating a NEW connection (not joining one)
+                if (!this.remotePeerId) {
+                    // Generate shareable URL with our peer ID (no room parameter needed)
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
+                    this.addMessage(`Share this URL with peer: ${shareUrl}`, 'info');
+                    
+                    // Display the share URL in the room name section
+                    this.displayShareableUrl(shareUrl);
+                }
                 
                 // If we have a remote peer ID from URL, try to connect
                 if (this.remotePeerId) {
