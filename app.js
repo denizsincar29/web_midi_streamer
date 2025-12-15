@@ -353,7 +353,7 @@ class MIDIStreamer {
             
             this.peer.on('open', (id) => {
                 this.addMessage(`Connected to PeerJS. Your ID: ${id}`, 'success');
-                this.updateConnectionStatus('Waiting for peer...');
+                this.updateConnectionStatus('Waiting for peer...', 'connecting');
                 
                 // Generate shareable URL with our peer ID
                 const shareUrl = `${window.location.origin}${window.location.pathname}?room=${this.roomName}&peer=${id}`;
@@ -380,6 +380,7 @@ class MIDIStreamer {
             
             this.peer.on('error', (err) => {
                 this.addMessage(`PeerJS error: ${err.type} - ${err.message}`, 'error');
+                this.updateConnectionStatus('Error', 'error');
                 if (err.type === 'peer-unavailable') {
                     this.addMessage('The peer you are trying to connect to is not available. Make sure they are connected first.', 'error');
                 }
@@ -387,12 +388,12 @@ class MIDIStreamer {
             
             this.peer.on('disconnected', () => {
                 this.addMessage('Disconnected from PeerJS server', 'warning');
-                this.updateConnectionStatus('Disconnected');
+                this.updateConnectionStatus('Disconnected', 'warning');
             });
             
             this.peer.on('close', () => {
                 this.addMessage('PeerJS connection closed', 'warning');
-                this.updateConnectionStatus('Disconnected');
+                this.updateConnectionStatus('Disconnected', 'disconnected');
                 this.updateUIState(false);
             });
             
@@ -464,7 +465,7 @@ class MIDIStreamer {
         
         conn.on('open', () => {
             this.addMessage('Data channel open - ready to stream MIDI!', 'success');
-            this.updateConnectionStatus('Connected to peer');
+            this.updateConnectionStatus('Connected to peer', 'connected');
             this.updateDebugButtonsState(true);
         });
         
@@ -491,7 +492,7 @@ class MIDIStreamer {
         
         conn.on('close', () => {
             this.addMessage('Peer disconnected', 'warning');
-            this.updateConnectionStatus('Peer disconnected');
+            this.updateConnectionStatus('Peer disconnected', 'warning');
             this.updateDebugButtonsState(false);
         });
         
@@ -517,15 +518,23 @@ class MIDIStreamer {
         }
         
         this.addMessage('Disconnected', 'info');
-        this.updateConnectionStatus('Disconnected');
+        this.updateConnectionStatus('Disconnected', 'disconnected');
         this.updateUIState(false);
     }
     
     /**
-     * Update connection status display
+     * Update connection status display with visual indicator
      */
-    updateConnectionStatus(status) {
+    updateConnectionStatus(status, state = 'disconnected') {
         document.getElementById('connectionStatus').textContent = status;
+        
+        // Update visual indicator
+        const indicator = document.getElementById('statusIndicator');
+        indicator.className = 'status-indicator ' + state;
+        
+        // Update screen reader status bar
+        const statusBar = document.getElementById('statusBar');
+        statusBar.textContent = `Connection status: ${status}`;
     }
     
     /**
