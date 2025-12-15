@@ -528,9 +528,12 @@ class MIDIStreamer {
     updateConnectionStatus(status, state = 'disconnected') {
         document.getElementById('connectionStatus').textContent = status;
         
-        // Update visual indicator
+        // Update visual indicator using classList for better class management
         const indicator = document.getElementById('statusIndicator');
-        indicator.className = 'status-indicator ' + state;
+        indicator.className = 'status-indicator'; // Reset to base class
+        if (state !== 'disconnected') {
+            indicator.classList.add(state);
+        }
         
         // Update screen reader status bar
         const statusBar = document.getElementById('statusBar');

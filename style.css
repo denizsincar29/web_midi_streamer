@@ -82,7 +82,7 @@ h2 {
     border-radius: 50%;
     margin-right: 8px;
     display: inline-block;
-    background: #6c757d; /* Default: disconnected */
+    background: #6c757d; /* Default gray: disconnected state */
     transition: background-color 0.3s ease;
 }
 
