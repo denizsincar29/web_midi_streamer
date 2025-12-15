@@ -174,20 +174,94 @@ h2 {
 .debug {
     background: #fff3cd;
     border-left: 4px solid #ffc107;
-    padding: 20px;
+    padding: 10px 20px;
     margin-bottom: 20px;
     border-radius: 5px;
 }
 
+.debug summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+}
+
+.debug summary::-webkit-details-marker {
+    display: none;
+}
+
+.debug summary::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 10px;
+    transition: transform 0.2s;
+    color: #856404;
+}
+
+.debug[open] summary::before {
+    transform: rotate(90deg);
+}
+
 .debug h2 {
     color: #856404;
-    margin-top: 0;
+    margin: 10px 0;
+    display: inline;
+}
+
+.debug .debug-content {
+    padding-top: 15px;
 }
 
 .debug .description {
     color: #856404;
     font-size: 0.9em;
     margin-top: 10px;
+}
+
+.debug label {
+    display: block;
+    margin: 10px 0;
+    color: #856404;
+}
+
+/* Messages section */
+.messages {
+    background: white;
+    border-left: 4px solid #667eea;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+.messages summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+}
+
+.messages summary::-webkit-details-marker {
+    display: none;
+}
+
+.messages summary::before {
+    content: '▶';
+    display: inline-block;
+    margin-right: 10px;
+    transition: transform 0.2s;
+    color: #667eea;
+}
+
+.messages[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.messages h2 {
+    color: #667eea;
+    margin: 10px 0;
+    display: inline;
 }
 
 .btn-danger {

@@ -19,6 +19,7 @@ class MIDIStreamer {
         this.timestampEnabled = false;
         this.audioFeedbackEnabled = false;
         this.showMidiActivity = false;
+        this.midiEchoEnabled = false;
         
         // Queue for ICE candidates received before remote description is set
         this.pendingICECandidates = [];
@@ -121,6 +122,11 @@ class MIDIStreamer {
         
         document.getElementById('sendPingBtn').addEventListener('click', () => {
             this.sendPing();
+        });
+        
+        document.getElementById('midiEchoEnabled').addEventListener('change', (e) => {
+            this.midiEchoEnabled = e.target.checked;
+            this.addMessage(`MIDI echo ${this.midiEchoEnabled ? 'enabled' : 'disabled'}`, 'info');
         });
     }
     
@@ -232,15 +238,22 @@ class MIDIStreamer {
      * Handle incoming MIDI message from peer
      */
     handlePeerMIDIMessage(messageData) {
-        if (!this.selectedOutput) return;
-        
         const { data, timestamp } = messageData;
         
-        // If timestamp is enabled, we could use it for timing adjustment
-        // Currently sending immediately; timestamp info available for future enhancement
+        // Send to MIDI output if selected
+        if (this.selectedOutput) {
+            this.selectedOutput.send(data);
+        }
         
-        // Send to MIDI output
-        this.selectedOutput.send(data);
+        // Echo back if MIDI echo is enabled
+        if (this.midiEchoEnabled && this.dataChannel && this.dataChannel.readyState === 'open') {
+            // Send the same message back to the peer
+            const echoMessage = this.timestampEnabled 
+                ? { data, timestamp: performance.now() }
+                : { data };
+            
+            this.dataChannel.send(JSON.stringify(echoMessage));
+        }
     }
     
     /**
@@ -586,8 +599,19 @@ class MIDIStreamer {
         message.appendChild(textSpan);
         
         // Determine if this message should be announced to screen readers
-        // By default, only announce errors and warnings
-        const shouldAnnounce = announce !== null ? announce : (type === 'error' || type === 'warning');
+        // Announce errors, warnings, and connection-related success messages
+        const isConnectionMessage = type === 'success' && (
+            text.includes('Connected') || 
+            text.includes('connection') ||
+            text.includes('Data channel open') ||
+            text.includes('Joined room')
+        );
+        
+        const shouldAnnounce = announce !== null ? announce : (
+            type === 'error' || 
+            type === 'warning' || 
+            isConnectionMessage
+        );
         
         if (!shouldAnnounce) {
             message.setAttribute('aria-live', 'off');

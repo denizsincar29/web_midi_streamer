@@ -86,18 +86,24 @@
             </section>
 
             <!-- Debug Tools -->
-            <section class="debug">
-                <h2>Debug Tools</h2>
-                <button id="sendTestNoteBtn" class="btn btn-secondary" disabled>Send Test Note (C4)</button>
-                <button id="sendPingBtn" class="btn btn-secondary" disabled>Send Ping</button>
-                <p class="description">Test WebRTC data channel connectivity</p>
-            </section>
+            <details class="debug">
+                <summary><h2>Debug Tools</h2></summary>
+                <div class="debug-content">
+                    <button id="sendTestNoteBtn" class="btn btn-secondary" disabled>Send Test Note (C4)</button>
+                    <button id="sendPingBtn" class="btn btn-secondary" disabled>Send Ping</button>
+                    <label>
+                        <input type="checkbox" id="midiEchoEnabled">
+                        MIDI Echo (send back all received MIDI)
+                    </label>
+                    <p class="description">Test WebRTC data channel connectivity and MIDI echo</p>
+                </div>
+            </details>
 
             <!-- Status Messages -->
-            <section class="messages">
-                <h2>Messages</h2>
+            <details class="messages" open>
+                <summary><h2>Messages</h2></summary>
                 <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
-            </section>
+            </details>
 
             <!-- MIDI Activity (for accessibility) -->
             <div id="midiActivity" role="status" aria-atomic="true" class="sr-only" aria-live="off"></div>
