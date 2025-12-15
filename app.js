@@ -159,6 +159,12 @@ class MIDIStreamer {
         inputSelect.innerHTML = '<option value="">No device selected</option>';
         outputSelect.innerHTML = '<option value="">No device selected</option>';
         
+        // Check if MIDI access is available
+        if (!this.midiAccess) {
+            this.addMessage('MIDI access not available. Please grant MIDI permission.', 'warning');
+            return;
+        }
+        
         // Populate inputs
         for (let input of this.midiAccess.inputs.values()) {
             const option = document.createElement('option');
@@ -741,6 +747,12 @@ class MIDIStreamer {
 }
 
 // Initialize application when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Check if DOM is already loaded (in case script loads after DOMContentLoaded)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        new MIDIStreamer();
+    });
+} else {
+    // DOM is already ready, initialize immediately
     new MIDIStreamer();
-});
+}
