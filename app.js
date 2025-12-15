@@ -173,7 +173,7 @@ class MIDIStreamer {
             this.selectedInput.onmidimessage = (event) => {
                 this.handleMIDIMessage(event);
             };
-            this.addMessage(`Input: ${this.selectedInput.name}`, 'success');
+            // Don't announce successful device selection, only failures
         } else {
             this.selectedInput = null;
         }
@@ -185,7 +185,7 @@ class MIDIStreamer {
     selectMIDIOutput(deviceId) {
         if (deviceId) {
             this.selectedOutput = this.midiAccess.outputs.get(deviceId);
-            this.addMessage(`Output: ${this.selectedOutput.name}`, 'success');
+            // Don't announce successful device selection, only failures
         } else {
             this.selectedOutput = null;
         }
@@ -509,11 +509,39 @@ class MIDIStreamer {
     /**
      * Add message to log
      */
-    addMessage(text, type = 'info') {
+    /**
+     * Add message to log
+     * @param {string} text - Message text
+     * @param {string} type - Message type (info, success, error, warning)
+     * @param {boolean} announce - Whether to announce to screen readers (default: true for errors/warnings, false for others)
+     */
+    addMessage(text, type = 'info', announce = null) {
         const messageLog = document.getElementById('messageLog');
         const message = document.createElement('div');
         message.className = `message ${type}`;
-        message.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+        const timestamp = new Date().toLocaleTimeString();
+        
+        // Create separate spans for timestamp and text
+        const timestampSpan = document.createElement('span');
+        timestampSpan.className = 'message-timestamp';
+        timestampSpan.setAttribute('aria-hidden', 'true'); // Hide timestamp from screen readers
+        timestampSpan.textContent = `[${timestamp}] `;
+        
+        const textSpan = document.createElement('span');
+        textSpan.className = 'message-text';
+        textSpan.textContent = text;
+        
+        message.appendChild(timestampSpan);
+        message.appendChild(textSpan);
+        
+        // Determine if this message should be announced to screen readers
+        // By default, only announce errors and warnings
+        const shouldAnnounce = announce !== null ? announce : (type === 'error' || type === 'warning');
+        
+        if (!shouldAnnounce) {
+            message.setAttribute('aria-live', 'off');
+        }
+        
         messageLog.appendChild(message);
         messageLog.scrollTop = messageLog.scrollHeight;
         
