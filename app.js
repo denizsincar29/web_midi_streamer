@@ -13,6 +13,10 @@ const PEERJS_CONFIG = {
             // STUN servers for NAT traversal (public IP discovery)
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.relay.metered.ca:80' },
+            // Russian/European STUN servers for better connectivity in Russia
+            { urls: 'stun:stun.voipgate.com:3478' },
+            { urls: 'stun:stun.sipnet.ru:3478' },
             // TURN servers for relaying when direct P2P fails
             // Free public TURN servers (limited bandwidth, use for testing)
             {
@@ -29,8 +33,26 @@ const PEERJS_CONFIG = {
                 urls: 'turn:openrelay.metered.ca:443?transport=tcp',
                 username: 'openrelayproject',
                 credential: 'openrelayproject'
+            },
+            // Additional TURN server with global coverage
+            {
+                urls: 'turn:a.relay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:a.relay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:a.relay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             }
-        ]
+        ],
+        iceCandidatePoolSize: 10,
+        iceTransportPolicy: 'all'
     }
 };
 
@@ -481,8 +503,89 @@ class MIDIStreamer {
         // Store the connection
         this.dataChannel = conn;
         
+        // Add diagnostic message about connection attempt
+        this.addMessage('🔄 Starting WebRTC connection negotiation...', 'info');
+        
+        // Access the underlying RTCPeerConnection for diagnostics
+        if (conn.peerConnection) {
+            const pc = conn.peerConnection;
+            
+            // Monitor ICE connection state
+            pc.oniceconnectionstatechange = () => {
+                const state = pc.iceConnectionState;
+                switch(state) {
+                    case 'checking':
+                        this.addMessage('🔍 Checking network connectivity (trying direct P2P)...', 'info');
+                        break;
+                    case 'connected':
+                        this.addMessage('✅ Network path established (direct P2P successful)', 'success');
+                        break;
+                    case 'completed':
+                        this.addMessage('✅ Connection completed and stable', 'success');
+                        break;
+                    case 'failed':
+                        this.addMessage('❌ Direct P2P failed - connection negotiation failed', 'error');
+                        this.addMessage('💡 Possible issues: strict firewall, symmetric NAT, or TURN servers unavailable', 'warning');
+                        break;
+                    case 'disconnected':
+                        this.addMessage('⚠️ Connection temporarily disconnected', 'warning');
+                        break;
+                    case 'closed':
+                        this.addMessage('🔌 Connection closed', 'info');
+                        break;
+                }
+            };
+            
+            // Monitor ICE gathering state
+            pc.onicegatheringstatechange = () => {
+                const state = pc.iceGatheringState;
+                switch(state) {
+                    case 'gathering':
+                        this.addMessage('📡 Gathering network candidates (discovering connection paths)...', 'info');
+                        break;
+                    case 'complete':
+                        this.addMessage('✅ Finished gathering network candidates', 'success');
+                        break;
+                }
+            };
+            
+            // Monitor ICE candidates to show connection types
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    const candidate = event.candidate;
+                    const type = candidate.type;
+                    
+                    if (type === 'host') {
+                        this.addMessage('🏠 Found local network path', 'info');
+                    } else if (type === 'srflx') {
+                        this.addMessage('🌐 Found public internet path (via STUN)', 'info');
+                    } else if (type === 'relay') {
+                        this.addMessage('🔁 Found relay path (via TURN server) - will use if direct fails', 'info');
+                    }
+                } else {
+                    this.addMessage('✅ Finished discovering all connection paths', 'success');
+                }
+            };
+            
+            // Monitor connection state
+            pc.onconnectionstatechange = () => {
+                const state = pc.connectionState;
+                switch(state) {
+                    case 'connecting':
+                        this.addMessage('🔗 Establishing connection...', 'info');
+                        break;
+                    case 'connected':
+                        this.addMessage('✅ WebRTC connection successful!', 'success');
+                        break;
+                    case 'failed':
+                        this.addMessage('❌ Connection failed - unable to establish WebRTC link', 'error');
+                        break;
+                }
+            };
+        }
+        
         conn.on('open', () => {
-            this.addMessage('Data channel open - ready to stream MIDI!', 'success');
+            this.addMessage('✅ Data channel open - ready to stream MIDI!', 'success');
             this.updateConnectionStatus('Connected to peer', 'connected');
             this.updateDebugButtonsState(true);
         });
@@ -515,7 +618,10 @@ class MIDIStreamer {
         });
         
         conn.on('error', (err) => {
-            this.addMessage(`Data channel error: ${err.message}`, 'error');
+            this.addMessage(`❌ Data channel error: ${err.message}`, 'error');
+            if (err.message.includes('Negotiation')) {
+                this.addMessage('💡 Try: 1) Ensure other peer is online, 2) Check firewall settings, 3) Both peers should not click Connect simultaneously', 'warning');
+            }
         });
     }
     
