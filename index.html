@@ -20,8 +20,14 @@
             <!-- Room Information -->
             <section class="room-info">
                 <h2>Room: <span id="roomName">Not connected</span></h2>
-                <p>Status: <span id="connectionStatus">Disconnected</span></p>
+                <div class="status-container">
+                    <span class="status-indicator" id="statusIndicator" aria-hidden="true"></span>
+                    <span id="connectionStatus">Disconnected</span>
+                </div>
             </section>
+            
+            <!-- Screen Reader Status Bar -->
+            <div id="statusBar" class="sr-only" role="status" aria-live="polite" aria-atomic="false"></div>
 
             <!-- Settings -->
             <section class="settings">
@@ -88,10 +94,11 @@
                 <button id="disconnectBtn" class="btn btn-danger" disabled>Disconnect</button>
             </section>
 
-            <!-- Debug Tools -->
-            <details class="debug">
-                <summary><h2>Debug Tools</h2></summary>
-                <div class="debug-content">
+            <!-- Advanced Tools -->
+            <details class="advanced">
+                <summary><h2>Advanced</h2></summary>
+                <div class="advanced-content">
+                    <h3>Debug Tools</h3>
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled>Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled>Send Ping</button>
                     <label>
@@ -99,13 +106,10 @@
                         MIDI Echo (send back all received MIDI)
                     </label>
                     <p class="description">Test WebRTC data channel connectivity and MIDI echo</p>
+                    
+                    <h3>Messages</h3>
+                    <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
                 </div>
-            </details>
-
-            <!-- Status Messages -->
-            <details class="messages" open>
-                <summary><h2>Messages</h2></summary>
-                <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
             </details>
 
             <!-- MIDI Activity (for accessibility) -->
@@ -117,6 +121,11 @@
         </footer>
     </div>
 
+    <!-- PeerJS Library for WebRTC signaling -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" 
+            integrity="sha384-PMNj1TmCgXfW24/rfIyxYSAWwj2mffkMfguUWv08iNFcy0kTC0JN7E/tE+pJ7+fa"
+            crossorigin="anonymous"></script>
+    
     <script>
         // Cache-busting: append timestamp to script URL
         const script = document.createElement('script');
