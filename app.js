@@ -345,7 +345,8 @@ class MIDIStreamer {
         try {
             // Create a unique peer ID based on room name and timestamp
             // This ensures each instance gets a unique ID while keeping room-based discovery possible
-            const peerId = `midi-${this.roomName}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+            const randomPart = crypto.randomUUID ? crypto.randomUUID().split('-')[0] : Math.random().toString(36).slice(2, 11);
+            const peerId = `midi-${this.roomName}-${Date.now()}-${randomPart}`;
             
             // Create PeerJS connection with configuration
             this.peer = new Peer(peerId, PEERJS_CONFIG);
