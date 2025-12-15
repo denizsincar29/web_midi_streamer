@@ -22,34 +22,88 @@ A real-time WebRTC-based MIDI streaming application that allows two users to str
 
 1. Install UV package manager (if not already installed):
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+pip install uv
 ```
 
-2. Install dependencies:
-```bash
-uv pip install -e .
-```
+2. The dependencies will be automatically installed when you run the server using `uv run`.
 
 ## Usage
 
-1. Start the server:
+### Quick Start
+
+Start the server using UV (recommended):
+```bash
+uv run server.py
+```
+
+Or using Python directly:
 ```bash
 python server.py
 ```
 
 The server will start on `http://localhost:8000`
 
-2. Open the application in two browser windows/tabs:
+### Connecting Users
+
+1. Open the application in two browser windows/tabs:
    - User 1: `http://localhost:8000/?room=myroom`
    - User 2: `http://localhost:8000/?room=myroom`
 
-3. In each browser:
+2. In each browser:
    - Grant MIDI access when prompted
    - Select your MIDI input device (your keyboard)
    - Select your MIDI output device (for hearing the other user)
    - Click "Connect to Room"
 
-4. Once both users are connected, play your MIDI keyboards and you'll hear each other in real-time!
+3. Once both users are connected, play your MIDI keyboards and you'll hear each other in real-time!
+
+## Production Deployment
+
+### Systemd Service (Linux)
+
+For production deployment on Linux servers, use the provided setup script:
+
+```bash
+./setup-systemd.sh
+```
+
+This will create a systemd service file. Follow the instructions printed by the script to install and start the service.
+
+The service will:
+- Run as the current user
+- Auto-restart on failure
+- Log to system journal
+- Start automatically on boot (if enabled)
+
+To manage the service:
+```bash
+# Start the service
+sudo systemctl start web-midi-streamer.service
+
+# Stop the service
+sudo systemctl stop web-midi-streamer.service
+
+# View logs
+sudo journalctl -u web-midi-streamer.service -f
+```
+
+### Apache Reverse Proxy
+
+To run behind Apache, use the provided configuration:
+
+1. Enable required Apache modules:
+```bash
+sudo a2enmod proxy proxy_http proxy_wstunnel rewrite
+```
+
+2. Add the content from `apache-proxy.conf` to your Apache virtual host configuration
+
+3. Restart Apache:
+```bash
+sudo systemctl restart apache2
+```
+
+The application will then be accessible through your Apache server while the Python backend runs on port 8000.
 
 ## Settings
 
