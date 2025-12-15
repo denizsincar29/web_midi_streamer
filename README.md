@@ -1,11 +1,42 @@
 # Web MIDI Streamer
 
-A real-time WebRTC-based MIDI streaming application that allows two users to stream MIDI data between their devices.
+A real-time WebRTC-based MIDI streaming application that allows two users to stream MIDI data between their devices using **PeerJS** for backendless deployment.
+
+## 🚀 Deployment Options
+
+### Static Deployment (Recommended - No Backend Required!)
+
+The application now uses **PeerJS** for WebRTC signaling, which means **no backend server is required**! You can deploy the static files anywhere:
+
+#### GitHub Pages (Free & Easy)
+1. Push the files to a GitHub repository
+2. Go to Settings → Pages
+3. Select branch and folder
+4. Your app will be live at `https://yourusername.github.io/web_midi_streamer/`
+
+#### Netlify, Vercel, Cloudflare Pages
+Simply connect your repository and deploy - these services automatically detect and deploy static sites for free.
+
+#### Local Static Server
+```bash
+# Serve files locally with any HTTP server
+python3 -m http.server 8080
+# or
+npx serve .
+```
+
+Then open `http://localhost:8080/?room=myroom`
+
+### Legacy Backend Deployment (Optional)
+
+If you prefer to use the original Python backend for signaling (instead of PeerJS cloud), see [Legacy Backend Setup](#legacy-backend-setup) below.
 
 ## Features
 
 - **Real-time MIDI streaming** over WebRTC data channels
+- **Backendless deployment** using PeerJS cloud signaling (free)
 - **Room-based connections** - create or join rooms via URL parameter
+- **URL sharing** - share a URL with peer ID for easy connection
 - **SysEx support** - optional support for System Exclusive messages
 - **Timestamp synchronization** - experimental feature for better timing on slow connections
 - **Accessibility** - ARIA live regions and audio feedback for MIDI events
@@ -13,6 +44,57 @@ A real-time WebRTC-based MIDI streaming application that allows two users to str
 - **Multiple MIDI devices** - support for various MIDI input and output devices
 
 ## Requirements
+
+- Modern web browser with Web MIDI API support (Chrome, Edge, Opera)
+- MIDI devices (e.g., Nord keyboards) connected to your computer
+- Internet connection (for PeerJS cloud signaling)
+
+## Quick Start
+
+1. **Deploy the app** (choose one):
+   - Upload `index.html`, `app.js`, and `style.css` to any static hosting service
+   - Or run locally: `python3 -m http.server 8080`
+
+2. **User 1**: Open the app with a room name:
+   ```
+   https://your-domain.com/?room=myroom
+   ```
+   - Click "Connect to Room"
+   - Copy the shareable URL that appears
+
+3. **User 2**: Open the shareable URL from User 1
+   - Both users will connect automatically!
+
+4. **Configure MIDI**:
+   - Grant MIDI access when prompted
+   - Select your MIDI input device (your keyboard)
+   - Select your MIDI output device (for hearing the other user)
+
+5. **Play!** - MIDI data streams directly between peers in real-time
+
+## How It Works
+
+```
+┌─────────┐                    ┌──────────────────┐                    ┌─────────┐
+│ User 1  │ ◄──── signaling ──►│ PeerJS Cloud     │◄──── signaling ────►│ User 2  │
+│ Browser │                    │ (free service)   │                    │ Browser │
+└─────────┘                    └──────────────────┘                    └─────────┘
+     │                                                                       │
+     └──────────────────── Direct P2P MIDI Data ────────────────────────────┘
+                          (WebRTC Data Channel)
+```
+
+1. Users connect to PeerJS cloud signaling server
+2. Peer IDs are shared via URL
+3. PeerJS handles all WebRTC negotiation automatically
+4. MIDI data flows directly peer-to-peer (bypasses PeerJS server)
+
+## Legacy Backend Setup
+
+<details>
+<summary>Click to expand instructions for using the original Python backend instead of PeerJS</summary>
+
+### Requirements
 
 - Python 3.8+ with UV package manager
 - Modern web browser with Web MIDI API support (Chrome, Edge, Opera)
@@ -137,33 +219,41 @@ sudo systemctl restart apache2
 
 The application will then be accessible through your Apache server while the Python backend runs on port 8000.
 
+</details>
+
 ## Settings
 
 - **Enable SysEx Support**: Allow System Exclusive messages (required for advanced keyboard features)
 - **Enable Timestamp Sync**: Experimental feature that sends MIDI data with timestamps for better timing on slow connections
 - **Enable Audio Feedback**: Accessibility feature that announces MIDI events (e.g., "C5 on", "C5 off")
+- **Show MIDI Activity**: Display MIDI events in real-time (accessibility feature)
 
 ## Architecture
+
+### Current Architecture (Backendless with PeerJS)
 
 The application consists of:
 
 1. **Frontend** (`index.html`, `app.js`, `style.css`):
    - Web MIDI API integration for device access
-   - WebRTC peer connection management
+   - PeerJS integration for WebRTC signaling
+   - WebRTC peer-to-peer data channels for MIDI streaming
    - User interface and controls
 
+2. **Signaling** (PeerJS Cloud):
+   - Free hosted signaling service
+   - Handles WebRTC negotiation (offers, answers, ICE candidates)
+   - Does NOT see or handle MIDI data
+
+### Legacy Architecture (Optional Python Backend)
+
+If using the legacy backend (see instructions above):
+
+1. **Frontend**: Same as above
 2. **Backend** (`server.py`):
    - FastAPI-based WebSocket signaling server
    - Room management (max 2 peers per room)
    - Message forwarding between peers
-
-## How It Works
-
-1. Both users connect to the signaling server via WebSocket
-2. The signaling server coordinates WebRTC offer/answer exchange
-3. A direct peer-to-peer WebRTC data channel is established
-4. MIDI data flows directly between peers over the data channel
-5. Each peer plays received MIDI data to their selected output device
 
 ## Accessibility Features
 
@@ -182,10 +272,18 @@ The code is modular and well-structured:
 
 ## Troubleshooting
 
-- **MIDI access denied**: Make sure you're using a supported browser and have MIDI devices connected
-- **Room is full**: Only 2 peers can connect to the same room. Use a different room name
+### Backendless Deployment (PeerJS)
+
+- **"Peer is not defined" error**: The PeerJS library failed to load from CDN. Check your internet connection or ad blocker settings.
+- **"Peer unavailable" error**: The other user needs to connect first and share their peer ID URL with you.
+- **Connection takes a long time**: This is normal - WebRTC negotiation can take 5-10 seconds. Wait for the "Data channel open" message.
+
+### General Issues
+
+- **MIDI access denied**: Make sure you're using a supported browser (Chrome, Edge, Opera) and have MIDI devices connected
 - **No audio**: Check your MIDI output device selection and ensure it's connected to speakers/headphones
 - **WebRTC connection fails**: This usually indicates network/firewall issues. The app uses STUN servers to help with NAT traversal
+- **Peer disconnects immediately**: Both users must keep their browser tabs open. Closing the tab disconnects the peer.
 
 ## License
 
