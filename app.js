@@ -12,13 +12,7 @@ const PEERJS_CONFIG = {
         iceServers: [
             // STUN servers for NAT traversal (public IP discovery)
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            // User's TURN server with anonymous access (if supported)
-            {
-                urls: 'turn:voice.denizsincar.ru:3478',
-                username: '',
-                credential: ''
-            }
+            { urls: 'stun:stun1.l.google.com:19302' }
         ],
         iceCandidatePoolSize: 10,
         iceTransportPolicy: 'all'
