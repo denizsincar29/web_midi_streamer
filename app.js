@@ -273,13 +273,13 @@ class MIDIStreamer {
         }
         
         // Echo back if MIDI echo is enabled
-        if (this.midiEchoEnabled && this.dataChannel && this.dataChannel.readyState === 'open') {
+        if (this.midiEchoEnabled && this.dataChannel && this.dataChannel.open) {
             // Send the same message back to the peer
             const echoMessage = this.timestampEnabled 
                 ? { data, timestamp: performance.now() }
                 : { data };
             
-            this.dataChannel.send(JSON.stringify(echoMessage));
+            this.dataChannel.send(echoMessage);
         }
     }
     
