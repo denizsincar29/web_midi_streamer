@@ -124,6 +124,12 @@ sudo a2enmod proxy proxy_http proxy_wstunnel rewrite
 
 2. Add the content from `apache-proxy.conf` to your Apache virtual host configuration
 
+   **Important**: The application automatically detects its base path from the URL. You can deploy it at:
+   - Root path: `https://yourdomain.com/` (use Example 1 in apache-proxy.conf)
+   - Subdirectory: `https://yourdomain.com/midi/` (use Example 2 in apache-proxy.conf)
+   
+   Make sure the WebSocket proxy path matches: `<base_path>/ws/`
+
 3. Restart Apache:
 ```bash
 sudo systemctl restart apache2

@@ -278,8 +278,11 @@ class MIDIStreamer {
         
         try {
             // Connect to WebSocket signaling server
+            // Use the current page's path to determine the WebSocket URL
+            // This supports deployment under subdirectories (e.g., /midi/)
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws/${this.roomName}`;
+            const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+            const wsUrl = `${protocol}//${window.location.host}${basePath}ws/${this.roomName}`;
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
