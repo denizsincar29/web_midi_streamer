@@ -25,8 +25,9 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (in_array('*', $allowedOrigins)) {
     header('Access-Control-Allow-Origin: *');
-} elseif (in_array($origin, $allowedOrigins)) {
+} elseif (!empty($origin) && in_array($origin, $allowedOrigins)) {
     header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
 }
 
 // Validate configuration
