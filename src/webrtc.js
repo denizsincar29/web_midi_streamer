@@ -1,4 +1,4 @@
-import { PEERJS_CONFIG } from './config.js';
+import { PEERJS_CONFIG, getTurnCredentials } from './config.js';
 import { generatePeerId } from './utils.js';
 
 export class WebRTCManager {
@@ -22,8 +22,20 @@ export class WebRTCManager {
     }
 
     async connect(remotePeerId = null) {
+        // Fetch fresh TURN credentials before connecting
+        this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
+        const iceServers = await getTurnCredentials();
+        
+        const config = {
+            ...PEERJS_CONFIG,
+            config: {
+                ...PEERJS_CONFIG.config,
+                iceServers
+            }
+        };
+        
         const peerId = generatePeerId();
-        this.peer = new Peer(peerId, PEERJS_CONFIG);
+        this.peer = new Peer(peerId, config);
         
         return new Promise((resolve, reject) => {
             this.peer.on('open', (id) => {
