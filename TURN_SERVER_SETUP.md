@@ -92,12 +92,12 @@ sudo ufw allow 5349/udp
 sudo ufw allow 49152:65535/udp
 ```
 
-### Update app.js Configuration
+### Update Configuration
 
-Edit `app.js` and replace the TURN server configuration:
+The app now includes free public TURN servers by default in `src/config.js`:
 
 ```javascript
-const PEERJS_CONFIG = {
+export const PEERJS_CONFIG = {
     host: '0.peerjs.com',
     port: 443,
     secure: true,
@@ -106,20 +106,41 @@ const PEERJS_CONFIG = {
             // STUN servers
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            // Your own TURN server
+            // Free public TURN servers (included by default)
             {
-                urls: 'turn:your-domain.com:3478',
-                username: 'webmidi',
-                credential: 'SecurePassword123'
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             },
             {
-                urls: 'turn:your-domain.com:5349?transport=tcp',
-                username: 'webmidi',
-                credential: 'SecurePassword123'
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             }
         ]
     }
 };
+```
+
+To use your own TURN server instead, edit `src/config.js` and replace the TURN server entries:
+
+```javascript
+// Replace openrelay.metered.ca entries with your own TURN server
+{
+    urls: 'turn:your-domain.com:3478',
+    username: 'webmidi',
+    credential: 'SecurePassword123'
+},
+{
+    urls: 'turn:your-domain.com:5349?transport=tcp',
+    username: 'webmidi',
+    credential: 'SecurePassword123'
+}
 ```
 
 ## Option 3: Use Commercial TURN Service

@@ -43,5 +43,11 @@ Thumbs.db
 # Environment variables
 .env
 
+# Configuration files with secrets
+config.php
+
 # Temporary files
 /tmp/
+
+# Old backup files
+*.old

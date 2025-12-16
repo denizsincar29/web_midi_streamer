@@ -124,11 +124,8 @@
     <!-- PeerJS Library for WebRTC signaling -->
     <script src="peerjs.min.js"></script>
     
-    <script>
-        // Cache-busting: append timestamp to script URL
-        const script = document.createElement('script');
-        script.src = 'app.js?v=' + Date.now();
-        document.body.appendChild(script);
+    <script type="module">
+        import './src/main.js';
     </script>
 </body>
 </html>
