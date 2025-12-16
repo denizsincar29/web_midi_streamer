@@ -2,18 +2,43 @@
 
 This application now uses time-limited TURN credentials for enhanced security.
 
-## Setup Instructions
+## Quick Setup
 
-### 1. Configure Your TURN Server (coturn)
+### 1. Create Your Configuration File
 
-Edit `/etc/turnserver.conf` and ensure you have:
+```bash
+# Copy the example configuration
+cp config.example.php config.php
+
+# Generate a strong secret
+openssl rand -base64 32
+```
+
+### 2. Update config.php
+
+Edit `config.php` and update these values:
+
+```php
+return [
+    'turnServer' => 'voice.denizsincar.ru',  // Your TURN server domain
+    'turnSecret' => 'YOUR_GENERATED_SECRET',  // Paste the secret from step 1
+    'ttl' => 3600,  // Credential lifetime (1 hour)
+    'allowedOrigins' => ['*'],  // For production, set to ['https://yourdomain.com']
+];
+```
+
+**Important**: `config.php` is gitignored, so your secret stays private!
+
+### 3. Configure Your TURN Server (coturn)
+
+Edit `/etc/turnserver.conf`:
 
 ```bash
 # Use authentication secret for time-limited credentials
 use-auth-secret
 
-# Your static secret (generate a strong random string)
-static-auth-secret=YOUR_RANDOM_SECRET_HERE
+# Your static secret (use the SAME secret from step 1)
+static-auth-secret=YOUR_GENERATED_SECRET
 
 # Realm (should match your domain)
 realm=voice.denizsincar.ru
@@ -41,27 +66,6 @@ cert=/path/to/cert.pem
 pkey=/path/to/privkey.pem
 ```
 
-### 2. Generate a Strong Secret
-
-```bash
-# Generate a random secret
-openssl rand -base64 32
-```
-
-Copy this secret and use it in both:
-- `/etc/turnserver.conf` → `static-auth-secret=YOUR_SECRET`
-- `get-turn-credentials.php` → `$turnSecret = 'YOUR_SECRET';`
-
-### 3. Update the PHP File
-
-Edit `get-turn-credentials.php` and replace:
-
-```php
-$turnSecret = 'YOUR_STATIC_AUTH_SECRET_HERE'; // Replace with your actual secret
-```
-
-With your actual secret from step 2.
-
 ### 4. Restart coturn
 
 ```bash
@@ -76,6 +80,21 @@ Test the TURN server with:
 ```bash
 turnutils_uclient -v voice.denizsincar.ru
 ```
+
+## Why This Approach?
+
+### No More Git Conflicts!
+
+- **config.example.php** is tracked in git (has placeholders)
+- **config.php** is gitignored (has your real secrets)
+- You can safely `git pull` without conflicts
+- Your secrets never get committed
+
+### Secure
+
+- Secrets stay on the server (never in git history)
+- Time-limited credentials (expire after 1 hour)
+- TURN REST API compliant
 
 ## How It Works
 

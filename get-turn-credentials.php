@@ -4,40 +4,49 @@
  * 
  * Generates time-limited TURN credentials using HMAC-SHA1
  * Based on the TURN REST API specification
- * 
- * IMPORTANT SECURITY NOTES:
- * 1. Replace YOUR_STATIC_AUTH_SECRET_HERE with your actual secret from turnserver.conf
- * 2. Restrict CORS to your actual domain (replace * with your domain)
- * 3. Consider using environment variables in production
  */
 
-header('Content-Type: application/json');
-
-// SECURITY: Replace * with your actual domain (e.g., 'https://yourdomain.com')
-// For development on localhost, you can use: 'http://localhost' or keep '*'
-$allowedOrigin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '*';
-if (strpos($allowedOrigin, 'localhost') !== false || strpos($allowedOrigin, '127.0.0.1') !== false) {
-    header('Access-Control-Allow-Origin: ' . $allowedOrigin);
-} else {
-    // In production, replace with your actual domain
-    header('Access-Control-Allow-Origin: *'); // TODO: Change to your domain
-}
-
-// Configuration
-$turnServer = 'voice.denizsincar.ru';
-
-// SECURITY: Replace with your actual static-auth-secret from /etc/turnserver.conf
-// Or use environment variable: $turnSecret = getenv('TURN_SECRET');
-$turnSecret = 'YOUR_STATIC_AUTH_SECRET_HERE'; // TODO: Replace this!
-
-if ($turnSecret === 'YOUR_STATIC_AUTH_SECRET_HERE') {
+// Load configuration from config.php (not tracked in git)
+if (!file_exists(__DIR__ . '/config.php')) {
     http_response_code(500);
+    header('Content-Type: application/json');
     die(json_encode([
-        'error' => 'TURN secret not configured. Please update get-turn-credentials.php'
+        'error' => 'Configuration not found. Please copy config.example.php to config.php and update with your settings.'
     ]));
 }
 
-$ttl = 3600; // Credentials valid for 1 hour
+$config = require __DIR__ . '/config.php';
+
+header('Content-Type: application/json');
+
+// CORS handling
+$allowedOrigins = $config['allowedOrigins'] ?? ['*'];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+if (in_array('*', $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: *');
+} elseif (in_array($origin, $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+}
+
+// Validate configuration
+$turnServer = $config['turnServer'] ?? '';
+$turnSecret = $config['turnSecret'] ?? '';
+$ttl = $config['ttl'] ?? 3600;
+
+if (empty($turnSecret) || $turnSecret === 'YOUR_STATIC_AUTH_SECRET_HERE') {
+    http_response_code(500);
+    die(json_encode([
+        'error' => 'TURN secret not configured. Please update config.php with your static-auth-secret'
+    ]));
+}
+
+if (empty($turnServer)) {
+    http_response_code(500);
+    die(json_encode([
+        'error' => 'TURN server not configured. Please update config.php'
+    ]));
+}
 
 // Generate time-limited credentials
 $timestamp = time() + $ttl;
