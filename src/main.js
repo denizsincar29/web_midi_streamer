@@ -98,15 +98,6 @@ class MIDIStreamer {
             this.settings.midiEchoEnabled = e.target.checked;
             this.ui.addMessage(`MIDI echo ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
         });
-        
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'copyUrlBtn') {
-                const url = document.getElementById('shareUrl').value;
-                copyToClipboard(url)
-                    .then(() => this.ui.addMessage('URL copied to clipboard!', 'success'))
-                    .catch(() => this.ui.addMessage('Failed to copy URL. Please copy manually.', 'error'));
-            }
-        });
     }
 
     async connect() {
@@ -116,7 +107,11 @@ class MIDIStreamer {
             if (shareUrl) {
                 this.ui.updateRoomName('Connected');
                 this.ui.addMessage(`Share this URL with peer: ${shareUrl}`, 'info');
-                this.ui.displayShareableUrl(shareUrl);
+                this.ui.displayShareableUrl(shareUrl, (url) => {
+                    copyToClipboard(url)
+                        .then(() => this.ui.addMessage('URL copied to clipboard!', 'success'))
+                        .catch(() => this.ui.addMessage('Failed to copy URL. Please copy manually.', 'error'));
+                });
             }
             
             this.ui.updateConnectionStatus('Waiting for peer...', 'connecting');

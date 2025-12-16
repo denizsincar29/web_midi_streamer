@@ -75,7 +75,7 @@ export class UIManager {
         }
     }
 
-    displayShareableUrl(url) {
+    displayShareableUrl(url, onCopy) {
         let shareSection = document.getElementById('shareUrlSection');
         if (!shareSection) {
             shareSection = document.createElement('div');
@@ -96,7 +96,11 @@ export class UIManager {
             const copyBtn = document.createElement('button');
             copyBtn.textContent = 'Copy URL';
             copyBtn.className = 'btn btn-secondary';
-            copyBtn.id = 'copyUrlBtn';
+            copyBtn.onclick = () => {
+                if (onCopy) {
+                    onCopy(urlInput.value);
+                }
+            };
             shareSection.appendChild(copyBtn);
             
             const roomInfo = document.querySelector('.room-info');
