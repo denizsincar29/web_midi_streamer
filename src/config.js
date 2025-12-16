@@ -1,3 +1,8 @@
+// Free public TURN servers (openrelay.metered.ca)
+// Note: These are public credentials for a free service - safe to commit
+const TURN_USERNAME = 'openrelayproject';
+const TURN_CREDENTIAL = 'openrelayproject';
+
 export const PEERJS_CONFIG = {
     host: '0.peerjs.com',
     port: 443,
@@ -8,18 +13,18 @@ export const PEERJS_CONFIG = {
             { urls: 'stun:stun1.l.google.com:19302' },
             {
                 urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                username: TURN_USERNAME,
+                credential: TURN_CREDENTIAL
             },
             {
                 urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                username: TURN_USERNAME,
+                credential: TURN_CREDENTIAL
             },
             {
                 urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
+                username: TURN_USERNAME,
+                credential: TURN_CREDENTIAL
             }
         ],
         iceCandidatePoolSize: 10,
