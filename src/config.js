@@ -1,7 +1,6 @@
-// Free public TURN servers (openrelay.metered.ca)
-// Note: These are public credentials for a free service - safe to commit
-const TURN_USERNAME = 'openrelayproject';
-const TURN_CREDENTIAL = 'openrelayproject';
+// TURN server configuration
+// Primary: Private TURN server (voice.denizsincar.ru)
+// Fallback: Free public TURN servers (openrelay.metered.ca)
 
 export const PEERJS_CONFIG = {
     host: '0.peerjs.com',
@@ -9,22 +8,32 @@ export const PEERJS_CONFIG = {
     secure: true,
     config: {
         iceServers: [
+            // STUN servers for NAT traversal
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
+            
+            // Primary TURN server (voice.denizsincar.ru)
+            {
+                urls: 'turn:voice.denizsincar.ru:3478',
+                username: 'webmidi',
+                credential: 'iamsoprowdofmyinnovativemidistreamer'
+            },
+            {
+                urls: 'turn:voice.denizsincar.ru:5349?transport=tcp',
+                username: 'webmidi',
+                credential: 'iamsoprowdofmyinnovativemidistreamer'
+            },
+            
+            // Fallback TURN servers (openrelay.metered.ca)
             {
                 urls: 'turn:openrelay.metered.ca:80',
-                username: TURN_USERNAME,
-                credential: TURN_CREDENTIAL
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             },
             {
                 urls: 'turn:openrelay.metered.ca:443',
-                username: TURN_USERNAME,
-                credential: TURN_CREDENTIAL
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: TURN_USERNAME,
-                credential: TURN_CREDENTIAL
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             }
         ],
         iceCandidatePoolSize: 10,
