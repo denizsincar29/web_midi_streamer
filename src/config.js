@@ -20,11 +20,26 @@ const DEFAULT_ICE_SERVERS = [
 // Fetch time-limited TURN credentials from backend
 export async function getTurnCredentials() {
     try {
-        const response = await fetch('/get-turn-credentials.php');
+        // Use relative path so it works in subdirectories (e.g., /midi/)
+        const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
+        
+        console.log('Fetching TURN credentials from:', credentialsUrl);
+        const response = await fetch(credentialsUrl);
+        
         if (!response.ok) {
-            throw new Error('Failed to fetch TURN credentials');
+            const errorText = await response.text();
+            console.error('TURN credentials fetch failed:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: credentialsUrl,
+                response: errorText
+            });
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
         const data = await response.json();
+        console.log('Successfully fetched TURN credentials');
         return data.iceServers;
     } catch (error) {
         console.warn('Failed to fetch dynamic TURN credentials, using fallback:', error);
