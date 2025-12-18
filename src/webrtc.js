@@ -95,7 +95,7 @@ export class WebRTCManager {
                 
                 // Check if both peers are trying to connect simultaneously
                 // In this case, only the peer with the smaller ID should keep its outgoing connection
-                if (this.isInitiatingConnection && conn.peer) {
+                if (this.isInitiatingConnection && typeof conn.peer === 'string' && conn.peer.length > 0) {
                     // We already initiated an outgoing connection
                     // Determine which connection to keep based on peer IDs
                     // Use conn.peer to get the actual peer ID of the incoming connection
@@ -109,7 +109,8 @@ export class WebRTCManager {
                         // Close our outgoing connection and accept the incoming one
                         this.onStatusUpdate('⚠️ Closing outgoing connection (accepting incoming)', 'warning');
                         if (this.dataChannel) {
-                            // Close the data channel first, then the underlying peer connection
+                            // Store peerConnection reference before closing dataChannel
+                            // to ensure we can properly clean up even if dataChannel.close() invalidates the reference
                             const peerConnection = this.dataChannel.peerConnection;
                             this.dataChannel.close();
                             this.dataChannel = null; // Clear the reference to prevent stale state
