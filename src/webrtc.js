@@ -151,6 +151,14 @@ export class WebRTCManager {
         });
     }
 
+    parseCandidateType(candidateString) {
+        // Parse the candidate type from the SDP string
+        // Example: "candidate:123456 1 udp 123456 192.168.1.1 12345 typ host"
+        if (!candidateString) return null;
+        const match = candidateString.match(/typ\s+(\w+)/);
+        return match ? match[1] : null;
+    }
+
     setupPeerConnectionMonitoring(pc) {
         pc.oniceconnectionstatechange = () => {
             const state = pc.iceConnectionState;
@@ -213,15 +221,24 @@ export class WebRTCManager {
         
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                const type = event.candidate.type;
-                const protocol = event.candidate.protocol;
-                console.log('ICE Candidate discovered:', type, protocol, event.candidate.candidate);
+                const candidate = event.candidate;
+                // Extract type from candidate - it may be in different properties depending on browser
+                const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                const protocol = candidate.protocol || '';
+                
+                // Log with fallback for missing properties
+                console.log('ICE Candidate discovered:', {
+                    type: type || 'unknown',
+                    protocol: protocol || 'unknown',
+                    candidate: candidate.candidate
+                });
+                
                 const messages = {
                     'host': '🏠 Found local network path',
                     'srflx': '🌐 Found public internet path (via STUN)',
                     'relay': '🔁 Found relay path (via TURN server)'
                 };
-                if (messages[type]) {
+                if (type && messages[type]) {
                     this.onStatusUpdate(messages[type], 'info');
                 }
             } else {
