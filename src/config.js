@@ -18,9 +18,28 @@ const DEFAULT_ICE_SERVERS = [
     {
         urls: 'stun:stun1.l.google.com:19302'
     },
-    // Fallback TURN server
+    {
+        urls: 'stun:stun2.l.google.com:19302'
+    },
+    {
+        urls: 'stun:stun3.l.google.com:19302'
+    },
+    {
+        urls: 'stun:stun4.l.google.com:19302'
+    },
+    // Multiple fallback TURN servers for better reliability
     {
         urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+    },
+    {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelayproject',
         credential: 'openrelayproject'
     }
@@ -75,7 +94,9 @@ export const PEERJS_CONFIG = {
     config: {
         iceServers: DEFAULT_ICE_SERVERS,
         iceCandidatePoolSize: 10,
-        iceTransportPolicy: 'all'
+        iceTransportPolicy: 'all',
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require'
     }
 };
 

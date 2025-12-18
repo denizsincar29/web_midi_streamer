@@ -166,7 +166,7 @@ export class WebRTCManager {
                 'checking': '🔍 Checking network connectivity...',
                 'connected': '✅ Network path established',
                 'completed': '✅ Connection completed and stable',
-                'failed': '❌ Direct P2P failed - attempting TURN relay...',
+                'failed': '❌ Connection failed - retrying with TURN relay...',
                 'disconnected': '⚠️ Connection temporarily disconnected',
                 'closed': '🔌 Connection closed'
             };
@@ -176,6 +176,26 @@ export class WebRTCManager {
             
             // Log the ICE connection state for debugging
             console.log('ICE Connection State:', state);
+            
+            // When failed, attempt to restart ICE
+            if (state === 'failed') {
+                console.error('WebRTC connection failed. Attempting ICE restart...');
+                console.error('Check:');
+                console.error('1. TURN server credentials are valid');
+                console.error('2. TURN server ports are accessible');
+                console.error('3. Browser console for ICE candidate types (looking for "relay")');
+                
+                // Attempt ICE restart to recover from failed state
+                if (pc.restartIce) {
+                    console.log('Restarting ICE to attempt recovery...');
+                    try {
+                        pc.restartIce();
+                        this.onStatusUpdate('🔄 Restarting ICE negotiation...', 'info');
+                    } catch (err) {
+                        console.error('ICE restart failed:', err);
+                    }
+                }
+            }
             
             // When connected, log the actual connection type being used
             if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
@@ -200,14 +220,6 @@ export class WebRTCManager {
                     });
                 }).catch(err => console.error('Error getting connection stats:', err));
             }
-            
-            // If failed, check if we have relay candidates
-            if (state === 'failed') {
-                console.error('WebRTC connection failed. Check:');
-                console.error('1. TURN server credentials are valid');
-                console.error('2. TURN server ports are accessible');
-                console.error('3. Browser console for ICE candidate types (looking for "relay")');
-            }
         };
         
         pc.onicegatheringstatechange = () => {
@@ -216,6 +228,27 @@ export class WebRTCManager {
                 this.onStatusUpdate('📡 Gathering network candidates...', 'info');
             } else if (pc.iceGatheringState === 'complete') {
                 this.onStatusUpdate('✅ Finished gathering network candidates', 'success');
+                
+                // Log summary of gathered candidates
+                pc.getStats().then(stats => {
+                    let hostCount = 0, srflxCount = 0, relayCount = 0;
+                    stats.forEach(report => {
+                        if (report.type === 'local-candidate') {
+                            if (report.candidateType === 'host') hostCount++;
+                            else if (report.candidateType === 'srflx') srflxCount++;
+                            else if (report.candidateType === 'relay') relayCount++;
+                        }
+                    });
+                    console.log('Candidate Summary:', {
+                        host: hostCount,
+                        srflx: srflxCount,
+                        relay: relayCount
+                    });
+                    if (relayCount === 0) {
+                        console.warn('⚠️ No TURN relay candidates found! Connection may fail across networks.');
+                        this.onStatusUpdate('⚠️ Warning: No TURN relay candidates found', 'warning');
+                    }
+                }).catch(err => console.error('Error getting stats:', err));
             }
         };
         
@@ -223,9 +256,12 @@ export class WebRTCManager {
             if (event.candidate) {
                 const candidate = event.candidate;
                 
-                // Skip logging if candidate has no meaningful data
-                if (!candidate.candidate) {
-                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
+                // Log the raw candidate for debugging
+                console.log('ICE Candidate event received:', candidate);
+                
+                // Skip if candidate string is empty (can happen during gathering)
+                if (!candidate.candidate || candidate.candidate.trim() === '') {
+                    console.log('Empty candidate string - skipping');
                     return;
                 }
                 
@@ -237,6 +273,8 @@ export class WebRTCManager {
                 console.log('ICE Candidate discovered:', {
                     type: type || 'unknown',
                     protocol: protocol || 'unknown',
+                    address: candidate.address || 'unknown',
+                    port: candidate.port || 'unknown',
                     candidate: candidate.candidate
                 });
                 
@@ -250,7 +288,7 @@ export class WebRTCManager {
                 }
             } else {
                 this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
-                console.log('ICE candidate gathering completed');
+                console.log('ICE candidate gathering completed (null candidate)');
             }
         };
     }
