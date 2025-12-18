@@ -11,6 +11,14 @@ const CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS = 60000; // Expire 1 minute early for s
 
 // Default configuration (used as fallback if credential fetch fails)
 const DEFAULT_ICE_SERVERS = [
+    // STUN servers for NAT traversal
+    {
+        urls: 'stun:stun.l.google.com:19302'
+    },
+    {
+        urls: 'stun:stun1.l.google.com:19302'
+    },
+    // Fallback TURN server
     {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',

@@ -91,9 +91,16 @@ $timestamp = time() + $ttl;
 $username = $timestamp . ':webmidi';
 $password = base64_encode(hash_hmac('sha1', $username, $turnSecret, true));
 
-// Return TURN credentials
+// Return ICE servers (STUN + TURN)
 echo json_encode([
     'iceServers' => [
+        // STUN servers for NAT traversal
+        [
+            'urls' => 'stun:stun.l.google.com:19302'
+        ],
+        [
+            'urls' => 'stun:stun1.l.google.com:19302'
+        ],
         // TURN servers with time-limited credentials
         [
             'urls' => 'turn:' . $turnServer . ':3479',
