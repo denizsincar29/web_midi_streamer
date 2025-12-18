@@ -188,10 +188,10 @@ class TURNServerTester:
             try:
                 port = int(port_str)
             except ValueError:
-                port = 3478
+                port = 3479
         else:
             host = url_part
-            port = 3478
+            port = 3479
         
         print(f"Host: {host}")
         print(f"Port: {port}")
@@ -243,10 +243,10 @@ class TURNServerTester:
             try:
                 port = int(port_str)
             except ValueError:
-                port = 3478
+                port = 3479
         else:
             host = url_part
-            port = 3478
+            port = 3479
         
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -376,7 +376,7 @@ class TURNServerTester:
         elif not any(t['success'] for t in self.test_results['connectivity_tests'] if 'turn:' in t['url']):
             print("\n⚠ RECOMMENDATION: TURN server connectivity issues detected")
             print("   Check your TURN server configuration:")
-            print("   - Verify firewall allows ports 3478, 5349, and 49152-65535")
+            print("   - Verify firewall allows ports 3479, 5350, and 49152-65535")
             print("   - Check coturn service is running: sudo systemctl status coturn")
             print("   - Verify static-auth-secret matches config.php")
     

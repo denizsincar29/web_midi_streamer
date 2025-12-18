@@ -25,7 +25,7 @@ The codebase is well-structured, modular, and follows modern JavaScript best pra
 ### Areas for Improvement
 
 1. ⚠️ **Error Recovery**: Some edge cases could have better recovery mechanisms
-2. ⚠️ **Configuration**: TURN server port 3478 (UDP) appears to be blocked
+2. ⚠️ **Configuration**: TURN server port 3479 (UDP) appears to be blocked
 3. ⚠️ **Testing**: No automated tests for the application
 4. ℹ️ **Code Comments**: Minimal inline comments (though code is self-documenting)
 
@@ -261,11 +261,11 @@ window.addEventListener('beforeunload', () => {
 
 ## TURN Server Configuration Issues
 
-### Finding: UDP Port 3478 Blocked
+### Finding: UDP Port 3479 Blocked
 
 **Test Results** (from `test_turn_server.py`):
-- ✅ Port 5349 (TCP): Working
-- ❌ Port 3478 (UDP): Connection refused
+- ✅ Port 5350 (TCP): Working
+- ❌ Port 3479 (UDP): Connection refused
 - ✅ STUN servers: Working
 - ✅ Fallback TURN: Partially working
 
@@ -277,7 +277,7 @@ window.addEventListener('beforeunload', () => {
 **Resolution**:
 ```bash
 # On the server (voice.denizsincar.ru)
-sudo ufw allow 3478/udp
+sudo ufw allow 3479/udp
 sudo systemctl restart coturn
 ```
 
@@ -319,7 +319,7 @@ python3 test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
 ### Potential Optimizations
 
 1. **Credential Caching**: Cache TURN credentials (see Issue 3.1)
-2. **UDP TURN**: Enable UDP port 3478 for lower latency
+2. **UDP TURN**: Enable UDP port 3479 for lower latency
 3. **Message Batching**: For high-frequency MIDI (not needed for typical use)
 
 ---
@@ -387,7 +387,7 @@ python3 test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
 ## Recommendations Summary
 
 ### High Priority
-1. ✅ **TURN Server UDP Port**: Open port 3478 UDP on firewall (resolved in testing documentation)
+1. ✅ **TURN Server UDP Port**: Open port 3479 UDP on firewall (resolved in testing documentation)
 2. ⚠️ **Rate Limiting**: Add rate limiting to credential endpoint
 3. ⚠️ **Error Recovery**: Add reconnection logic to WebRTC
 
@@ -422,7 +422,7 @@ See [TURN_TESTING.md](TURN_TESTING.md) for detailed testing documentation.
 
 ## Conclusion
 
-The Web MIDI Streamer is a **well-implemented application** with clean architecture and good practices. The main area for improvement is the TURN server configuration (UDP port 3478 blocked), which affects performance but not functionality.
+The Web MIDI Streamer is a **well-implemented application** with clean architecture and good practices. The main area for improvement is the TURN server configuration (UDP port 3479 blocked), which affects performance but not functionality.
 
 **Overall Grade**: **A-** (90/100)
 

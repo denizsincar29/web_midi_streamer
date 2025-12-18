@@ -96,12 +96,12 @@ echo json_encode([
     'iceServers' => [
         // TURN servers with time-limited credentials
         [
-            'urls' => 'turn:' . $turnServer . ':3478',
+            'urls' => 'turn:' . $turnServer . ':3479',
             'username' => $username,
             'credential' => $password
         ],
         [
-            'urls' => 'turn:' . $turnServer . ':5349?transport=tcp',
+            'urls' => 'turn:' . $turnServer . ':5350?transport=tcp',
             'username' => $username,
             'credential' => $password
         ],

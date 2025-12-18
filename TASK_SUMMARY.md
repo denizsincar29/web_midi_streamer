@@ -47,11 +47,11 @@ python3 test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
 |-----------|--------|-------|
 | Credential endpoint | ✅ Working | Returns valid JSON with time-limited credentials |
 | STUN servers | ✅ Working | Both Google STUN servers responding |
-| TURN (port 5349 TCP) | ✅ Working | Successfully accessible |
-| TURN (port 3478 UDP) | ❌ Blocked | Connection refused |
+| TURN (port 5350 TCP) | ✅ Working | Successfully accessible |
+| TURN (port 3479 UDP) | ❌ Blocked | Connection refused |
 | Fallback TURN | ✅ Partial | openrelay.metered.ca:80 working |
 
-**Conclusion**: TURN server is **functional** but needs UDP port 3478 opened for optimal performance.
+**Conclusion**: TURN server is **functional** but needs UDP port 3479 opened for optimal performance.
 
 ### ✅ 3. Documentation Created
 
@@ -135,8 +135,8 @@ if (cachedCredentials && now < credentialExpiry) {
 **Manual Testing**:
 1. ✅ Tested credential endpoint (denizsincar.ru/midi/get-turn-credentials.php)
 2. ✅ Verified STUN servers respond correctly
-3. ✅ Confirmed TURN server on port 5349 is accessible
-4. ✅ Identified port 3478 UDP is blocked
+3. ✅ Confirmed TURN server on port 5350 is accessible
+4. ✅ Identified port 3479 UDP is blocked
 5. ✅ Verified fallback TURN servers work
 
 **Script Testing**:
@@ -151,20 +151,20 @@ if (cachedCredentials && now < credentialExpiry) {
 **Your TURN Server**: `voice.denizsincar.ru`
 
 **Working**:
-- ✅ Port 5349 (TCP): Fully accessible
+- ✅ Port 5350 (TCP): Fully accessible
 - ✅ Credential generation: Working perfectly
 - ✅ Time-limited credentials: Properly implemented
 - ✅ STUN servers: Both responding
 
 **Needs Attention**:
-- ❌ Port 3478 (UDP): Connection refused
+- ❌ Port 3479 (UDP): Connection refused
 
 ### Impact
 
 **Current Functionality**: ✅ **Application will work globally**
 
 The application **is functional** for worldwide connections because:
-1. TURN server on port 5349 (TCP) is accessible
+1. TURN server on port 5350 (TCP) is accessible
 2. Fallback TURN servers are available
 3. WebRTC will use TCP relay when P2P fails
 
@@ -178,13 +178,13 @@ The application **is functional** for worldwide connections because:
 
 **Action Required** (on the server):
 ```bash
-# Open UDP port 3478
-sudo ufw allow 3478/udp
-sudo ufw allow 3478/tcp
+# Open UDP port 3479
+sudo ufw allow 3479/udp
+sudo ufw allow 3479/tcp
 
 # Verify coturn is listening
 sudo systemctl restart coturn
-sudo netstat -tulpn | grep 3478
+sudo netstat -tulpn | grep 3479
 
 # Test again
 python3 test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
@@ -273,7 +273,7 @@ https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
 ## Next Steps (Optional)
 
 ### High Priority
-1. **Fix UDP port 3478** - Open firewall port for better performance
+1. **Fix UDP port 3479** - Open firewall port for better performance
 2. **Monitor rate limiting** - Check if 10 req/min is sufficient
 3. **Add automated tests** - Consider unit tests for critical functions
 
@@ -302,12 +302,12 @@ https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
 
 ### TURN Server Status
 
-**Bottom Line**: Your TURN server **is working**, but needs UDP port 3478 opened for optimal performance.
+**Bottom Line**: Your TURN server **is working**, but needs UDP port 3479 opened for optimal performance.
 
 **Current State**: 
-- Application works globally (TCP relay on port 5349)
+- Application works globally (TCP relay on port 5350)
 - Performance is acceptable for MIDI streaming
-- Recommended to open UDP port 3478 for best results
+- Recommended to open UDP port 3479 for best results
 
 ### Code Quality
 
@@ -368,4 +368,4 @@ If you have questions about:
 
 **Task Completed**: 2025-12-18  
 **All Changes Committed**: Yes  
-**Ready for Production**: Yes (with recommendation to open UDP port 3478)
+**Ready for Production**: Yes (with recommendation to open UDP port 3479)
