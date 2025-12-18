@@ -94,13 +94,6 @@ $password = base64_encode(hash_hmac('sha1', $username, $turnSecret, true));
 // Return TURN credentials
 echo json_encode([
     'iceServers' => [
-        // STUN servers
-        [
-            'urls' => 'stun:stun.l.google.com:19302'
-        ],
-        [
-            'urls' => 'stun:stun1.l.google.com:19302'
-        ],
         // TURN servers with time-limited credentials
         [
             'urls' => 'turn:' . $turnServer . ':3478',
@@ -112,14 +105,9 @@ echo json_encode([
             'username' => $username,
             'credential' => $password
         ],
-        // Fallback public TURN servers
+        // Fallback public TURN server
         [
             'urls' => 'turn:openrelay.metered.ca:80',
-            'username' => 'openrelayproject',
-            'credential' => 'openrelayproject'
-        ],
-        [
-            'urls' => 'turn:openrelay.metered.ca:443',
             'username' => 'openrelayproject',
             'credential' => 'openrelayproject'
         ]
