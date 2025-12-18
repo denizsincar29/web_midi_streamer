@@ -167,9 +167,9 @@ export class WebRTCManager {
                             const localCandidateId = report.localCandidateId;
                             const remoteCandidateId = report.remoteCandidateId;
                             
-                            // Get local candidate details
-                            const localCandidate = Array.from(stats.values()).find(s => s.id === localCandidateId);
-                            const remoteCandidate = Array.from(stats.values()).find(s => s.id === remoteCandidateId);
+                            // Get local and remote candidate details using stats.get()
+                            const localCandidate = stats.get(localCandidateId);
+                            const remoteCandidate = stats.get(remoteCandidateId);
                             
                             if (localCandidate && remoteCandidate) {
                                 const connectionType = localCandidate.candidateType;
