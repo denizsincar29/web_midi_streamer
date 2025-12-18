@@ -154,8 +154,8 @@ export class WebRTCManager {
     parseCandidateType(candidateString) {
         // Parse the candidate type from the SDP string
         // Example: "candidate:123456 1 udp 123456 192.168.1.1 12345 typ host"
-        if (!candidateString) return null;
-        const match = candidateString.match(/typ\s+(\w+)/);
+        if (!candidateString || typeof candidateString !== 'string') return null;
+        const match = candidateString.match(/\styp\s+(\w+)/);
         return match ? match[1] : null;
     }
 
@@ -230,7 +230,7 @@ export class WebRTCManager {
                 console.log('ICE Candidate discovered:', {
                     type: type || 'unknown',
                     protocol: protocol || 'unknown',
-                    candidate: candidate.candidate
+                    candidate: candidate.candidate || ''
                 });
                 
                 const messages = {
