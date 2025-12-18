@@ -9,6 +9,9 @@ export class WebRTCManager {
         this.onStatusUpdate = onStatusUpdate;
         this.onConnectionStateChange = null;
         this.pingStats = this.resetPingStats();
+        this.manualDisconnect = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
     }
 
     resetPingStats() {
@@ -40,6 +43,7 @@ export class WebRTCManager {
         return new Promise((resolve, reject) => {
             this.peer.on('open', (id) => {
                 this.onStatusUpdate('✅ Connected to PeerJS signaling server', 'success');
+                this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
                 
                 if (remotePeerId) {
                     this.onStatusUpdate(`🔗 Attempting to connect to peer: ${remotePeerId}`, 'info');
@@ -67,6 +71,19 @@ export class WebRTCManager {
             
             this.peer.on('disconnected', () => {
                 this.onStatusUpdate('Disconnected from PeerJS server', 'warning');
+                
+                // Attempt automatic reconnection unless manually disconnected
+                if (!this.manualDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 5000);
+                    this.onStatusUpdate(`Reconnecting in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
+                    
+                    setTimeout(() => {
+                        if (this.peer && !this.manualDisconnect) {
+                            this.peer.reconnect();
+                        }
+                    }, delay);
+                }
             });
             
             this.peer.on('close', () => {
@@ -236,6 +253,9 @@ export class WebRTCManager {
     }
 
     disconnect() {
+        this.manualDisconnect = true; // Prevent automatic reconnection
+        this.reconnectAttempts = 0;
+        
         if (this.dataChannel) {
             this.dataChannel.close();
             this.dataChannel = null;

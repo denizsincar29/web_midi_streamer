@@ -34,6 +34,11 @@ class MIDIStreamer {
     async init() {
         this.setupEventListeners();
         
+        // Add cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            this.disconnect();
+        });
+        
         try {
             await this.midi.init();
             this.ui.addMessage('MIDI access granted', 'success');
@@ -126,6 +131,8 @@ class MIDIStreamer {
         this.ui.addMessage('Disconnected', 'info');
         this.ui.updateConnectionStatus('Disconnected', 'disconnected');
         this.ui.updateButtonStates(false, false);
+        // Re-enable automatic reconnection for future connections
+        this.webrtc.manualDisconnect = false;
     }
 
     handleMIDIInput(data) {

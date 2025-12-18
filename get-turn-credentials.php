@@ -6,18 +6,51 @@
  * Based on the TURN REST API specification
  */
 
+// Security headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: no-referrer');
+header('Content-Type: application/json');
+
+// Simple rate limiting using session
+session_start();
+$now = time();
+$sessionKey = 'credential_requests';
+
+// Initialize or clean up old requests
+if (!isset($_SESSION[$sessionKey])) {
+    $_SESSION[$sessionKey] = [];
+}
+
+// Remove requests older than 1 minute
+$_SESSION[$sessionKey] = array_filter(
+    $_SESSION[$sessionKey],
+    function($timestamp) use ($now) {
+        return $timestamp > ($now - 60);
+    }
+);
+
+// Check rate limit (max 10 requests per minute)
+if (count($_SESSION[$sessionKey]) >= 10) {
+    http_response_code(429);
+    die(json_encode([
+        'error' => 'Rate limit exceeded. Please try again later.',
+        'retry_after' => 60
+    ]));
+}
+
+// Record this request
+$_SESSION[$sessionKey][] = $now;
+
 // Load configuration from config.php (not tracked in git)
 if (!file_exists(__DIR__ . '/config.php')) {
     http_response_code(500);
-    header('Content-Type: application/json');
     die(json_encode([
         'error' => 'Configuration not found. Please copy config.example.php to config.php and update with your settings.'
     ]));
 }
 
 $config = require __DIR__ . '/config.php';
-
-header('Content-Type: application/json');
 
 // CORS handling
 $allowedOrigins = $config['allowedOrigins'] ?? ['*'];

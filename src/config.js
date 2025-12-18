@@ -1,6 +1,10 @@
 // TURN server configuration
 // Fetches time-limited credentials from backend for security
 
+// Cached credentials to avoid unnecessary server requests
+let cachedCredentials = null;
+let credentialExpiry = 0;
+
 // Default configuration (used as fallback if credential fetch fails)
 const DEFAULT_ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -19,12 +23,19 @@ const DEFAULT_ICE_SERVERS = [
 
 // Fetch time-limited TURN credentials from backend
 export async function getTurnCredentials() {
+    // Check if we have valid cached credentials
+    const now = Date.now();
+    if (cachedCredentials && now < credentialExpiry) {
+        console.log('Using cached TURN credentials (valid for', Math.floor((credentialExpiry - now) / 1000), 'seconds)');
+        return cachedCredentials;
+    }
+    
     try {
         // Use relative path so it works in subdirectories (e.g., /midi/)
         const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
         const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
         
-        console.log('Fetching TURN credentials from:', credentialsUrl);
+        console.log('Fetching fresh TURN credentials from:', credentialsUrl);
         const response = await fetch(credentialsUrl);
         
         if (!response.ok) {
@@ -39,8 +50,13 @@ export async function getTurnCredentials() {
         }
         
         const data = await response.json();
-        console.log('Successfully fetched TURN credentials');
-        return data.iceServers;
+        console.log('Successfully fetched TURN credentials (TTL:', data.ttl, 'seconds)');
+        
+        // Cache credentials, expiring 1 minute before actual expiry for safety
+        cachedCredentials = data.iceServers;
+        credentialExpiry = now + ((data.ttl || 3600) * 1000) - 60000;
+        
+        return cachedCredentials;
     } catch (error) {
         console.warn('Failed to fetch dynamic TURN credentials, using fallback:', error);
         return DEFAULT_ICE_SERVERS;
