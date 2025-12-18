@@ -95,10 +95,11 @@ export class WebRTCManager {
                 
                 // Check if both peers are trying to connect simultaneously
                 // In this case, only the peer with the smaller ID should keep its outgoing connection
-                if (this.isInitiatingConnection && this.remotePeerId) {
+                if (this.isInitiatingConnection && conn.peer) {
                     // We already initiated an outgoing connection
                     // Determine which connection to keep based on peer IDs
-                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, this.remotePeerId);
+                    // Use conn.peer to get the actual peer ID of the incoming connection
+                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, conn.peer);
                     
                     if (shouldKeepOutgoing) {
                         this.onStatusUpdate('⚠️ Rejecting incoming connection (using outgoing connection)', 'warning');
@@ -108,6 +109,10 @@ export class WebRTCManager {
                         // Close our outgoing connection and accept the incoming one
                         this.onStatusUpdate('⚠️ Closing outgoing connection (accepting incoming)', 'warning');
                         if (this.dataChannel) {
+                            // Close both the data channel and underlying peer connection
+                            if (this.dataChannel.peerConnection) {
+                                this.dataChannel.peerConnection.close();
+                            }
                             this.dataChannel.close();
                         }
                         this.isInitiatingConnection = false; // Clear the flag since we're closing outgoing
@@ -170,7 +175,6 @@ export class WebRTCManager {
     setupDataConnection(conn) {
         this.dataChannel = conn;
         this.connectionTypeReported = false; // Reset flag for new connection
-        this.hasEstablishedConnection = true; // Mark that we have a connection
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
         
         // Monitor for when peerConnection becomes available
@@ -185,6 +189,7 @@ export class WebRTCManager {
         setupMonitoring();
         
         conn.on('open', () => {
+            this.hasEstablishedConnection = true; // Mark that we have an established connection
             this.onStatusUpdate('✅ Data channel open - ready to stream MIDI!', 'success');
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(true);
