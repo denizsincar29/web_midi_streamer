@@ -229,16 +229,16 @@ export class WebRTCManager {
             } else if (pc.iceGatheringState === 'complete') {
                 this.onStatusUpdate('✅ Finished gathering network candidates', 'success');
                 
-                // Log summary of gathered candidates
+                // Log summary of gathered candidates and check for relay candidates
                 pc.getStats().then(stats => {
                     let hostCount = 0, srflxCount = 0, relayCount = 0;
-                    stats.forEach(report => {
+                    for (const report of stats.values()) {
                         if (report.type === 'local-candidate') {
                             if (report.candidateType === 'host') hostCount++;
                             else if (report.candidateType === 'srflx') srflxCount++;
                             else if (report.candidateType === 'relay') relayCount++;
                         }
-                    });
+                    }
                     console.log('Candidate Summary:', {
                         host: hostCount,
                         srflx: srflxCount,
@@ -259,14 +259,15 @@ export class WebRTCManager {
                 // Log the raw candidate for debugging
                 console.log('ICE Candidate event received:', candidate);
                 
-                // Skip if candidate string is empty (can happen during gathering)
-                if (!candidate.candidate || candidate.candidate.trim() === '') {
+                // Skip if candidate string is empty or whitespace-only
+                const candidateStr = candidate.candidate;
+                if (!candidateStr || candidateStr.trim() === '') {
                     console.log('Empty candidate string - skipping');
                     return;
                 }
                 
                 // Extract type from candidate - it may be in different properties depending on browser
-                const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                const type = candidate.type || this.parseCandidateType(candidateStr);
                 const protocol = candidate.protocol || '';
                 
                 // Log with fallback for missing properties
@@ -275,7 +276,7 @@ export class WebRTCManager {
                     protocol: protocol || 'unknown',
                     address: candidate.address || 'unknown',
                     port: candidate.port || 'unknown',
-                    candidate: candidate.candidate
+                    candidate: candidateStr
                 });
                 
                 const messages = {

@@ -45,6 +45,8 @@ const DEFAULT_ICE_SERVERS = [
         credential: 'openrelayproject'
     },
     // Backup TURN servers using different providers
+    // Note: These are public free TURN servers with publicly available credentials
+    // For production, use your own TURN server via getTurnCredentials() or commercial service
     {
         urls: [
             'turn:relay1.expressturn.com:3478',
