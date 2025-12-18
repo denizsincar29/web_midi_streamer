@@ -1,5 +1,5 @@
 import { PEERJS_CONFIG, getTurnCredentials } from './config.js';
-import { generatePeerId } from './utils.js';
+import { generatePeerId, shouldForceTurnRelay } from './utils.js';
 
 export class WebRTCManager {
     constructor(onMessage, onStatusUpdate) {
@@ -12,6 +12,7 @@ export class WebRTCManager {
         this.manualDisconnect = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        this.connectionTypeReported = false; // Flag to report connection type only once
         
         // Reconnection constants
         this.RECONNECT_BASE_DELAY_MS = 1000;
@@ -40,11 +41,19 @@ export class WebRTCManager {
         this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
         const iceServers = await getTurnCredentials();
         
+        // Check if we should force TURN relay for testing
+        const forceTurn = shouldForceTurnRelay();
+        if (forceTurn) {
+            this.onStatusUpdate('⚠️ TURN relay mode: Forcing relay connection (P2P disabled)', 'warning');
+        }
+        
         const config = {
             ...PEERJS_CONFIG,
             config: {
                 ...PEERJS_CONFIG.config,
-                iceServers
+                iceServers,
+                // Force relay when testing TURN connectivity
+                iceTransportPolicy: forceTurn ? 'relay' : 'all'
             }
         };
         
@@ -105,6 +114,7 @@ export class WebRTCManager {
 
     setupDataConnection(conn) {
         this.dataChannel = conn;
+        this.connectionTypeReported = false; // Reset flag for new connection
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
         
         // Monitor for when peerConnection becomes available
@@ -141,6 +151,14 @@ export class WebRTCManager {
         });
     }
 
+    parseCandidateType(candidateString) {
+        // Parse the candidate type from the SDP string
+        // Example: "candidate:123456 1 udp 123456 192.168.1.1 12345 typ host"
+        if (!candidateString || typeof candidateString !== 'string') return null;
+        const match = candidateString.match(/\styp\s+(\w+)/);
+        return match ? match[1] : null;
+    }
+
     setupPeerConnectionMonitoring(pc) {
         pc.oniceconnectionstatechange = () => {
             const state = pc.iceConnectionState;
@@ -159,34 +177,28 @@ export class WebRTCManager {
             // Log the ICE connection state for debugging
             console.log('ICE Connection State:', state);
             
-            // When connected, log which candidate pair was selected
-            if (state === 'connected' || state === 'completed') {
+            // When connected, log the actual connection type being used
+            if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
+                this.connectionTypeReported = true; // Report only once per connection
                 pc.getStats().then(stats => {
                     stats.forEach(report => {
                         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                            const localCandidateId = report.localCandidateId;
-                            const remoteCandidateId = report.remoteCandidateId;
-                            
-                            // Get local and remote candidate details using stats.get()
-                            const localCandidate = stats.get(localCandidateId);
-                            const remoteCandidate = stats.get(remoteCandidateId);
-                            
+                            const localCandidate = stats.get(report.localCandidateId);
+                            const remoteCandidate = stats.get(report.remoteCandidateId);
                             if (localCandidate && remoteCandidate) {
                                 const connectionType = localCandidate.candidateType;
-                                const isRelay = connectionType === 'relay';
-                                const connectionMsg = isRelay 
-                                    ? `🔁 Using TURN relay connection (${localCandidate.protocol || 'unknown'})` 
-                                    : `🏠 Using ${connectionType} connection (${localCandidate.protocol || 'unknown'})`;
-                                
-                                console.log('Active connection type:', connectionType, {
-                                    local: localCandidate,
-                                    remote: remoteCandidate
-                                });
-                                this.onStatusUpdate(connectionMsg, isRelay ? 'warning' : 'success');
+                                console.log('Active connection type:', connectionType);
+                                if (connectionType === 'relay') {
+                                    this.onStatusUpdate('🔁 Using TURN relay connection', 'success');
+                                } else if (connectionType === 'srflx') {
+                                    this.onStatusUpdate('🌐 Using P2P via STUN (public IP)', 'success');
+                                } else if (connectionType === 'host') {
+                                    this.onStatusUpdate('🏠 Using direct P2P (local network)', 'success');
+                                }
                             }
                         }
                     });
-                }).catch(err => console.warn('Failed to get connection stats:', err));
+                }).catch(err => console.error('Error getting connection stats:', err));
             }
             
             // If failed, check if we have relay candidates
@@ -209,14 +221,31 @@ export class WebRTCManager {
         
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                const type = event.candidate.type;
-                console.log('ICE Candidate discovered:', type, event.candidate.candidate);
+                const candidate = event.candidate;
+                
+                // Skip logging if candidate has no meaningful data
+                if (!candidate.candidate) {
+                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
+                    return;
+                }
+                
+                // Extract type from candidate - it may be in different properties depending on browser
+                const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                const protocol = candidate.protocol || '';
+                
+                // Log with fallback for missing properties
+                console.log('ICE Candidate discovered:', {
+                    type: type || 'unknown',
+                    protocol: protocol || 'unknown',
+                    candidate: candidate.candidate
+                });
+                
                 const messages = {
                     'host': '🏠 Found local network path',
                     'srflx': '🌐 Found public internet path (via STUN)',
                     'relay': '🔁 Found relay path (via TURN server)'
                 };
-                if (messages[type]) {
+                if (type && messages[type]) {
                     this.onStatusUpdate(messages[type], 'info');
                 }
             } else {

@@ -5,6 +5,11 @@ export function getRemotePeerIdFromURL() {
     return params.get('peer') || null;
 }
 
+export function shouldForceTurnRelay() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('forceTurn') === 'true';
+}
+
 export function getNoteName(midiNote) {
     const octave = Math.floor(midiNote / 12) - 1;
     const noteName = NOTE_NAMES[midiNote % 12];
