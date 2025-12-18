@@ -224,7 +224,7 @@ export class WebRTCManager {
                 const candidate = event.candidate;
                 
                 // Skip logging if candidate has no meaningful data
-                if (!candidate.candidate || candidate.candidate === '') {
+                if (!candidate.candidate) {
                     console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
                     return;
                 }
