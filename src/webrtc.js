@@ -16,6 +16,7 @@ export class WebRTCManager {
         this.myPeerId = null; // Store our peer ID
         this.remotePeerId = null; // Store remote peer ID
         this.hasEstablishedConnection = false; // Flag to prevent duplicate connections
+        this.isInitiatingConnection = false; // Flag to track if we're currently initiating an outgoing connection
         
         // Reconnection constants
         this.RECONNECT_BASE_DELAY_MS = 1000;
@@ -74,6 +75,7 @@ export class WebRTCManager {
                     // Always initiate connection when we have a remotePeerId
                     // This is the normal flow where user joins via shared URL
                     this.onStatusUpdate(`🔗 Initiating connection to peer: ${remotePeerId}`, 'info');
+                    this.isInitiatingConnection = true; // Mark that we're initiating an outgoing connection
                     const conn = this.peer.connect(remotePeerId, { reliable: true });
                     this.setupDataConnection(conn);
                     resolve(null);
@@ -93,10 +95,10 @@ export class WebRTCManager {
                 
                 // Check if both peers are trying to connect simultaneously
                 // In this case, only the peer with the smaller ID should keep its outgoing connection
-                if (this.dataChannel && remotePeerId) {
+                if (this.isInitiatingConnection && this.remotePeerId) {
                     // We already initiated an outgoing connection
                     // Determine which connection to keep based on peer IDs
-                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, remotePeerId);
+                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, this.remotePeerId);
                     
                     if (shouldKeepOutgoing) {
                         this.onStatusUpdate('⚠️ Rejecting incoming connection (using outgoing connection)', 'warning');
@@ -108,7 +110,8 @@ export class WebRTCManager {
                         if (this.dataChannel) {
                             this.dataChannel.close();
                         }
-                        this.hasEstablishedConnection = false;
+                        this.isInitiatingConnection = false; // Clear the flag since we're closing outgoing
+                        // Note: hasEstablishedConnection will be set when the incoming connection opens
                     }
                 }
                 
@@ -148,13 +151,17 @@ export class WebRTCManager {
     }
     
     /**
-     * Determines if this peer should initiate the connection based on peer ID comparison.
-     * The peer with the lexicographically smaller ID always initiates to prevent
-     * simultaneous bidirectional connection attempts that can cause ICE issues.
+     * Determines which peer should keep its connection during simultaneous connection attempts.
+     * When both peers try to connect to each other at the same time, this method uses
+     * lexicographic peer ID comparison to deterministically choose which connection to keep.
+     * This prevents duplicate PeerConnections that can cause ICE candidate pair issues.
+     * 
+     * The peer with the lexicographically smaller ID keeps its outgoing connection,
+     * while the peer with the larger ID closes its outgoing connection and accepts the incoming one.
      * 
      * @param {string} myId - This peer's ID
      * @param {string} remoteId - Remote peer's ID
-     * @returns {boolean} True if this peer should initiate the connection
+     * @returns {boolean} True if this peer should keep its outgoing connection (i.e., myId < remoteId)
      */
     shouldInitiateConnection(myId, remoteId) {
         return myId < remoteId;
@@ -191,6 +198,7 @@ export class WebRTCManager {
         conn.on('close', () => {
             this.onStatusUpdate('Peer disconnected', 'warning');
             this.hasEstablishedConnection = false; // Reset flag on disconnect
+            this.isInitiatingConnection = false; // Reset initiating flag on disconnect
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(false);
             }
@@ -397,6 +405,7 @@ export class WebRTCManager {
         this.manualDisconnect = true; // Prevent automatic reconnection
         this.reconnectAttempts = 0;
         this.hasEstablishedConnection = false; // Reset connection flag
+        this.isInitiatingConnection = false; // Reset initiating flag
         
         if (this.dataChannel) {
             this.dataChannel.close();
