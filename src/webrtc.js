@@ -12,6 +12,7 @@ export class WebRTCManager {
         this.manualDisconnect = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        this.connectionTypeReported = false; // Flag to report connection type only once
         
         // Reconnection constants
         this.RECONNECT_BASE_DELAY_MS = 1000;
@@ -113,6 +114,7 @@ export class WebRTCManager {
 
     setupDataConnection(conn) {
         this.dataChannel = conn;
+        this.connectionTypeReported = false; // Reset flag for new connection
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
         
         // Monitor for when peerConnection becomes available
@@ -168,7 +170,8 @@ export class WebRTCManager {
             console.log('ICE Connection State:', state);
             
             // When connected, log the actual connection type being used
-            if (state === 'connected' || state === 'completed') {
+            if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
+                this.connectionTypeReported = true; // Report only once per connection
                 pc.getStats().then(stats => {
                     stats.forEach(report => {
                         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
