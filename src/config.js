@@ -5,6 +5,10 @@
 let cachedCredentials = null;
 let credentialExpiry = 0;
 
+// Configuration constants
+const DEFAULT_TTL_SECONDS = 3600; // 1 hour
+const CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS = 60000; // Expire 1 minute early for safety
+
 // Default configuration (used as fallback if credential fetch fails)
 const DEFAULT_ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -54,7 +58,7 @@ export async function getTurnCredentials() {
         
         // Cache credentials, expiring 1 minute before actual expiry for safety
         cachedCredentials = data.iceServers;
-        credentialExpiry = now + ((data.ttl || 3600) * 1000) - 60000;
+        credentialExpiry = now + ((data.ttl || DEFAULT_TTL_SECONDS) * 1000) - CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS;
         
         return cachedCredentials;
     } catch (error) {

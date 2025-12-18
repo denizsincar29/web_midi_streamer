@@ -6,6 +6,10 @@
  * Based on the TURN REST API specification
  */
 
+// Configuration constants
+define('RATE_LIMIT_WINDOW_SECONDS', 60);
+define('MAX_REQUESTS_PER_MINUTE', 10);
+
 // Security headers
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
@@ -22,20 +26,20 @@ if (!isset($_SESSION[$sessionKey])) {
     $_SESSION[$sessionKey] = [];
 }
 
-// Remove requests older than 1 minute
+// Remove requests older than the rate limit window
 $_SESSION[$sessionKey] = array_filter(
     $_SESSION[$sessionKey],
     function($timestamp) use ($now) {
-        return $timestamp > ($now - 60);
+        return $timestamp > ($now - RATE_LIMIT_WINDOW_SECONDS);
     }
 );
 
-// Check rate limit (max 10 requests per minute)
-if (count($_SESSION[$sessionKey]) >= 10) {
+// Check rate limit
+if (count($_SESSION[$sessionKey]) >= MAX_REQUESTS_PER_MINUTE) {
     http_response_code(429);
     die(json_encode([
         'error' => 'Rate limit exceeded. Please try again later.',
-        'retry_after' => 60
+        'retry_after' => RATE_LIMIT_WINDOW_SECONDS
     ]));
 }
 

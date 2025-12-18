@@ -22,6 +22,7 @@ import hashlib
 import hmac
 import asyncio
 import time
+import os
 from urllib.parse import urlparse
 from typing import Dict, List, Optional, Tuple
 
@@ -31,13 +32,16 @@ except ImportError:
     print("ERROR: requests library not found. Install with: pip install requests")
     sys.exit(1)
 
+# Optional dependency for advanced WebRTC testing
 try:
     import aiortc
     from aiortc import RTCPeerConnection, RTCConfiguration, RTCIceServer
+    AIORTC_AVAILABLE = True
 except ImportError:
+    AIORTC_AVAILABLE = False
     print("WARNING: aiortc library not found. Advanced WebRTC testing unavailable.")
     print("Install with: pip install aiortc")
-    aiortc = None
+    print()
 
 
 class TURNServerTester:
@@ -243,7 +247,6 @@ class TURNServerTester:
             # Message Length: 0 (no attributes)
             # Magic Cookie: 0x2112A442
             # Transaction ID: 96-bit random value
-            import os
             transaction_id = os.urandom(12)
             
             # Build STUN message
@@ -269,7 +272,7 @@ class TURNServerTester:
     
     async def test_webrtc_connection(self) -> bool:
         """Test actual WebRTC connection with TURN server (requires aiortc)"""
-        if not aiortc:
+        if not AIORTC_AVAILABLE:
             print("\n⚠ Skipping WebRTC test (aiortc not installed)")
             return False
         
@@ -413,7 +416,7 @@ class TURNServerTester:
             })
         
         # Test 4: WebRTC test (if aiortc available)
-        if aiortc:
+        if AIORTC_AVAILABLE:
             await self.test_webrtc_connection()
         
         # Print summary

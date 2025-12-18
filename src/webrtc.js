@@ -12,6 +12,17 @@ export class WebRTCManager {
         this.manualDisconnect = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
+        
+        // Reconnection constants
+        this.RECONNECT_BASE_DELAY_MS = 1000;
+        this.RECONNECT_BACKOFF_MULTIPLIER = 2;
+        this.RECONNECT_MAX_DELAY_MS = 5000;
+    }
+    
+    calculateReconnectDelay() {
+        const exponentialDelay = this.RECONNECT_BASE_DELAY_MS * 
+            Math.pow(this.RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts - 1);
+        return Math.min(exponentialDelay, this.RECONNECT_MAX_DELAY_MS);
     }
 
     resetPingStats() {
@@ -75,7 +86,7 @@ export class WebRTCManager {
                 // Attempt automatic reconnection unless manually disconnected
                 if (!this.manualDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
-                    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 5000);
+                    const delay = this.calculateReconnectDelay();
                     this.onStatusUpdate(`Reconnecting in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
                     
                     setTimeout(() => {
