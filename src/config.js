@@ -60,6 +60,17 @@ export async function getTurnCredentials() {
     }
 }
 
+// Check URL parameter to force TURN relay for testing
+// Usage: ?forceTurn=true to disable direct P2P and test TURN server
+function getIceTransportPolicy() {
+    const params = new URLSearchParams(window.location.search);
+    const forceTurn = params.get('forceTurn') === 'true';
+    if (forceTurn) {
+        console.warn('⚠️ TURN RELAY MODE: Forcing all connections through TURN server (no direct P2P)');
+    }
+    return forceTurn ? 'relay' : 'all';
+}
+
 export const PEERJS_CONFIG = {
     host: '0.peerjs.com',
     port: 443,
@@ -67,7 +78,7 @@ export const PEERJS_CONFIG = {
     config: {
         iceServers: DEFAULT_ICE_SERVERS,
         iceCandidatePoolSize: 10,
-        iceTransportPolicy: 'all'
+        iceTransportPolicy: getIceTransportPolicy()
     }
 };
 

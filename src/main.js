@@ -34,6 +34,12 @@ class MIDIStreamer {
     async init() {
         this.setupEventListeners();
         
+        // Check if TURN relay mode is enabled
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('forceTurn') === 'true') {
+            this.ui.addMessage('⚠️ TURN RELAY MODE: All connections will use TURN server (no direct P2P)', 'warning');
+        }
+        
         // Add cleanup on page unload
         window.addEventListener('beforeunload', () => {
             this.disconnect();

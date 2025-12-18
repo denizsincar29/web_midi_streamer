@@ -159,6 +159,36 @@ export class WebRTCManager {
             // Log the ICE connection state for debugging
             console.log('ICE Connection State:', state);
             
+            // When connected, log which candidate pair was selected
+            if (state === 'connected' || state === 'completed') {
+                pc.getStats().then(stats => {
+                    stats.forEach(report => {
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            const localCandidateId = report.localCandidateId;
+                            const remoteCandidateId = report.remoteCandidateId;
+                            
+                            // Get local candidate details
+                            const localCandidate = Array.from(stats.values()).find(s => s.id === localCandidateId);
+                            const remoteCandidate = Array.from(stats.values()).find(s => s.id === remoteCandidateId);
+                            
+                            if (localCandidate && remoteCandidate) {
+                                const connectionType = localCandidate.candidateType;
+                                const isRelay = connectionType === 'relay';
+                                const connectionMsg = isRelay 
+                                    ? `🔁 Using TURN relay connection (${localCandidate.protocol || 'unknown'})` 
+                                    : `🏠 Using ${connectionType} connection (${localCandidate.protocol || 'unknown'})`;
+                                
+                                console.log('Active connection type:', connectionType, {
+                                    local: localCandidate,
+                                    remote: remoteCandidate
+                                });
+                                this.onStatusUpdate(connectionMsg, isRelay ? 'warning' : 'success');
+                            }
+                        }
+                    });
+                }).catch(err => console.warn('Failed to get connection stats:', err));
+            }
+            
             // If failed, check if we have relay candidates
             if (state === 'failed') {
                 console.error('WebRTC connection failed. Check:');
