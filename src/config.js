@@ -28,6 +28,7 @@ const DEFAULT_ICE_SERVERS = [
         urls: 'stun:stun4.l.google.com:19302'
     },
     // Multiple fallback TURN servers for better reliability
+    // Using multiple servers and transports for better connectivity
     {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
@@ -42,6 +43,25 @@ const DEFAULT_ICE_SERVERS = [
         urls: 'turn:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelayproject',
         credential: 'openrelayproject'
+    },
+    // Backup TURN servers using different providers
+    {
+        urls: [
+            'turn:relay1.expressturn.com:3478',
+            'turns:relay1.expressturn.com:5349'
+        ],
+        username: 'efKFD8V5M6C8U68GAM',
+        credential: 'kSl2BLRM8bNU4Z3i'
+    },
+    {
+        urls: [
+            'turn:a.relay.metered.ca:80',
+            'turn:a.relay.metered.ca:80?transport=tcp',
+            'turn:a.relay.metered.ca:443',
+            'turns:a.relay.metered.ca:443'
+        ],
+        username: '53a57e943919d1679fa6b866',
+        credential: 'L1C/CTTQuRjNnx9u'
     }
 ];
 
