@@ -52,7 +52,7 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
 ## Quick Start
 
 1. **Deploy the app** (choose one):
-   - Upload `index.html`, `app.js`, `peerjs.min.js` (included), and `style.css` to any static hosting service
+   - Upload all files to any static hosting service (GitHub Pages, Netlify, Vercel, etc.)
    - Or run locally: `python3 -m http.server 8080`
 
 2. **User 1**: Open the app:
@@ -112,137 +112,16 @@ The app uses free public TURN servers by default. For production deployments or 
 
 The included free TURN servers should work fine for personal use and testing.
 
-## Legacy Backend Setup
+### Testing TURN Connectivity
 
-<details>
-<summary>Click to expand instructions for using the original Python backend instead of PeerJS</summary>
+To test that TURN relay is working correctly, you can force the app to use only TURN relay (disabling direct P2P):
 
-### Requirements
+1. Add `?forceTurn=true` to the URL when both users connect
+2. Example: `https://your-domain.com/?forceTurn=true`
+3. The app will display "TURN relay mode" message
+4. Check the browser console to see "relay" type ICE candidates
 
-- Python 3.8+ with UV package manager
-- Modern web browser with Web MIDI API support (Chrome, Edge, Opera)
-- MIDI devices (e.g., Nord keyboards) connected to your computer
-
-## Installation
-
-1. Install UV package manager (if not already installed):
-```bash
-pip install uv
-```
-
-2. The dependencies will be automatically installed when you run the server using `uv run`.
-
-## Configuration
-
-The server can be configured using environment variables. Create a `.env` file in the project root:
-
-```bash
-# Copy the example configuration
-cp .env.example .env
-```
-
-Available configuration options:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `HOST` | Server host address | `0.0.0.0` |
-| `PORT` | Server port | `8000` |
-| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | `INFO` |
-| `CORS_ORIGINS` | Allowed CORS origins (comma-separated or `*` for all) | `*` |
-
-Example `.env`:
-```env
-HOST=0.0.0.0
-PORT=9000
-LOG_LEVEL=DEBUG
-CORS_ORIGINS=http://localhost:3000,https://example.com
-```
-
-## Usage
-
-### Quick Start
-
-Start the server using UV (recommended):
-```bash
-uv run server.py
-```
-
-Or using Python directly:
-```bash
-python server.py
-```
-
-The server will start on `http://localhost:8000` by default (or the port specified in your `.env` file).
-
-### Connecting Users
-
-1. Open the application in two browser windows/tabs:
-   - User 1: `http://localhost:8000/?room=myroom`
-   - User 2: `http://localhost:8000/?room=myroom`
-
-2. In each browser:
-   - Grant MIDI access when prompted
-   - Select your MIDI input device (your keyboard)
-   - Select your MIDI output device (for hearing the other user)
-   - Click "Connect to Room"
-
-3. Once both users are connected, play your MIDI keyboards and you'll hear each other in real-time!
-
-## Production Deployment
-
-### Systemd Service (Linux)
-
-For production deployment on Linux servers, use the provided setup script:
-
-```bash
-./setup-systemd.sh
-```
-
-This will create a systemd service file. Follow the instructions printed by the script to install and start the service.
-
-The service will:
-- Run as the current user
-- Auto-restart on failure
-- Log to system journal
-- Start automatically on boot (if enabled)
-
-To manage the service:
-```bash
-# Start the service
-sudo systemctl start web-midi-streamer.service
-
-# Stop the service
-sudo systemctl stop web-midi-streamer.service
-
-# View logs
-sudo journalctl -u web-midi-streamer.service -f
-```
-
-### Apache Reverse Proxy
-
-To run behind Apache, use the provided configuration:
-
-1. Enable required Apache modules:
-```bash
-sudo a2enmod proxy proxy_http proxy_wstunnel rewrite
-```
-
-2. Add the content from `apache-proxy.conf` to your Apache virtual host configuration
-
-   **Important**: The application automatically detects its base path from the URL. You can deploy it at:
-   - Root path: `https://yourdomain.com/` (use Example 1 in apache-proxy.conf)
-   - Subdirectory: `https://yourdomain.com/midi/` (use Example 2 in apache-proxy.conf)
-   
-   Make sure the WebSocket proxy path matches: `<base_path>/ws/`
-
-3. Restart Apache:
-```bash
-sudo systemctl restart apache2
-```
-
-The application will then be accessible through your Apache server while the Python backend runs on port 8000.
-
-</details>
+This helps verify your TURN server is configured correctly.
 
 ## Settings
 
@@ -253,11 +132,9 @@ The application will then be accessible through your Apache server while the Pyt
 
 ## Architecture
 
-### Current Architecture (Backendless with PeerJS)
+The application is a modern single-page application (SPA) with no backend requirements:
 
-The application consists of:
-
-1. **Frontend** (`index.html`, `app.js`, `style.css`):
+1. **Frontend** (`index.html`, `src/*.js`, `style.css`):
    - Web MIDI API integration for device access
    - PeerJS integration for WebRTC signaling
    - WebRTC peer-to-peer data channels for MIDI streaming
@@ -268,15 +145,21 @@ The application consists of:
    - Handles WebRTC negotiation (offers, answers, ICE candidates)
    - Does NOT see or handle MIDI data
 
-### Legacy Architecture (Optional Python Backend)
+3. **TURN Credentials** (Optional PHP backend):
+   - `get-turn-credentials.php` - Generates time-limited TURN credentials
+   - Only needed if using your own TURN server
+   - Can be deployed alongside static files or separately
 
-If using the legacy backend (see instructions above):
+### Code Structure
 
-1. **Frontend**: Same as above
-2. **Backend** (`server.py`):
-   - FastAPI-based WebSocket signaling server
-   - Room management (max 2 peers per room)
-   - Message forwarding between peers
+The code is modular and well-organized:
+
+- `src/main.js` - Application entry point and orchestration
+- `src/webrtc.js` - WebRTC connection management and PeerJS integration
+- `src/midi.js` - MIDI device handling and message processing
+- `src/ui.js` - User interface updates and DOM manipulation
+- `src/config.js` - Configuration and TURN credential management
+- `src/utils.js` - Utility functions
 
 ## Accessibility Features
 
@@ -287,26 +170,52 @@ If using the legacy backend (see instructions above):
 
 ## Development
 
-The code is modular and well-structured:
+The code is modular and well-structured with clear separation of concerns:
 
-- `MIDIStreamer` class handles all application logic
-- Clear separation between MIDI handling, WebRTC, and UI
+- **MIDIManager** class handles MIDI device access and messaging
+- **WebRTCManager** class handles peer connections and data channels
+- **UIManager** class handles user interface updates
+- **Main application** orchestrates all components
+
+### Development Server
+
+```bash
+# Serve the application locally
+python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+### Code Quality
+
 - Comprehensive error handling and user feedback
+- Modular ES6 modules for maintainability
+- Accessibility features with ARIA support
+- Clean separation between MIDI, WebRTC, and UI logic
 
 ## Troubleshooting
 
-### Backendless Deployment (PeerJS)
+### Connection Issues
 
-- **"Peer is not defined" error**: The PeerJS library failed to load from CDN. Check your internet connection or ad blocker settings.
+- **"Peer is not defined" error**: The PeerJS library failed to load. Check your internet connection or ad blocker settings.
 - **"Peer unavailable" error**: The other user needs to connect first and share their peer ID URL with you.
-- **Connection takes a long time**: This is normal - WebRTC negotiation can take 5-10 seconds. Wait for the "Data channel open" message.
+- **Connection takes a long time**: WebRTC negotiation can take 5-10 seconds. Wait for the "Data channel open" message.
+- **Connection fails entirely**: 
+  - Ensure both users have internet access
+  - Check browser console for specific error messages
+  - Verify TURN servers are accessible (see testing section above)
+  - Try the `?forceTurn=true` mode to test TURN relay
 
-### General Issues
+### MIDI Issues
 
 - **MIDI access denied**: Make sure you're using a supported browser (Chrome, Edge, Opera) and have MIDI devices connected
 - **No audio**: Check your MIDI output device selection and ensure it's connected to speakers/headphones
-- **WebRTC connection fails**: This usually indicates network/firewall issues. The app uses STUN servers to help with NAT traversal
+- **Devices not appearing**: Click "Refresh Devices" button or reconnect your MIDI device
+
+### General Issues
+
 - **Peer disconnects immediately**: Both users must keep their browser tabs open. Closing the tab disconnects the peer.
+- **High latency**: This may indicate TURN relay is being used instead of direct P2P. Direct P2P has lower latency.
+- **Status stuck on "Connecting"**: Reload the page and try again. Check browser console for errors.
 
 ## License
 
