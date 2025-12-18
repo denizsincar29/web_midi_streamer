@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "requests>=2.31.0",
+# ]
+# ///
 """
 TURN Server Testing Script
 
@@ -8,10 +13,14 @@ This script tests the TURN server by:
 3. Validating that the TURN server is properly configured
 
 Usage:
-    python test_turn_server.py <credentials_url>
+    uv run test_turn_server.py <credentials_url>
     
 Example:
-    python test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
+    uv run test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
+
+Note:
+    - aiortc is optional for advanced WebRTC testing but not required
+    - To install aiortc separately: pip install aiortc
 """
 
 import sys
@@ -428,8 +437,10 @@ class TURNServerTester:
 def main():
     """Main entry point"""
     if len(sys.argv) < 2:
-        print("Usage: python test_turn_server.py <credentials_url>")
+        print("Usage: uv run test_turn_server.py <credentials_url>")
         print("\nExample:")
+        print("  uv run test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php")
+        print("\nAlternatively with python:")
         print("  python test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php")
         print("\nThis script will:")
         print("  1. Fetch credentials from the endpoint")
