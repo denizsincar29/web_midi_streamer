@@ -37,11 +37,9 @@ export class WebRTCManager {
     }
 
     async connect(remotePeerId = null) {
-        // Fetch fresh TURN credentials before connecting
-        this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
-        const iceServers = await getTurnCredentials();
+        // Fetch fresh TURN credentials before connecting, passing status callback
+        const iceServers = await getTurnCredentials((msg, type) => this.onStatusUpdate(msg, type));
         
-        // Check if we should force TURN relay for testing
         const forceTurn = shouldForceTurnRelay();
         if (forceTurn) {
             this.onStatusUpdate('⚠️ TURN relay mode: Forcing relay connection (P2P disabled)', 'warning');
@@ -52,7 +50,6 @@ export class WebRTCManager {
             config: {
                 ...PEERJS_CONFIG.config,
                 iceServers,
-                // Force relay when testing TURN connectivity
                 iceTransportPolicy: forceTurn ? 'relay' : 'all'
             }
         };
@@ -114,132 +111,50 @@ export class WebRTCManager {
 
     setupDataConnection(conn) {
         this.dataChannel = conn;
-        this.connectionTypeReported = false; // Reset flag for new connection
+        this.connectionTypeReported = false;
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
-        
-        // Monitor for when peerConnection becomes available
-        const setupMonitoring = () => {
+
+        // PeerJS lazy-creates the peerConnection, so we need to wait for it
+        const monitor = () => {
             if (conn.peerConnection) {
                 this.setupPeerConnectionMonitoring(conn.peerConnection);
             } else {
-                // PeerConnection not ready yet, try again soon
-                setTimeout(setupMonitoring, 50);
+                setTimeout(monitor, 50);
             }
         };
-        setupMonitoring();
-        
+        monitor();
+
         conn.on('open', () => {
             this.onStatusUpdate('✅ Data channel open - ready to stream MIDI!', 'success');
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(true);
             }
         });
-        
-        conn.on('data', (data) => {
-            this.handleIncomingData(data);
-        });
-        
+
+        conn.on('data', (data) => this.handleIncomingData(data));
         conn.on('close', () => {
             this.onStatusUpdate('Peer disconnected', 'warning');
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(false);
             }
         });
-        
-        conn.on('error', (err) => {
-            this.onStatusUpdate(`❌ Data channel error: ${err.message}`, 'error');
-        });
+        conn.on('error', (err) => this.onStatusUpdate(`❌ Data channel error: ${err.message}`, 'error'));
     }
 
-    parseCandidateType(candidateString) {
-        // Parse the candidate type from the SDP string
-        // Example: "candidate:123456 1 udp 123456 192.168.1.1 12345 typ host"
-        if (!candidateString || typeof candidateString !== 'string') return null;
-        const match = candidateString.match(/\styp\s+(\w+)/);
-        return match ? match[1] : null;
-    }
-
+    /**
+     * Sets up monitoring for the RTCPeerConnection to provide detailed status updates.
+     * @param {RTCPeerConnection} pc The peer connection instance.
+     */
     setupPeerConnectionMonitoring(pc) {
-        pc.oniceconnectionstatechange = () => {
-            const state = pc.iceConnectionState;
-            const messages = {
-                'checking': '🔍 Checking network connectivity...',
-                'connected': '✅ Network path established',
-                'completed': '✅ Connection completed and stable',
-                'failed': '❌ Direct P2P failed - attempting TURN relay...',
-                'disconnected': '⚠️ Connection temporarily disconnected',
-                'closed': '🔌 Connection closed'
-            };
-            if (messages[state]) {
-                this.onStatusUpdate(messages[state], state === 'failed' ? 'error' : 'info');
-            }
-            
-            // Log the ICE connection state for debugging
-            console.log('ICE Connection State:', state);
-            
-            // When connected, log the actual connection type being used
-            if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
-                this.connectionTypeReported = true; // Report only once per connection
-                pc.getStats().then(stats => {
-                    stats.forEach(report => {
-                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                            const localCandidate = stats.get(report.localCandidateId);
-                            const remoteCandidate = stats.get(report.remoteCandidateId);
-                            if (localCandidate && remoteCandidate) {
-                                const connectionType = localCandidate.candidateType;
-                                console.log('Active connection type:', connectionType);
-                                if (connectionType === 'relay') {
-                                    this.onStatusUpdate('🔁 Using TURN relay connection', 'success');
-                                } else if (connectionType === 'srflx') {
-                                    this.onStatusUpdate('🌐 Using P2P via STUN (public IP)', 'success');
-                                } else if (connectionType === 'host') {
-                                    this.onStatusUpdate('🏠 Using direct P2P (local network)', 'success');
-                                }
-                            }
-                        }
-                    });
-                }).catch(err => console.error('Error getting connection stats:', err));
-            }
-            
-            // If failed, check if we have relay candidates
-            if (state === 'failed') {
-                console.error('WebRTC connection failed. Check:');
-                console.error('1. TURN server credentials are valid');
-                console.error('2. TURN server ports are accessible');
-                console.error('3. Browser console for ICE candidate types (looking for "relay")');
-            }
+        const getCandidateType = (candidate) => {
+            if (!candidate || typeof candidate.candidate !== 'string') return null;
+            const match = candidate.candidate.match(/typ\s(\w+)/);
+            return match ? match[1] : null;
         };
-        
-        pc.onicegatheringstatechange = () => {
-            console.log('ICE Gathering State:', pc.iceGatheringState);
-            if (pc.iceGatheringState === 'gathering') {
-                this.onStatusUpdate('📡 Gathering network candidates...', 'info');
-            } else if (pc.iceGatheringState === 'complete') {
-                this.onStatusUpdate('✅ Finished gathering network candidates', 'success');
-            }
-        };
-        
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                const candidate = event.candidate;
-                
-                // Skip logging if candidate has no meaningful data
-                if (!candidate.candidate) {
-                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
-                    return;
-                }
-                
-                // Extract type from candidate - it may be in different properties depending on browser
-                const type = candidate.type || this.parseCandidateType(candidate.candidate);
-                const protocol = candidate.protocol || '';
-                
-                // Log with fallback for missing properties
-                console.log('ICE Candidate discovered:', {
-                    type: type || 'unknown',
-                    protocol: protocol || 'unknown',
-                    candidate: candidate.candidate
-                });
-                
+
+        pc.onicecandidate = ({ candidate }) => {
+            if (candidate) {
+                const type = getCandidateType(candidate);
                 const messages = {
                     'host': '🏠 Found local network path',
                     'srflx': '🌐 Found public internet path (via STUN)',
@@ -247,10 +162,58 @@ export class WebRTCManager {
                 };
                 if (type && messages[type]) {
                     this.onStatusUpdate(messages[type], 'info');
+                    console.log(`ICE Candidate: ${type} (${candidate.protocol}) ${candidate.address}:${candidate.port}`);
                 }
             } else {
-                this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
-                console.log('ICE candidate gathering completed');
+                console.log('ICE candidate gathering finished.');
+            }
+        };
+
+        pc.oniceconnectionstatechange = async () => {
+            const state = pc.iceConnectionState;
+            console.log(`ICE Connection State: ${state}`);
+
+            const messages = {
+                'checking': '🔍 Checking network paths...',
+                'connected': '✅ Network path established',
+                'completed': '✅ Connection stable',
+                'failed': '❌ Connection failed. Check network or TURN server.',
+                'disconnected': '⚠️ Connection temporarily lost. Reconnecting...',
+                'closed': '🔌 Connection closed'
+            };
+
+            if (messages[state]) {
+                this.onStatusUpdate(messages[state], state === 'failed' ? 'error' : 'info');
+            }
+
+            if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
+                try {
+                    const stats = await pc.getStats();
+                    for (const report of stats.values()) {
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            const local = stats.get(report.localCandidateId);
+                            if (local) {
+                                const typeName = {
+                                    'host': 'Direct P2P (local network)',
+                                    'srflx': 'P2P via STUN (public IP)',
+                                    'relay': 'TURN relay'
+                                }[local.candidateType] || 'Unknown';
+
+                                this.onStatusUpdate(`✅ Connected via ${typeName}`, 'success');
+                                this.connectionTypeReported = true;
+                                console.log(`Connection established using candidate type: ${local.candidateType}`);
+                                break;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error getting connection stats:', err);
+                }
+            } else if (state === 'failed') {
+                console.error('WebRTC connection failed. Troubleshooting tips:');
+                console.error('1. Check browser console for ICE candidate errors.');
+                console.error('2. Ensure TURN server is running and accessible (check ports).');
+                console.error('3. Verify TURN credentials are correct.');
             }
         };
     }

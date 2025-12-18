@@ -51,3 +51,6 @@ config.php
 
 # Old backup files
 *.old
+
+# Test artifacts
+signal.json

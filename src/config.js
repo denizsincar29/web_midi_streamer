@@ -9,16 +9,14 @@ let credentialExpiry = 0;
 const DEFAULT_TTL_SECONDS = 3600; // 1 hour
 const CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS = 60000; // Expire 1 minute early for safety
 
-// Default configuration (used as fallback if credential fetch fails)
+/**
+ * Default ICE servers configuration (used as a fallback).
+ * Includes public STUN servers and a free TURN server.
+ * @type {RTCIceServer[]}
+ */
 const DEFAULT_ICE_SERVERS = [
-    // STUN servers for NAT traversal
-    {
-        urls: 'stun:stun.l.google.com:19302'
-    },
-    {
-        urls: 'stun:stun1.l.google.com:19302'
-    },
-    // Fallback TURN server
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
     {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
@@ -26,36 +24,46 @@ const DEFAULT_ICE_SERVERS = [
     }
 ];
 
-// Fetch time-limited TURN credentials from backend
-export async function getTurnCredentials() {
-    // Check if we have valid cached credentials
+/**
+ * Fetches time-limited TURN credentials from the backend.
+ * Caches credentials to avoid unnecessary requests.
+ * @param {function(string, string): void} [onStatusUpdate] - Optional callback for status updates.
+ * @returns {Promise<RTCIceServer[]>} A promise that resolves to an array of ICE servers.
+ */
+export async function getTurnCredentials(onStatusUpdate) {
     const now = Date.now();
     if (cachedCredentials && now < credentialExpiry) {
-        console.log('Using cached TURN credentials (valid for', Math.floor((credentialExpiry - now) / 1000), 'seconds)');
+        console.log(`Using cached TURN credentials (valid for ${Math.floor((credentialExpiry - now) / 1000)}s)`);
         return cachedCredentials;
     }
-    
+
     try {
-        // Use relative path so it works in subdirectories (e.g., /midi/)
         const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
         const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
         
         console.log('Fetching fresh TURN credentials from:', credentialsUrl);
+        if (onStatusUpdate) {
+            onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
+        }
+
         const response = await fetch(credentialsUrl);
-        
         if (!response.ok) {
             const errorText = await response.text();
             console.error('TURN credentials fetch failed:', {
                 status: response.status,
                 statusText: response.statusText,
                 url: credentialsUrl,
-                response: errorText
+                response: errorText.substring(0, 500)
             });
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        console.log('Successfully fetched TURN credentials (TTL:', data.ttl, 'seconds)');
+        if (!data.iceServers) {
+            throw new Error('Invalid JSON response from credentials server');
+        }
+
+        console.log(`Successfully fetched TURN credentials (TTL: ${data.ttl}s)`);
         
         // Cache credentials, expiring 1 minute before actual expiry for safety
         cachedCredentials = data.iceServers;
@@ -64,6 +72,9 @@ export async function getTurnCredentials() {
         return cachedCredentials;
     } catch (error) {
         console.warn('Failed to fetch dynamic TURN credentials, using fallback:', error);
+        if (onStatusUpdate) {
+            onStatusUpdate('⚠️ Using fallback TURN servers. Connection may be less reliable.', 'warning');
+        }
         return DEFAULT_ICE_SERVERS;
     }
 }
