@@ -2,6 +2,7 @@
 # /// script
 # dependencies = [
 #   "requests>=2.31.0",
+#   "aiortc",
 # ]
 # ///
 """
@@ -19,8 +20,8 @@ Example:
     uv run test_turn_server.py https://denizsincar.ru/midi/get-turn-credentials.php
 
 Note:
-    - aiortc is optional for advanced WebRTC testing but not required
-    - To install aiortc separately: pip install aiortc
+    - When using 'uv run', aiortc will be automatically installed for advanced WebRTC testing
+    - If using python directly: pip install requests aiortc
 """
 
 import sys
