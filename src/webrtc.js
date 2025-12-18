@@ -109,11 +109,14 @@ export class WebRTCManager {
                         // Close our outgoing connection and accept the incoming one
                         this.onStatusUpdate('⚠️ Closing outgoing connection (accepting incoming)', 'warning');
                         if (this.dataChannel) {
-                            // Close both the data channel and underlying peer connection
-                            if (this.dataChannel.peerConnection) {
-                                this.dataChannel.peerConnection.close();
-                            }
+                            // Close the data channel first, then the underlying peer connection
+                            const peerConnection = this.dataChannel.peerConnection;
                             this.dataChannel.close();
+                            this.dataChannel = null; // Clear the reference to prevent stale state
+                            
+                            if (peerConnection) {
+                                peerConnection.close();
+                            }
                         }
                         this.isInitiatingConnection = false; // Clear the flag since we're closing outgoing
                         // Note: hasEstablishedConnection will be set when the incoming connection opens
