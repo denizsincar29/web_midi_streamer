@@ -1,17 +1,18 @@
 // TURN server configuration
 // Fetches time-limited credentials from backend for security
 
+// Cached credentials to avoid unnecessary server requests
+let cachedCredentials = null;
+let credentialExpiry = 0;
+
+// Configuration constants
+const DEFAULT_TTL_SECONDS = 3600; // 1 hour
+const CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS = 60000; // Expire 1 minute early for safety
+
 // Default configuration (used as fallback if credential fetch fails)
 const DEFAULT_ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
     {
         urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
-    },
-    {
-        urls: 'turn:openrelay.metered.ca:443',
         username: 'openrelayproject',
         credential: 'openrelayproject'
     }
@@ -19,12 +20,19 @@ const DEFAULT_ICE_SERVERS = [
 
 // Fetch time-limited TURN credentials from backend
 export async function getTurnCredentials() {
+    // Check if we have valid cached credentials
+    const now = Date.now();
+    if (cachedCredentials && now < credentialExpiry) {
+        console.log('Using cached TURN credentials (valid for', Math.floor((credentialExpiry - now) / 1000), 'seconds)');
+        return cachedCredentials;
+    }
+    
     try {
         // Use relative path so it works in subdirectories (e.g., /midi/)
         const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
         const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
         
-        console.log('Fetching TURN credentials from:', credentialsUrl);
+        console.log('Fetching fresh TURN credentials from:', credentialsUrl);
         const response = await fetch(credentialsUrl);
         
         if (!response.ok) {
@@ -39,8 +47,13 @@ export async function getTurnCredentials() {
         }
         
         const data = await response.json();
-        console.log('Successfully fetched TURN credentials');
-        return data.iceServers;
+        console.log('Successfully fetched TURN credentials (TTL:', data.ttl, 'seconds)');
+        
+        // Cache credentials, expiring 1 minute before actual expiry for safety
+        cachedCredentials = data.iceServers;
+        credentialExpiry = now + ((data.ttl || DEFAULT_TTL_SECONDS) * 1000) - CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS;
+        
+        return cachedCredentials;
     } catch (error) {
         console.warn('Failed to fetch dynamic TURN credentials, using fallback:', error);
         return DEFAULT_ICE_SERVERS;

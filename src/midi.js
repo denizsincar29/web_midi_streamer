@@ -65,7 +65,14 @@ export class MIDIManager {
 
     send(data) {
         if (this.selectedOutput) {
-            this.selectedOutput.send(data);
+            try {
+                this.selectedOutput.send(data);
+            } catch (error) {
+                console.error('MIDI send error:', error);
+                // The output device may have been disconnected
+                // Refresh devices to update the UI
+                this.refreshDevices();
+            }
         }
     }
 

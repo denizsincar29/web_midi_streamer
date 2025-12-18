@@ -9,6 +9,20 @@ export class WebRTCManager {
         this.onStatusUpdate = onStatusUpdate;
         this.onConnectionStateChange = null;
         this.pingStats = this.resetPingStats();
+        this.manualDisconnect = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 3;
+        
+        // Reconnection constants
+        this.RECONNECT_BASE_DELAY_MS = 1000;
+        this.RECONNECT_BACKOFF_MULTIPLIER = 2;
+        this.RECONNECT_MAX_DELAY_MS = 5000;
+    }
+    
+    calculateReconnectDelay() {
+        const exponentialDelay = this.RECONNECT_BASE_DELAY_MS * 
+            Math.pow(this.RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts - 1);
+        return Math.min(exponentialDelay, this.RECONNECT_MAX_DELAY_MS);
     }
 
     resetPingStats() {
@@ -40,6 +54,7 @@ export class WebRTCManager {
         return new Promise((resolve, reject) => {
             this.peer.on('open', (id) => {
                 this.onStatusUpdate('✅ Connected to PeerJS signaling server', 'success');
+                this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
                 
                 if (remotePeerId) {
                     this.onStatusUpdate(`🔗 Attempting to connect to peer: ${remotePeerId}`, 'info');
@@ -67,6 +82,19 @@ export class WebRTCManager {
             
             this.peer.on('disconnected', () => {
                 this.onStatusUpdate('Disconnected from PeerJS server', 'warning');
+                
+                // Attempt automatic reconnection unless manually disconnected
+                if (!this.manualDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    const delay = this.calculateReconnectDelay();
+                    this.onStatusUpdate(`Reconnecting in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
+                    
+                    setTimeout(() => {
+                        if (this.peer && !this.manualDisconnect) {
+                            this.peer.reconnect();
+                        }
+                    }, delay);
+                }
             });
             
             this.peer.on('close', () => {
@@ -79,9 +107,16 @@ export class WebRTCManager {
         this.dataChannel = conn;
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
         
-        if (conn.peerConnection) {
-            this.setupPeerConnectionMonitoring(conn.peerConnection);
-        }
+        // Monitor for when peerConnection becomes available
+        const setupMonitoring = () => {
+            if (conn.peerConnection) {
+                this.setupPeerConnectionMonitoring(conn.peerConnection);
+            } else {
+                // PeerConnection not ready yet, try again soon
+                setTimeout(setupMonitoring, 50);
+            }
+        };
+        setupMonitoring();
         
         conn.on('open', () => {
             this.onStatusUpdate('✅ Data channel open - ready to stream MIDI!', 'success');
@@ -113,16 +148,28 @@ export class WebRTCManager {
                 'checking': '🔍 Checking network connectivity...',
                 'connected': '✅ Network path established',
                 'completed': '✅ Connection completed and stable',
-                'failed': '❌ Direct P2P failed',
+                'failed': '❌ Direct P2P failed - attempting TURN relay...',
                 'disconnected': '⚠️ Connection temporarily disconnected',
                 'closed': '🔌 Connection closed'
             };
             if (messages[state]) {
                 this.onStatusUpdate(messages[state], state === 'failed' ? 'error' : 'info');
             }
+            
+            // Log the ICE connection state for debugging
+            console.log('ICE Connection State:', state);
+            
+            // If failed, check if we have relay candidates
+            if (state === 'failed') {
+                console.error('WebRTC connection failed. Check:');
+                console.error('1. TURN server credentials are valid');
+                console.error('2. TURN server ports are accessible');
+                console.error('3. Browser console for ICE candidate types (looking for "relay")');
+            }
         };
         
         pc.onicegatheringstatechange = () => {
+            console.log('ICE Gathering State:', pc.iceGatheringState);
             if (pc.iceGatheringState === 'gathering') {
                 this.onStatusUpdate('📡 Gathering network candidates...', 'info');
             } else if (pc.iceGatheringState === 'complete') {
@@ -133,6 +180,7 @@ export class WebRTCManager {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 const type = event.candidate.type;
+                console.log('ICE Candidate discovered:', type, event.candidate.candidate);
                 const messages = {
                     'host': '🏠 Found local network path',
                     'srflx': '🌐 Found public internet path (via STUN)',
@@ -143,6 +191,7 @@ export class WebRTCManager {
                 }
             } else {
                 this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
+                console.log('ICE candidate gathering completed');
             }
         };
     }
@@ -236,6 +285,9 @@ export class WebRTCManager {
     }
 
     disconnect() {
+        this.manualDisconnect = true; // Prevent automatic reconnection
+        this.reconnectAttempts = 0;
+        
         if (this.dataChannel) {
             this.dataChannel.close();
             this.dataChannel = null;

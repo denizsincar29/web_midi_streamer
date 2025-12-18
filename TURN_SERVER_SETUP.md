@@ -38,8 +38,8 @@ sudo systemctl enable coturn
 3. **Configure coturn** (`/etc/turnserver.conf`):
 ```bash
 # Basic configuration
-listening-port=3478
-tls-listening-port=5349
+listening-port=3479
+tls-listening-port=5350
 
 # Your server's external IP address
 external-ip=YOUR_SERVER_PUBLIC_IP
@@ -85,10 +85,10 @@ sudo systemctl status coturn
 
 6. **Open firewall ports**:
 ```bash
-sudo ufw allow 3478/tcp
-sudo ufw allow 3478/udp
-sudo ufw allow 5349/tcp
-sudo ufw allow 5349/udp
+sudo ufw allow 3479/tcp
+sudo ufw allow 3479/udp
+sudo ufw allow 5350/tcp
+sudo ufw allow 5350/udp
 sudo ufw allow 49152:65535/udp
 ```
 
@@ -132,12 +132,12 @@ To use your own TURN server instead, edit `src/config.js` and replace the TURN s
 ```javascript
 // Replace openrelay.metered.ca entries with your own TURN server
 {
-    urls: 'turn:your-domain.com:3478',
+    urls: 'turn:your-domain.com:3479',
     username: 'webmidi',
     credential: 'SecurePassword123'
 },
 {
-    urls: 'turn:your-domain.com:5349?transport=tcp',
+    urls: 'turn:your-domain.com:5350?transport=tcp',
     username: 'webmidi',
     credential: 'SecurePassword123'
 }
@@ -154,7 +154,7 @@ For production without managing servers:
 
 Use Trickle ICE test: https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
 
-1. Enter your TURN server URL: `turn:your-domain.com:3478`
+1. Enter your TURN server URL: `turn:your-domain.com:3479`
 2. Enter username and credential
 3. Click "Gather candidates"
 4. Look for `relay` type candidates - these indicate TURN is working

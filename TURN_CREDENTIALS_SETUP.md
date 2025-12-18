@@ -44,8 +44,8 @@ static-auth-secret=YOUR_GENERATED_SECRET
 realm=voice.denizsincar.ru
 
 # Listening ports
-listening-port=3478
-tls-listening-port=5349
+listening-port=3479
+tls-listening-port=5350
 
 # Other settings
 lt-cred-mech
@@ -115,10 +115,10 @@ turnutils_uclient -v voice.denizsincar.ru
 Make sure these ports are open:
 
 ```bash
-sudo ufw allow 3478/tcp
-sudo ufw allow 3478/udp
-sudo ufw allow 5349/tcp
-sudo ufw allow 5349/udp
+sudo ufw allow 3479/tcp
+sudo ufw allow 3479/udp
+sudo ufw allow 5350/tcp
+sudo ufw allow 5350/udp
 sudo ufw allow 49152:65535/udp  # TURN relay ports
 ```
 
@@ -170,12 +170,12 @@ http.createServer((req, res) => {
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
             {
-                urls: `turn:${TURN_SERVER}:3478`,
+                urls: `turn:${TURN_SERVER}:3479`,
                 username,
                 credential
             },
             {
-                urls: `turn:${TURN_SERVER}:5349?transport=tcp`,
+                urls: `turn:${TURN_SERVER}:5350?transport=tcp`,
                 username,
                 credential
             }

@@ -107,7 +107,14 @@ export class UIManager {
             roomInfo.parentNode.insertBefore(shareSection, roomInfo.nextSibling);
         }
         
-        document.getElementById('shareUrl').value = url;
+        const urlInput = document.getElementById('shareUrl');
+        urlInput.value = url;
+        
+        // Focus the URL input for screen readers
+        setTimeout(() => {
+            urlInput.focus();
+            urlInput.select();
+        }, 100);
     }
 
     toggleMidiActivity(enabled) {

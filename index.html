@@ -29,43 +29,6 @@
             <!-- Screen Reader Status Bar -->
             <div id="statusBar" class="sr-only" role="status" aria-live="polite" aria-atomic="false"></div>
 
-            <!-- Settings -->
-            <section class="settings">
-                <h2>Settings</h2>
-                
-                <div class="setting-group">
-                    <label>
-                        <input type="checkbox" id="sysexEnabled" aria-describedby="sysex-desc">
-                        Enable SysEx Support
-                    </label>
-                    <p id="sysex-desc" class="description">Allow System Exclusive messages (required for advanced keyboard features)</p>
-                </div>
-
-                <div class="setting-group">
-                    <label>
-                        <input type="checkbox" id="timestampEnabled" aria-describedby="timestamp-desc">
-                        Enable Timestamp Sync (Experimental)
-                    </label>
-                    <p id="timestamp-desc" class="description">Send MIDI data with timestamps for better timing on slow connections</p>
-                </div>
-
-                <div class="setting-group">
-                    <label>
-                        <input type="checkbox" id="audioFeedbackEnabled" aria-describedby="audio-desc">
-                        Enable Audio Feedback
-                    </label>
-                    <p id="audio-desc" class="description">Hear announcements of MIDI events (accessibility feature)</p>
-                </div>
-
-                <div class="setting-group">
-                    <label>
-                        <input type="checkbox" id="showMidiActivity" aria-describedby="midi-activity-desc">
-                        Show MIDI Activity
-                    </label>
-                    <p id="midi-activity-desc" class="description">Display and announce MIDI events via screen reader</p>
-                </div>
-            </section>
-
             <!-- MIDI Devices -->
             <section class="midi-devices">
                 <h2>MIDI Devices</h2>
@@ -98,6 +61,40 @@
             <details class="advanced">
                 <summary><h2>Advanced</h2></summary>
                 <div class="advanced-content">
+                    <h3>Settings</h3>
+                    
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="sysexEnabled" aria-describedby="sysex-desc">
+                            Enable SysEx Support
+                        </label>
+                        <p id="sysex-desc" class="description">Allow System Exclusive messages (required for advanced keyboard features)</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="timestampEnabled" aria-describedby="timestamp-desc">
+                            Enable Timestamp Sync (Experimental)
+                        </label>
+                        <p id="timestamp-desc" class="description">Send MIDI data with timestamps for better timing on slow connections</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="audioFeedbackEnabled" aria-describedby="audio-desc">
+                            Enable Audio Feedback
+                        </label>
+                        <p id="audio-desc" class="description">Hear announcements of MIDI events (accessibility feature)</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="showMidiActivity" aria-describedby="midi-activity-desc">
+                            Show MIDI Activity
+                        </label>
+                        <p id="midi-activity-desc" class="description">Display and announce MIDI events via screen reader</p>
+                    </div>
+                    
                     <h3>Debug Tools</h3>
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled>Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled>Send Ping</button>
