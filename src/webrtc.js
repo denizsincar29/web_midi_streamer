@@ -222,6 +222,13 @@ export class WebRTCManager {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 const candidate = event.candidate;
+                
+                // Skip logging if candidate has no meaningful data
+                if (!candidate.candidate || candidate.candidate === '') {
+                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
+                    return;
+                }
+                
                 // Extract type from candidate - it may be in different properties depending on browser
                 const type = candidate.type || this.parseCandidateType(candidate.candidate);
                 const protocol = candidate.protocol || '';
@@ -230,7 +237,7 @@ export class WebRTCManager {
                 console.log('ICE Candidate discovered:', {
                     type: type || 'unknown',
                     protocol: protocol || 'unknown',
-                    candidate: candidate.candidate || ''
+                    candidate: candidate.candidate
                 });
                 
                 const messages = {
