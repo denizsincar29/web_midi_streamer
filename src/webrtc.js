@@ -13,6 +13,9 @@ export class WebRTCManager {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
         this.connectionTypeReported = false; // Flag to report connection type only once
+        this.myPeerId = null; // Store our peer ID
+        this.remotePeerId = null; // Store remote peer ID
+        this.hasEstablishedConnection = false; // Flag to prevent duplicate connections
         
         // Reconnection constants
         this.RECONNECT_BASE_DELAY_MS = 1000;
@@ -58,6 +61,8 @@ export class WebRTCManager {
         };
         
         const peerId = generatePeerId();
+        this.myPeerId = peerId;
+        this.remotePeerId = remotePeerId;
         this.peer = new Peer(peerId, config);
         
         return new Promise((resolve, reject) => {
@@ -66,9 +71,18 @@ export class WebRTCManager {
                 this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
                 
                 if (remotePeerId) {
-                    this.onStatusUpdate(`🔗 Attempting to connect to peer: ${remotePeerId}`, 'info');
-                    const conn = this.peer.connect(remotePeerId, { reliable: true });
-                    this.setupDataConnection(conn);
+                    // Determine roles based on peer ID comparison
+                    // The peer with the lexicographically smaller ID initiates
+                    const shouldInitiate = this.shouldInitiateConnection(id, remotePeerId);
+                    
+                    if (shouldInitiate) {
+                        this.onStatusUpdate(`🔗 Initiating connection to peer: ${remotePeerId}`, 'info');
+                        const conn = this.peer.connect(remotePeerId, { reliable: true });
+                        this.setupDataConnection(conn);
+                    } else {
+                        this.onStatusUpdate(`⏳ Waiting for peer ${remotePeerId} to initiate connection...`, 'info');
+                        // Don't initiate - wait for incoming connection
+                    }
                     resolve(null);
                 } else {
                     const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
@@ -77,7 +91,14 @@ export class WebRTCManager {
             });
             
             this.peer.on('connection', (conn) => {
-                this.onStatusUpdate('Incoming peer connection...', 'info');
+                // Prevent accepting duplicate connections if we already have one
+                if (this.hasEstablishedConnection) {
+                    this.onStatusUpdate('⚠️ Rejecting duplicate connection attempt', 'warning');
+                    conn.close();
+                    return;
+                }
+                
+                this.onStatusUpdate('📥 Incoming peer connection...', 'info');
                 this.setupDataConnection(conn);
             });
             
@@ -111,10 +132,24 @@ export class WebRTCManager {
             });
         });
     }
+    
+    /**
+     * Determines if this peer should initiate the connection based on peer ID comparison.
+     * The peer with the lexicographically smaller ID always initiates to prevent
+     * simultaneous bidirectional connection attempts that can cause ICE issues.
+     * 
+     * @param {string} myId - This peer's ID
+     * @param {string} remoteId - Remote peer's ID
+     * @returns {boolean} True if this peer should initiate the connection
+     */
+    shouldInitiateConnection(myId, remoteId) {
+        return myId < remoteId;
+    }
 
     setupDataConnection(conn) {
         this.dataChannel = conn;
         this.connectionTypeReported = false; // Reset flag for new connection
+        this.hasEstablishedConnection = true; // Mark that we have a connection
         this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
         
         // Monitor for when peerConnection becomes available
@@ -141,6 +176,7 @@ export class WebRTCManager {
         
         conn.on('close', () => {
             this.onStatusUpdate('Peer disconnected', 'warning');
+            this.hasEstablishedConnection = false; // Reset flag on disconnect
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(false);
             }
@@ -346,6 +382,7 @@ export class WebRTCManager {
     disconnect() {
         this.manualDisconnect = true; // Prevent automatic reconnection
         this.reconnectAttempts = 0;
+        this.hasEstablishedConnection = false; // Reset connection flag
         
         if (this.dataChannel) {
             this.dataChannel.close();
