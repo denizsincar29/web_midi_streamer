@@ -95,7 +95,7 @@ export class WebRTCManager {
                 
                 // Check if both peers are trying to connect simultaneously
                 // In this case, only the peer with the smaller ID should keep its outgoing connection
-                if (this.isInitiatingConnection && typeof conn.peer === 'string' && conn.peer.length > 0) {
+                if (this.isInitiatingConnection && typeof conn.peer === 'string' && conn.peer.trim().length > 0) {
                     // We already initiated an outgoing connection
                     // Determine which connection to keep based on peer IDs
                     // Use conn.peer to get the actual peer ID of the incoming connection
@@ -173,6 +173,12 @@ export class WebRTCManager {
      * @returns {boolean} True if this peer should keep its outgoing connection (i.e., myId < remoteId)
      */
     shouldInitiateConnection(myId, remoteId) {
+        // Validate inputs - both IDs must be non-empty strings
+        if (typeof myId !== 'string' || typeof remoteId !== 'string' || 
+            myId.trim().length === 0 || remoteId.trim().length === 0) {
+            console.error('Invalid peer IDs for connection comparison:', { myId, remoteId });
+            return false; // Default to not initiating if IDs are invalid
+        }
         return myId < remoteId;
     }
 
