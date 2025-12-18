@@ -1,5 +1,5 @@
 import { PEERJS_CONFIG, getTurnCredentials } from './config.js';
-import { generatePeerId } from './utils.js';
+import { generatePeerId, shouldForceTurnRelay } from './utils.js';
 
 export class WebRTCManager {
     constructor(onMessage, onStatusUpdate) {
@@ -40,11 +40,19 @@ export class WebRTCManager {
         this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
         const iceServers = await getTurnCredentials();
         
+        // Check if we should force TURN relay for testing
+        const forceTurn = shouldForceTurnRelay();
+        if (forceTurn) {
+            this.onStatusUpdate('⚠️ TURN relay mode: Forcing relay connection (P2P disabled)', 'warning');
+        }
+        
         const config = {
             ...PEERJS_CONFIG,
             config: {
                 ...PEERJS_CONFIG.config,
-                iceServers
+                iceServers,
+                // Force relay when testing TURN connectivity
+                iceTransportPolicy: forceTurn ? 'relay' : 'all'
             }
         };
         
@@ -159,6 +167,29 @@ export class WebRTCManager {
             // Log the ICE connection state for debugging
             console.log('ICE Connection State:', state);
             
+            // When connected, log the actual connection type being used
+            if (state === 'connected' || state === 'completed') {
+                pc.getStats().then(stats => {
+                    stats.forEach(report => {
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            const localCandidate = stats.get(report.localCandidateId);
+                            const remoteCandidate = stats.get(report.remoteCandidateId);
+                            if (localCandidate && remoteCandidate) {
+                                const connectionType = localCandidate.candidateType;
+                                console.log('Active connection type:', connectionType);
+                                if (connectionType === 'relay') {
+                                    this.onStatusUpdate('🔁 Using TURN relay connection', 'success');
+                                } else if (connectionType === 'srflx') {
+                                    this.onStatusUpdate('🌐 Using P2P via STUN (public IP)', 'success');
+                                } else if (connectionType === 'host') {
+                                    this.onStatusUpdate('🏠 Using direct P2P (local network)', 'success');
+                                }
+                            }
+                        }
+                    });
+                }).catch(err => console.error('Error getting connection stats:', err));
+            }
+            
             // If failed, check if we have relay candidates
             if (state === 'failed') {
                 console.error('WebRTC connection failed. Check:');
@@ -180,7 +211,8 @@ export class WebRTCManager {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 const type = event.candidate.type;
-                console.log('ICE Candidate discovered:', type, event.candidate.candidate);
+                const protocol = event.candidate.protocol;
+                console.log('ICE Candidate discovered:', type, protocol, event.candidate.candidate);
                 const messages = {
                     'host': '🏠 Found local network path',
                     'srflx': '🌐 Found public internet path (via STUN)',
