@@ -71,18 +71,11 @@ export class WebRTCManager {
                 this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
                 
                 if (remotePeerId) {
-                    // Determine roles based on peer ID comparison
-                    // The peer with the lexicographically smaller ID initiates
-                    const shouldInitiate = this.shouldInitiateConnection(id, remotePeerId);
-                    
-                    if (shouldInitiate) {
-                        this.onStatusUpdate(`🔗 Initiating connection to peer: ${remotePeerId}`, 'info');
-                        const conn = this.peer.connect(remotePeerId, { reliable: true });
-                        this.setupDataConnection(conn);
-                    } else {
-                        this.onStatusUpdate(`⏳ Waiting for peer ${remotePeerId} to initiate connection...`, 'info');
-                        // Don't initiate - wait for incoming connection
-                    }
+                    // Always initiate connection when we have a remotePeerId
+                    // This is the normal flow where user joins via shared URL
+                    this.onStatusUpdate(`🔗 Initiating connection to peer: ${remotePeerId}`, 'info');
+                    const conn = this.peer.connect(remotePeerId, { reliable: true });
+                    this.setupDataConnection(conn);
                     resolve(null);
                 } else {
                     const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
@@ -96,6 +89,27 @@ export class WebRTCManager {
                     this.onStatusUpdate('⚠️ Rejecting duplicate connection attempt', 'warning');
                     conn.close();
                     return;
+                }
+                
+                // Check if both peers are trying to connect simultaneously
+                // In this case, only the peer with the smaller ID should keep its outgoing connection
+                if (this.dataChannel && remotePeerId) {
+                    // We already initiated an outgoing connection
+                    // Determine which connection to keep based on peer IDs
+                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, remotePeerId);
+                    
+                    if (shouldKeepOutgoing) {
+                        this.onStatusUpdate('⚠️ Rejecting incoming connection (using outgoing connection)', 'warning');
+                        conn.close();
+                        return;
+                    } else {
+                        // Close our outgoing connection and accept the incoming one
+                        this.onStatusUpdate('⚠️ Closing outgoing connection (accepting incoming)', 'warning');
+                        if (this.dataChannel) {
+                            this.dataChannel.close();
+                        }
+                        this.hasEstablishedConnection = false;
+                    }
                 }
                 
                 this.onStatusUpdate('📥 Incoming peer connection...', 'info');
