@@ -103,11 +103,23 @@ The app includes **TURN servers** for global connectivity:
 1. **Direct P2P** (best) - Low latency, works on same network or friendly NAT
 2. **TURN relay** (fallback) - Higher latency, works globally even with strict firewalls
 
+### Testing TURN Connectivity
+
+To verify TURN relay is working (useful when P2P connects fine):
+
+1. Add `?forceTurn=true` to your URL to force TURN relay mode:
+   ```
+   https://your-domain.com/?forceTurn=true
+   ```
+2. The app will display "TURN RELAY MODE" message
+3. Connection will only work through TURN server (no direct P2P)
+4. Console will show which connection type is used (relay/host/srflx)
+
 ### For Production Use
 
 The app uses free public TURN servers by default. For production deployments or better performance:
 
-- **Set up your own TURN server** - See [TURN_SERVER_SETUP.md](TURN_SERVER_SETUP.md) for instructions
+- **Set up your own TURN server** - See [TURN_SETUP.md](TURN_SETUP.md) for instructions
 - **Use commercial TURN service** - Twilio, Xirsys, or Metered
 
 The included free TURN servers should work fine for personal use and testing.
