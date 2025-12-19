@@ -24,7 +24,7 @@ export class MIDIManager {
         inputSelect.innerHTML = '';
         outputSelect.innerHTML = '';
         
-        // Collect devices
+        // Collect devices into arrays
         const inputs = Array.from(this.access.inputs.values());
         const outputs = Array.from(this.access.outputs.values());
         
@@ -44,9 +44,7 @@ export class MIDIManager {
                 inputSelect.appendChild(option);
             });
             // Auto-select first input device
-            if (inputs.length > 0) {
-                this.selectInput(inputs[0].id);
-            }
+            this.selectInput(inputs[0].id);
         }
         
         if (outputs.length === 0) {
@@ -64,9 +62,7 @@ export class MIDIManager {
                 outputSelect.appendChild(option);
             });
             // Auto-select first output device
-            if (outputs.length > 0) {
-                this.selectOutput(outputs[0].id);
-            }
+            this.selectOutput(outputs[0].id);
         }
     }
 
