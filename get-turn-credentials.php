@@ -91,32 +91,29 @@ $timestamp = time() + $ttl;
 $username = $timestamp . ':webmidi';
 $password = base64_encode(hash_hmac('sha1', $username, $turnSecret, true));
 
-// Return ICE servers (STUN + TURN)
+// Return ICE servers (STUN + TURN from voice.denizsincar.ru only)
 echo json_encode([
     'iceServers' => [
-        // STUN servers for NAT traversal
+        // STUN server on voice.denizsincar.ru
         [
-            'urls' => 'stun:stun.l.google.com:19302'
+            'urls' => 'stun:' . $turnServer . ':3479'
         ],
-        [
-            'urls' => 'stun:stun1.l.google.com:19302'
-        ],
-        // TURN servers with time-limited credentials
+        // TURN server UDP on voice.denizsincar.ru
         [
             'urls' => 'turn:' . $turnServer . ':3479',
             'username' => $username,
             'credential' => $password
         ],
+        // TURN server TCP/TLS on voice.denizsincar.ru
         [
             'urls' => 'turn:' . $turnServer . ':5350?transport=tcp',
             'username' => $username,
             'credential' => $password
         ],
-        // Fallback public TURN server
         [
-            'urls' => 'turn:openrelay.metered.ca:80',
-            'username' => 'openrelayproject',
-            'credential' => 'openrelayproject'
+            'urls' => 'turns:' . $turnServer . ':5350?transport=tcp',
+            'username' => $username,
+            'credential' => $password
         ]
     ],
     'ttl' => $ttl,

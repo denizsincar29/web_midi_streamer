@@ -11,18 +11,9 @@ const CREDENTIAL_EXPIRY_SAFETY_MARGIN_MS = 60000; // Expire 1 minute early for s
 
 // Default configuration (used as fallback if credential fetch fails)
 const DEFAULT_ICE_SERVERS = [
-    // STUN servers for NAT traversal
+    // STUN server on voice.denizsincar.ru
     {
-        urls: 'stun:stun.l.google.com:19302'
-    },
-    {
-        urls: 'stun:stun1.l.google.com:19302'
-    },
-    // Fallback TURN server
-    {
-        urls: 'turn:openrelay.metered.ca:80',
-        username: 'openrelayproject',
-        credential: 'openrelayproject'
+        urls: 'stun:voice.denizsincar.ru:3479'
     }
 ];
 
@@ -79,15 +70,11 @@ function getIceTransportPolicy() {
     return forceTurn ? 'relay' : 'all';
 }
 
-export const PEERJS_CONFIG = {
-    host: '0.peerjs.com',
-    port: 443,
-    secure: true,
-    config: {
-        iceServers: DEFAULT_ICE_SERVERS,
-        iceCandidatePoolSize: 10,
-        iceTransportPolicy: getIceTransportPolicy()
-    }
+// Signaling server configuration
+export const SIGNALING_CONFIG = {
+    pollingInterval: 2000, // Poll for messages every 2 seconds
+    maxRetries: 3,
+    retryDelay: 1000
 };
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
