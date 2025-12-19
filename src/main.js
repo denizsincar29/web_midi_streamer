@@ -14,8 +14,8 @@ class MIDIStreamer {
             midiEchoEnabled: false
         };
         
-        this.ui = new UIManager();
         this.midi = new MIDIManager();
+        this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
             (msg) => this.handleWebRTCMessage(msg),
             (text, type) => this.ui.addMessage(text, type)
@@ -179,7 +179,7 @@ class MIDIStreamer {
         
         const noteOnData = [0x90, 60, 100];
         this.webrtc.send({ type: 'test_note', data: noteOnData });
-        this.ui.addMessage('Sent test note (C4) via PeerJS', 'info');
+        this.ui.addMessage('Sent test note (C4) via WebRTC', 'info');
         
         setTimeout(() => {
             const noteOffData = [0x80, 60, 0];

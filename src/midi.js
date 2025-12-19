@@ -18,23 +18,55 @@ export class MIDIManager {
         const inputSelect = document.getElementById('midiInput');
         const outputSelect = document.getElementById('midiOutput');
         
-        inputSelect.innerHTML = '<option value="">No device selected</option>';
-        outputSelect.innerHTML = '<option value="">No device selected</option>';
-        
         if (!this.access) return;
         
-        for (let input of this.access.inputs.values()) {
+        // Clear existing options
+        inputSelect.innerHTML = '';
+        outputSelect.innerHTML = '';
+        
+        // Collect devices
+        const inputs = Array.from(this.access.inputs.values());
+        const outputs = Array.from(this.access.outputs.values());
+        
+        // Only show "No device selected" if there are no devices
+        if (inputs.length === 0) {
             const option = document.createElement('option');
-            option.value = input.id;
-            option.textContent = input.name;
+            option.value = '';
+            option.textContent = 'No device selected';
             inputSelect.appendChild(option);
+        } else {
+            // Add all input devices
+            inputs.forEach((input, index) => {
+                const option = document.createElement('option');
+                option.value = input.id;
+                option.textContent = input.name;
+                if (index === 0) option.selected = true; // Select first device by default
+                inputSelect.appendChild(option);
+            });
+            // Auto-select first input device
+            if (inputs.length > 0) {
+                this.selectInput(inputs[0].id);
+            }
         }
         
-        for (let output of this.access.outputs.values()) {
+        if (outputs.length === 0) {
             const option = document.createElement('option');
-            option.value = output.id;
-            option.textContent = output.name;
+            option.value = '';
+            option.textContent = 'No device selected';
             outputSelect.appendChild(option);
+        } else {
+            // Add all output devices
+            outputs.forEach((output, index) => {
+                const option = document.createElement('option');
+                option.value = output.id;
+                option.textContent = output.name;
+                if (index === 0) option.selected = true; // Select first device by default
+                outputSelect.appendChild(option);
+            });
+            // Auto-select first output device
+            if (outputs.length > 0) {
+                this.selectOutput(outputs[0].id);
+            }
         }
     }
 
@@ -96,5 +128,50 @@ export class MIDIManager {
         if (announcement) {
             document.getElementById('midiActivity').textContent = announcement;
         }
+    }
+
+    /**
+     * Play a MIDI chime sound for status notifications
+     * @param {string} type - Type of chime: 'success', 'info', 'warning', 'error', 'connecting'
+     */
+    playStatusChime(type) {
+        if (!this.selectedOutput) return;
+        
+        const chimes = {
+            'success': [
+                { note: 72, velocity: 100, duration: 100 },  // C5
+                { note: 76, velocity: 100, duration: 100 },  // E5
+            ],
+            'info': [
+                { note: 69, velocity: 90, duration: 150 },   // A4
+            ],
+            'warning': [
+                { note: 67, velocity: 100, duration: 100 },  // G4
+                { note: 65, velocity: 100, duration: 100 },  // F4
+            ],
+            'error': [
+                { note: 65, velocity: 110, duration: 200 },  // F4
+                { note: 62, velocity: 110, duration: 200 },  // D4
+            ],
+            'connecting': [
+                { note: 64, velocity: 85, duration: 80 },    // E4
+                { note: 67, velocity: 85, duration: 80 },    // G4
+            ]
+        };
+        
+        const sequence = chimes[type] || chimes['info'];
+        let delay = 0;
+        
+        sequence.forEach(({ note, velocity, duration }) => {
+            setTimeout(() => {
+                // Note on
+                this.send([0x90, note, velocity]);
+                // Note off after duration
+                setTimeout(() => {
+                    this.send([0x80, note, 0]);
+                }, duration);
+            }, delay);
+            delay += duration + 50; // Small gap between notes
+        });
     }
 }

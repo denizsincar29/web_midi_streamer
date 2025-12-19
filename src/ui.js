@@ -1,5 +1,6 @@
 export class UIManager {
-    constructor() {
+    constructor(midiManager = null) {
+        this.midiManager = midiManager;
         this.elements = {
             roomName: document.getElementById('roomName'),
             connectionStatus: document.getElementById('connectionStatus'),
@@ -14,6 +15,10 @@ export class UIManager {
         };
     }
 
+    setMIDIManager(midiManager) {
+        this.midiManager = midiManager;
+    }
+
     updateConnectionStatus(status, state = 'disconnected') {
         this.elements.connectionStatus.textContent = status;
         this.elements.statusIndicator.className = 'status-indicator';
@@ -21,6 +26,15 @@ export class UIManager {
             this.elements.statusIndicator.classList.add(state);
         }
         this.elements.statusBar.textContent = `Connection status: ${status}`;
+        
+        // Play chime for connection status changes
+        if (this.midiManager) {
+            if (state === 'connected') {
+                this.midiManager.playStatusChime('success');
+            } else if (state === 'connecting') {
+                this.midiManager.playStatusChime('connecting');
+            }
+        }
     }
 
     updateRoomName(text) {
@@ -65,6 +79,11 @@ export class UIManager {
         
         if (!shouldAnnounce) {
             message.setAttribute('aria-live', 'off');
+        }
+        
+        // Play MIDI chime for important status messages
+        if (this.midiManager && shouldAnnounce) {
+            this.midiManager.playStatusChime(type);
         }
         
         this.elements.messageLog.appendChild(message);
