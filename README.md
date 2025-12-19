@@ -129,6 +129,9 @@ To test that TURN relay is working correctly, force the app to use only TURN rel
 - **Enable Audio Feedback**: Accessibility feature that announces MIDI events (e.g., "C5 on", "C5 off")
 - **Show MIDI Activity**: Display MIDI events in real-time (accessibility feature)
 
+### Advanced Settings
+- **Enable IPv6 P2P (Experimental)**: Allow IPv6 connections for peer-to-peer communication. When enabled (default), the application will attempt connections using both IPv4 and IPv6, providing better connectivity in IPv6-enabled networks. When disabled, only IPv4 connections will be used.
+
 ### MIDI Chimes
 The application supports customizable MIDI chimes for connection events. Configure chimes in `chimes.json`:
 

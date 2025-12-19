@@ -11,7 +11,8 @@ class MIDIStreamer {
             timestampEnabled: false,
             audioFeedbackEnabled: false,
             showMidiActivity: false,
-            midiEchoEnabled: false
+            midiEchoEnabled: false,
+            ipv6Enabled: true  // Auto-try IPv6 by default for better connectivity
         };
         
         this.midi = new MIDIManager();
@@ -33,6 +34,9 @@ class MIDIStreamer {
 
     async init() {
         this.setupEventListeners();
+        
+        // Set initial checkbox states from settings
+        document.getElementById('ipv6Enabled').checked = this.settings.ipv6Enabled;
         
         // Check if TURN relay mode is enabled
         const params = new URLSearchParams(window.location.search);
@@ -108,6 +112,15 @@ class MIDIStreamer {
         document.getElementById('midiEchoEnabled').addEventListener('change', (e) => {
             this.settings.midiEchoEnabled = e.target.checked;
             this.ui.addMessage(`MIDI echo ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+        });
+        
+        document.getElementById('ipv6Enabled').addEventListener('change', (e) => {
+            this.settings.ipv6Enabled = e.target.checked;
+            this.ui.addMessage(`IPv6 P2P ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            // Pass the setting to WebRTC manager if it exists
+            if (this.webrtc) {
+                this.webrtc.ipv6Enabled = e.target.checked;
+            }
         });
     }
 

@@ -21,6 +21,9 @@ export class WebRTCManager {
         this.hasEstablishedConnection = false;
         this.manualDisconnect = false;
         
+        // IPv6 support (enabled by default for auto-try)
+        this.ipv6Enabled = true;
+        
         // Signaling
         this.signalingUrl = null;
         this.pollingInterval = null;
@@ -162,17 +165,26 @@ export class WebRTCManager {
                     return;
                 }
                 
+                // Filter candidates based on IPv6 setting
+                if (!this.shouldUseCandidate(candidate)) {
+                    const isIPv6 = this.isIPv6Candidate(candidate.candidate);
+                    console.log(`Filtered out ${isIPv6 ? 'IPv6' : 'IPv4'} candidate (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'}):`, candidate.candidate);
+                    return;
+                }
+                
                 const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                const isIPv6 = this.isIPv6Candidate(candidate.candidate);
                 console.log('ICE Candidate discovered:', {
                     type: type || 'unknown',
                     protocol: candidate.protocol || 'unknown',
+                    ipVersion: isIPv6 ? 'IPv6' : 'IPv4',
                     candidate: candidate.candidate
                 });
                 
                 const messages = {
-                    'host': '🏠 Found local network path',
-                    'srflx': '🌐 Found public internet path (via STUN)',
-                    'relay': '🔁 Found relay path (via TURN server)'
+                    'host': `🏠 Found local network path ${isIPv6 ? '(IPv6)' : '(IPv4)'}`,
+                    'srflx': `🌐 Found public internet path ${isIPv6 ? '(IPv6)' : '(IPv4)'} (via STUN)`,
+                    'relay': `🔁 Found relay path ${isIPv6 ? '(IPv6)' : '(IPv4)'} (via TURN server)`
                 };
                 if (type && messages[type]) {
                     this.onStatusUpdate(messages[type], 'info');
@@ -368,6 +380,20 @@ export class WebRTCManager {
     async handleIceCandidate(candidateData) {
         try {
             if (this.peerConnection.remoteDescription) {
+                // Create a temporary candidate object to check if we should use it
+                const tempCandidate = {
+                    candidate: candidateData.candidate,
+                    sdpMid: candidateData.sdpMid,
+                    sdpMLineIndex: candidateData.sdpMLineIndex
+                };
+                
+                // Filter based on IPv6 setting
+                if (!this.shouldUseCandidate(tempCandidate)) {
+                    const isIPv6 = this.isIPv6Candidate(candidateData.candidate);
+                    console.log(`Filtered incoming ${isIPv6 ? 'IPv6' : 'IPv4'} candidate from remote peer (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'})`);
+                    return;
+                }
+                
                 await this.peerConnection.addIceCandidate({
                     candidate: candidateData.candidate,
                     sdpMid: candidateData.sdpMid,
@@ -460,6 +486,41 @@ export class WebRTCManager {
         if (!candidateString || typeof candidateString !== 'string') return null;
         const match = candidateString.match(/\styp\s+(\w+)/);
         return match ? match[1] : null;
+    }
+    
+    /**
+     * Check if an ICE candidate is IPv6
+     * @param {string} candidateString - The ICE candidate string
+     * @returns {boolean} True if the candidate is IPv6
+     */
+    isIPv6Candidate(candidateString) {
+        if (!candidateString || typeof candidateString !== 'string') return false;
+        // IPv6 addresses contain colons
+        // Match the IP address part of the candidate string
+        const ipMatch = candidateString.match(/(\S+)\s+\d+\s+typ/);
+        if (ipMatch && ipMatch[1]) {
+            return ipMatch[1].includes(':');
+        }
+        return false;
+    }
+    
+    /**
+     * Filter ICE candidate based on IPv6 setting
+     * @param {RTCIceCandidate} candidate - The ICE candidate to check
+     * @returns {boolean} True if the candidate should be used
+     */
+    shouldUseCandidate(candidate) {
+        if (!candidate || !candidate.candidate) return false;
+        
+        const isIPv6 = this.isIPv6Candidate(candidate.candidate);
+        
+        // If IPv6 is enabled, accept all candidates (IPv4 and IPv6)
+        if (this.ipv6Enabled) {
+            return true;
+        }
+        
+        // If IPv6 is disabled, only accept IPv4 candidates
+        return !isIPv6;
     }
     
     handleIncomingData(data) {
