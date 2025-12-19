@@ -79,7 +79,10 @@ export class WebRTCManager {
         }
         
         // Set up signaling URL
-        const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        let baseUrl = window.location.pathname;
+        if (!baseUrl.endsWith('/')) {
+            baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+        }
         this.signalingUrl = `${window.location.origin}${baseUrl}signaling.php`;
         
         // Join the room via signaling server
@@ -380,7 +383,8 @@ export class WebRTCManager {
     
     async sendSignalingMessage(message) {
         try {
-            const response = await fetch(this.signalingUrl, {
+            const fullUrl = `${this.signalingUrl}?action=send&peer=${this.myPeerId}&room=${this.roomId}`;
+            const sendResponse = await fetch(fullUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -390,15 +394,6 @@ export class WebRTCManager {
                     data: message.data,
                     to: this.remotePeerId
                 })
-            });
-            
-            const fullUrl = `${this.signalingUrl}?action=send&peer=${this.myPeerId}&room=${this.roomId}`;
-            const sendResponse = await fetch(fullUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(message)
             });
             
             const result = await sendResponse.json();

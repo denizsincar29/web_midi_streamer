@@ -84,7 +84,9 @@ switch ($action) {
         }
         
         // Return list of other peers in room
-        $otherPeers = array_filter($room['peers'], fn($p) => $p !== $peerId);
+        $otherPeers = array_filter($room['peers'], function($p) use ($peerId) {
+            return $p !== $peerId;
+        });
         echo json_encode([
             'success' => true,
             'peers' => array_values($otherPeers)
@@ -158,7 +160,9 @@ switch ($action) {
         }
         
         $room = readRoom($roomFile);
-        $room['peers'] = array_filter($room['peers'], fn($p) => $p !== $peerId);
+        $room['peers'] = array_filter($room['peers'], function($p) use ($peerId) {
+            return $p !== $peerId;
+        });
         
         // Delete room file if empty
         if (empty($room['peers'])) {
