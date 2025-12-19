@@ -6,6 +6,51 @@ export class MIDIManager {
         this.selectedInput = null;
         this.selectedOutput = null;
         this.onMessage = null;
+        this.chimes = null; // Loaded from chimes.json
+        this.loadChimes();
+    }
+
+    async loadChimes() {
+        try {
+            const response = await fetch('chimes.json');
+            this.chimes = await response.json();
+            console.log('Loaded MIDI chimes configuration');
+        } catch (error) {
+            console.warn('Failed to load chimes.json, using defaults:', error);
+            // Fallback to default chimes
+            this.chimes = {
+                'success': {
+                    type: 'notes',
+                    notes: 'C5 E5',
+                    velocity: 100,
+                    duration: 100
+                },
+                'info': {
+                    type: 'notes',
+                    notes: 'A4',
+                    velocity: 90,
+                    duration: 150
+                },
+                'warning': {
+                    type: 'notes',
+                    notes: 'G4 F4',
+                    velocity: 100,
+                    duration: 100
+                },
+                'error': {
+                    type: 'notes',
+                    notes: 'F4 D4',
+                    velocity: 110,
+                    duration: 200
+                },
+                'connecting': {
+                    type: 'notes',
+                    notes: 'E4 G4',
+                    velocity: 85,
+                    duration: 80
+                }
+            };
+        }
     }
 
     async init() {
@@ -127,47 +172,107 @@ export class MIDIManager {
     }
 
     /**
-     * Play a MIDI chime sound for status notifications
-     * @param {string} type - Type of chime: 'success', 'info', 'warning', 'error', 'connecting'
+     * Convert note name (e.g., "C4", "A#5") to MIDI note number
+     * @param {string} noteName - Note name with octave (e.g., "C4", "F#5")
+     * @returns {number} MIDI note number (0-127)
      */
-    playStatusChime(type) {
-        if (!this.selectedOutput) return;
-        
-        const chimes = {
-            'success': [
-                { note: 72, velocity: 100, duration: 100 },  // C5
-                { note: 76, velocity: 100, duration: 100 },  // E5
-            ],
-            'info': [
-                { note: 69, velocity: 90, duration: 150 },   // A4
-            ],
-            'warning': [
-                { note: 67, velocity: 100, duration: 100 },  // G4
-                { note: 65, velocity: 100, duration: 100 },  // F4
-            ],
-            'error': [
-                { note: 65, velocity: 110, duration: 200 },  // F4
-                { note: 62, velocity: 110, duration: 200 },  // D4
-            ],
-            'connecting': [
-                { note: 64, velocity: 85, duration: 80 },    // E4
-                { note: 67, velocity: 85, duration: 80 },    // G4
-            ]
+    noteNameToNumber(noteName) {
+        const noteMap = {
+            'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+            'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+            'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
         };
         
-        const sequence = chimes[type] || chimes['info'];
+        // Parse note name and octave
+        const match = noteName.match(/^([A-G][#b]?)(-?\d+)$/i);
+        if (!match) {
+            console.error('Invalid note name:', noteName);
+            return 60; // Default to middle C
+        }
+        
+        const [, note, octave] = match;
+        const noteValue = noteMap[note.toUpperCase()];
+        
+        if (noteValue === undefined) {
+            console.error('Unknown note:', note);
+            return 60;
+        }
+        
+        // MIDI note number = (octave + 1) * 12 + note value
+        return (parseInt(octave) + 1) * 12 + noteValue;
+    }
+
+    /**
+     * Play a MIDI chime sound for status notifications
+     * Loads configuration from chimes.json
+     * @param {string} type - Type of chime: 'success', 'info', 'warning', 'error', 'connecting'
+     */
+    async playStatusChime(type) {
+        if (!this.selectedOutput) return;
+        
+        // Wait for chimes to load if still loading
+        if (!this.chimes) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (!this.chimes) return; // Still not loaded, skip
+        }
+        
+        const chimeConfig = this.chimes[type] || this.chimes['info'];
+        if (!chimeConfig) return;
+        
+        // Handle different chime types
+        if (chimeConfig.type === 'midi') {
+            // Load and play MIDI file
+            await this.playMidiFile(chimeConfig.file);
+        } else if (chimeConfig.type === 'notes') {
+            // Play note sequence
+            this.playNoteSequence(chimeConfig);
+        }
+    }
+    
+    /**
+     * Play a sequence of notes
+     * @param {Object} config - Configuration with notes, velocity, duration
+     */
+    playNoteSequence(config) {
+        const noteNames = config.notes.split(/\s+/);
+        const velocity = config.velocity || 100;
+        const duration = config.duration || 100;
         let delay = 0;
         
-        sequence.forEach(({ note, velocity, duration }) => {
+        noteNames.forEach(noteName => {
+            const noteNumber = this.noteNameToNumber(noteName);
+            
             setTimeout(() => {
                 // Note on
-                this.send([0x90, note, velocity]);
+                this.send([0x90, noteNumber, velocity]);
                 // Note off after duration
                 setTimeout(() => {
-                    this.send([0x80, note, 0]);
+                    this.send([0x80, noteNumber, 0]);
                 }, duration);
             }, delay);
             delay += duration + 50; // Small gap between notes
         });
+    }
+    
+    /**
+     * Load and play a MIDI file
+     * @param {string} filePath - Path to MIDI file
+     */
+    async playMidiFile(filePath) {
+        try {
+            const response = await fetch(filePath);
+            const arrayBuffer = await response.arrayBuffer();
+            
+            // Parse MIDI file (simplified - would need a full MIDI parser for production)
+            // For now, just log that we received it
+            console.log('MIDI file loaded:', filePath, 'Size:', arrayBuffer.byteLength);
+            
+            // TODO: Implement full MIDI file parsing and playback
+            // This would require a MIDI file parser library or custom implementation
+            console.warn('MIDI file playback not yet fully implemented');
+            
+        } catch (error) {
+            console.error('Failed to load MIDI file:', filePath, error);
+        }
     }
 }
