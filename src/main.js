@@ -12,7 +12,7 @@ class MIDIStreamer {
             audioFeedbackEnabled: false,
             showMidiActivity: false,
             midiEchoEnabled: false,
-            ipv6Enabled: true  // Auto-try IPv6 by default for better connectivity
+            ipv6Enabled: true  // Auto-try both IPv4 and IPv6 by default for better connectivity
         };
         
         this.midi = new MIDIManager();

@@ -496,18 +496,17 @@ export class WebRTCManager {
     isIPv6Candidate(candidateString) {
         if (!candidateString || typeof candidateString !== 'string') return false;
         
-        // ICE candidate format: candidate:foundation component protocol priority ip port typ type
+        // ICE candidate format (simplified): candidate:foundation component protocol priority ip port typ type
+        // Note: Reflexive candidates may also include raddr and rport parameters
         // IPv6 addresses contain multiple colons (at least 2)
-        // We need to be careful not to confuse port numbers with IPv6
         
         // Match the standard ICE candidate format and extract the IP address
-        // Format: candidate:<foundation> <component> <protocol> <priority> <ip> <port> typ <type>
         const match = candidateString.match(/candidate:\S+\s+\d+\s+\S+\s+\d+\s+(\S+)\s+\d+\s+typ/);
         
         if (match && match[1]) {
             const ipAddress = match[1];
             // IPv6 addresses have multiple colons (at least 2 for the shortest form ::1)
-            // IPv4 addresses with ports would be separated by space in ICE candidates, not colon
+            // Count colons to reliably distinguish IPv6 from IPv4
             const colonCount = (ipAddress.match(/:/g) || []).length;
             return colonCount >= 2;
         }
