@@ -22,6 +22,9 @@ class MIDIStreamer {
             (text, type) => this.ui.addMessage(text, type)
         );
         
+        // Pass initial IPv6 setting to WebRTC manager
+        this.webrtc.ipv6Enabled = this.settings.ipv6Enabled;
+        
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
             if (connected) {
