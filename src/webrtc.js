@@ -1,35 +1,43 @@
-import { PEERJS_CONFIG, getTurnCredentials } from './config.js';
+import { SIGNALING_CONFIG, getTurnCredentials } from './config.js';
 import { generatePeerId, shouldForceTurnRelay } from './utils.js';
 
+/**
+ * WebRTC Manager using native WebRTC API with HTTP polling signaling
+ * Replaces PeerJS with custom signaling server
+ */
 export class WebRTCManager {
     constructor(onMessage, onStatusUpdate) {
-        this.peer = null;
+        this.peerConnection = null;
         this.dataChannel = null;
         this.onMessage = onMessage;
         this.onStatusUpdate = onStatusUpdate;
         this.onConnectionStateChange = null;
-        this.pingStats = this.resetPingStats();
+        
+        // Connection state
+        this.myPeerId = null;
+        this.remotePeerId = null;
+        this.roomId = null;
+        this.isInitiator = false;
+        this.hasEstablishedConnection = false;
         this.manualDisconnect = false;
+        
+        // Signaling
+        this.signalingUrl = null;
+        this.pollingInterval = null;
+        this.lastPollTimestamp = 0;
+        
+        // Ping/pong stats
+        this.pingStats = this.resetPingStats();
+        
+        // Connection monitoring
+        this.connectionTypeReported = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
-        this.connectionTypeReported = false; // Flag to report connection type only once
-        this.myPeerId = null; // Store our peer ID
-        this.remotePeerId = null; // Store remote peer ID
-        this.hasEstablishedConnection = false; // Flag to prevent duplicate connections
-        this.isInitiatingConnection = false; // Flag to track if we're currently initiating an outgoing connection
-        
-        // Reconnection constants
         this.RECONNECT_BASE_DELAY_MS = 1000;
         this.RECONNECT_BACKOFF_MULTIPLIER = 2;
         this.RECONNECT_MAX_DELAY_MS = 5000;
     }
     
-    calculateReconnectDelay() {
-        const exponentialDelay = this.RECONNECT_BASE_DELAY_MS * 
-            Math.pow(this.RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts - 1);
-        return Math.min(exponentialDelay, this.RECONNECT_MAX_DELAY_MS);
-    }
-
     resetPingStats() {
         return {
             count: 0,
@@ -39,200 +47,160 @@ export class WebRTCManager {
             inProgress: false
         };
     }
+    
+    calculateReconnectDelay() {
+        const exponentialDelay = this.RECONNECT_BASE_DELAY_MS * 
+            Math.pow(this.RECONNECT_BACKOFF_MULTIPLIER, this.reconnectAttempts - 1);
+        return Math.min(exponentialDelay, this.RECONNECT_MAX_DELAY_MS);
+    }
 
+    /**
+     * Connect to a room and establish WebRTC connection
+     * @param {string|null} remotePeerId - If provided, connect to this specific peer
+     * @returns {Promise<string|null>} Returns share URL if creating room, null if joining
+     */
     async connect(remotePeerId = null) {
-        // Fetch fresh TURN credentials before connecting
         this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
         const iceServers = await getTurnCredentials();
         
-        // Check if we should force TURN relay for testing
-        const forceTurn = shouldForceTurnRelay();
-        if (forceTurn) {
-            this.onStatusUpdate('⚠️ TURN relay mode: Forcing relay connection (P2P disabled)', 'warning');
+        // Generate our peer ID
+        this.myPeerId = generatePeerId();
+        this.remotePeerId = remotePeerId;
+        
+        // Determine room ID
+        if (remotePeerId) {
+            // Joining existing room - use remote peer ID as room
+            this.roomId = remotePeerId;
+            this.isInitiator = false;
+        } else {
+            // Creating new room - use our peer ID as room
+            this.roomId = this.myPeerId;
+            this.isInitiator = true;
         }
         
-        const config = {
-            ...PEERJS_CONFIG,
-            config: {
-                ...PEERJS_CONFIG.config,
-                iceServers,
-                // Force relay when testing TURN connectivity
-                iceTransportPolicy: forceTurn ? 'relay' : 'all'
-            }
-        };
+        // Set up signaling URL
+        const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        this.signalingUrl = `${window.location.origin}${baseUrl}signaling.php`;
         
-        const peerId = generatePeerId();
-        this.myPeerId = peerId;
-        this.remotePeerId = remotePeerId;
-        this.peer = new Peer(peerId, config);
+        // Join the room via signaling server
+        this.onStatusUpdate('🔗 Connecting to signaling server...', 'info');
         
-        return new Promise((resolve, reject) => {
-            this.peer.on('open', (id) => {
-                this.onStatusUpdate('✅ Connected to PeerJS signaling server', 'success');
-                this.reconnectAttempts = 0; // Reset reconnect counter on successful connection
-                
-                if (remotePeerId) {
-                    // Always initiate connection when we have a remotePeerId
-                    // This is the normal flow where user joins via shared URL
-                    this.onStatusUpdate(`🔗 Initiating connection to peer: ${remotePeerId}`, 'info');
-                    this.isInitiatingConnection = true; // Mark that we're initiating an outgoing connection
-                    const conn = this.peer.connect(remotePeerId, { reliable: true });
-                    this.setupDataConnection(conn);
-                    resolve(null);
-                } else {
-                    const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${id}`;
-                    resolve(shareUrl);
-                }
-            });
+        try {
+            const joinResponse = await fetch(
+                `${this.signalingUrl}?action=join&room=${this.roomId}&peer=${this.myPeerId}`
+            );
+            const joinData = await joinResponse.json();
             
-            this.peer.on('connection', (conn) => {
-                // Prevent accepting duplicate connections if we already have one
-                if (this.hasEstablishedConnection) {
-                    this.onStatusUpdate('⚠️ Rejecting duplicate connection attempt', 'warning');
-                    conn.close();
+            if (!joinData.success) {
+                throw new Error('Failed to join room');
+            }
+            
+            this.onStatusUpdate('✅ Connected to signaling server', 'success');
+            
+            // Start polling for signaling messages
+            this.startPolling();
+            
+            // Check if we should force TURN relay
+            const forceTurn = shouldForceTurnRelay();
+            if (forceTurn) {
+                this.onStatusUpdate('⚠️ TURN relay mode: Forcing relay connection (P2P disabled)', 'warning');
+            }
+            
+            // Create peer connection
+            const config = {
+                iceServers,
+                iceCandidatePoolSize: 10,
+                iceTransportPolicy: forceTurn ? 'relay' : 'all'
+            };
+            
+            this.peerConnection = new RTCPeerConnection(config);
+            this.setupPeerConnectionHandlers();
+            
+            if (this.isInitiator || remotePeerId) {
+                // If we're initiator or explicitly connecting to someone, create data channel
+                this.createDataChannel();
+                
+                // Wait a bit for the other peer to join
+                if (this.isInitiator && !remotePeerId) {
+                    // Creating room - return share URL and wait for peer
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${this.myPeerId}`;
+                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
+                    return shareUrl;
+                }
+                
+                // Joining room or connecting to specific peer
+                if (joinData.peers && joinData.peers.length > 0) {
+                    // Peer already in room, create offer
+                    this.remotePeerId = joinData.peers[0];
+                    await this.createOffer();
+                } else {
+                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
+                }
+            }
+            
+            return null;
+            
+        } catch (error) {
+            this.onStatusUpdate(`❌ Connection failed: ${error.message}`, 'error');
+            throw error;
+        }
+    }
+    
+    setupPeerConnectionHandlers() {
+        const pc = this.peerConnection;
+        
+        // ICE candidate handler
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                const candidate = event.candidate;
+                
+                if (!candidate.candidate) {
+                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
                     return;
                 }
                 
-                // Check if both peers are trying to connect simultaneously
-                // In this case, only the peer with the smaller ID should keep its outgoing connection
-                if (this.isInitiatingConnection && typeof conn.peer === 'string' && conn.peer.trim().length > 0) {
-                    // We already initiated an outgoing connection
-                    // Determine which connection to keep based on peer IDs
-                    // Use conn.peer to get the actual peer ID of the incoming connection
-                    const shouldKeepOutgoing = this.shouldInitiateConnection(this.myPeerId, conn.peer);
-                    
-                    if (shouldKeepOutgoing) {
-                        this.onStatusUpdate('⚠️ Rejecting incoming connection (using outgoing connection)', 'warning');
-                        conn.close();
-                        return;
-                    } else {
-                        // Close our outgoing connection and accept the incoming one
-                        this.onStatusUpdate('⚠️ Closing outgoing connection (accepting incoming)', 'warning');
-                        if (this.dataChannel) {
-                            // Store peerConnection reference before closing dataChannel
-                            // to ensure we can properly clean up even if dataChannel.close() invalidates the reference
-                            const peerConnection = this.dataChannel.peerConnection;
-                            this.dataChannel.close();
-                            this.dataChannel = null; // Clear the reference to prevent stale state
-                            
-                            if (peerConnection) {
-                                peerConnection.close();
-                            }
-                        }
-                        this.isInitiatingConnection = false; // Clear the flag since we're closing outgoing
-                        // Note: hasEstablishedConnection will be set when the incoming connection opens
+                const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                console.log('ICE Candidate discovered:', {
+                    type: type || 'unknown',
+                    protocol: candidate.protocol || 'unknown',
+                    candidate: candidate.candidate
+                });
+                
+                const messages = {
+                    'host': '🏠 Found local network path',
+                    'srflx': '🌐 Found public internet path (via STUN)',
+                    'relay': '🔁 Found relay path (via TURN server)'
+                };
+                if (type && messages[type]) {
+                    this.onStatusUpdate(messages[type], 'info');
+                }
+                
+                // Send ICE candidate via signaling
+                this.sendSignalingMessage({
+                    type: 'ice-candidate',
+                    data: {
+                        candidate: candidate.candidate,
+                        sdpMid: candidate.sdpMid,
+                        sdpMLineIndex: candidate.sdpMLineIndex
                     }
-                }
-                
-                this.onStatusUpdate('📥 Incoming peer connection...', 'info');
-                this.setupDataConnection(conn);
-            });
-            
-            this.peer.on('error', (err) => {
-                this.onStatusUpdate(`PeerJS error: ${err.type} - ${err.message}`, 'error');
-                if (err.type === 'peer-unavailable') {
-                    this.onStatusUpdate('The peer is not available. Make sure they are connected first.', 'error');
-                }
-                reject(err);
-            });
-            
-            this.peer.on('disconnected', () => {
-                this.onStatusUpdate('Disconnected from PeerJS server', 'warning');
-                
-                // Attempt automatic reconnection unless manually disconnected
-                if (!this.manualDisconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    const delay = this.calculateReconnectDelay();
-                    this.onStatusUpdate(`Reconnecting in ${delay/1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`, 'info');
-                    
-                    setTimeout(() => {
-                        if (this.peer && !this.manualDisconnect) {
-                            this.peer.reconnect();
-                        }
-                    }, delay);
-                }
-            });
-            
-            this.peer.on('close', () => {
-                this.onStatusUpdate('PeerJS connection closed', 'warning');
-            });
-        });
-    }
-    
-    /**
-     * Determines which peer should keep its connection during simultaneous connection attempts.
-     * When both peers try to connect to each other at the same time, this method uses
-     * lexicographic peer ID comparison to deterministically choose which connection to keep.
-     * This prevents duplicate PeerConnections that can cause ICE candidate pair issues.
-     * 
-     * The peer with the lexicographically smaller ID keeps its outgoing connection,
-     * while the peer with the larger ID closes its outgoing connection and accepts the incoming one.
-     * 
-     * @param {string} myId - This peer's ID
-     * @param {string} remoteId - Remote peer's ID
-     * @returns {boolean} True if this peer should keep its outgoing connection (i.e., myId < remoteId)
-     */
-    shouldInitiateConnection(myId, remoteId) {
-        // Validate inputs - both IDs must be non-empty strings
-        if (typeof myId !== 'string' || typeof remoteId !== 'string' || 
-            myId.trim().length === 0 || remoteId.trim().length === 0) {
-            console.error('Invalid peer IDs for connection comparison:', { myId, remoteId });
-            return false; // Default to not initiating if IDs are invalid
-        }
-        return myId < remoteId;
-    }
-
-    setupDataConnection(conn) {
-        this.dataChannel = conn;
-        this.connectionTypeReported = false; // Reset flag for new connection
-        this.onStatusUpdate('🔄 Starting WebRTC connection negotiation...', 'info');
-        
-        // Monitor for when peerConnection becomes available
-        const setupMonitoring = () => {
-            if (conn.peerConnection) {
-                this.setupPeerConnectionMonitoring(conn.peerConnection);
+                });
             } else {
-                // PeerConnection not ready yet, try again soon
-                setTimeout(setupMonitoring, 50);
+                this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
+                console.log('ICE candidate gathering completed');
             }
         };
-        setupMonitoring();
         
-        conn.on('open', () => {
-            this.hasEstablishedConnection = true; // Mark that we have an established connection
-            this.onStatusUpdate('✅ Data channel open - ready to stream MIDI!', 'success');
-            if (this.onConnectionStateChange) {
-                this.onConnectionStateChange(true);
+        // ICE gathering state
+        pc.onicegatheringstatechange = () => {
+            console.log('ICE Gathering State:', pc.iceGatheringState);
+            if (pc.iceGatheringState === 'gathering') {
+                this.onStatusUpdate('📡 Gathering network candidates...', 'info');
+            } else if (pc.iceGatheringState === 'complete') {
+                this.onStatusUpdate('✅ Finished gathering network candidates', 'success');
             }
-        });
+        };
         
-        conn.on('data', (data) => {
-            this.handleIncomingData(data);
-        });
-        
-        conn.on('close', () => {
-            this.onStatusUpdate('Peer disconnected', 'warning');
-            this.hasEstablishedConnection = false; // Reset flag on disconnect
-            this.isInitiatingConnection = false; // Reset initiating flag on disconnect
-            if (this.onConnectionStateChange) {
-                this.onConnectionStateChange(false);
-            }
-        });
-        
-        conn.on('error', (err) => {
-            this.onStatusUpdate(`❌ Data channel error: ${err.message}`, 'error');
-        });
-    }
-
-    parseCandidateType(candidateString) {
-        // Parse the candidate type from the SDP string
-        // Example: "candidate:123456 1 udp 123456 192.168.1.1 12345 typ host"
-        if (!candidateString || typeof candidateString !== 'string') return null;
-        const match = candidateString.match(/\styp\s+(\w+)/);
-        return match ? match[1] : null;
-    }
-
-    setupPeerConnectionMonitoring(pc) {
+        // ICE connection state
         pc.oniceconnectionstatechange = () => {
             const state = pc.iceConnectionState;
             const messages = {
@@ -247,12 +215,10 @@ export class WebRTCManager {
                 this.onStatusUpdate(messages[state], state === 'failed' ? 'error' : 'info');
             }
             
-            // Log the ICE connection state for debugging
             console.log('ICE Connection State:', state);
             
-            // When connected, log the actual connection type being used
             if ((state === 'connected' || state === 'completed') && !this.connectionTypeReported) {
-                this.connectionTypeReported = true; // Report only once per connection
+                this.connectionTypeReported = true;
                 pc.getStats().then(stats => {
                     stats.forEach(report => {
                         if (report.type === 'candidate-pair' && report.state === 'succeeded') {
@@ -274,7 +240,6 @@ export class WebRTCManager {
                 }).catch(err => console.error('Error getting connection stats:', err));
             }
             
-            // If failed, check if we have relay candidates
             if (state === 'failed') {
                 console.error('WebRTC connection failed. Check:');
                 console.error('1. TURN server credentials are valid');
@@ -283,51 +248,225 @@ export class WebRTCManager {
             }
         };
         
-        pc.onicegatheringstatechange = () => {
-            console.log('ICE Gathering State:', pc.iceGatheringState);
-            if (pc.iceGatheringState === 'gathering') {
-                this.onStatusUpdate('📡 Gathering network candidates...', 'info');
-            } else if (pc.iceGatheringState === 'complete') {
-                this.onStatusUpdate('✅ Finished gathering network candidates', 'success');
+        // Connection state change
+        pc.onconnectionstatechange = () => {
+            console.log('Connection State:', pc.connectionState);
+        };
+        
+        // Data channel from remote peer
+        pc.ondatachannel = (event) => {
+            this.onStatusUpdate('📥 Incoming data channel...', 'info');
+            this.dataChannel = event.channel;
+            this.setupDataChannelHandlers();
+        };
+    }
+    
+    createDataChannel() {
+        this.dataChannel = this.peerConnection.createDataChannel('midi-data', {
+            ordered: true,
+            maxRetransmits: 3
+        });
+        this.setupDataChannelHandlers();
+    }
+    
+    setupDataChannelHandlers() {
+        const dc = this.dataChannel;
+        
+        dc.onopen = () => {
+            this.hasEstablishedConnection = true;
+            this.onStatusUpdate('✅ Data channel open - ready to stream MIDI!', 'success');
+            if (this.onConnectionStateChange) {
+                this.onConnectionStateChange(true);
             }
         };
         
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                const candidate = event.candidate;
-                
-                // Skip logging if candidate has no meaningful data
-                if (!candidate.candidate) {
-                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
-                    return;
-                }
-                
-                // Extract type from candidate - it may be in different properties depending on browser
-                const type = candidate.type || this.parseCandidateType(candidate.candidate);
-                const protocol = candidate.protocol || '';
-                
-                // Log with fallback for missing properties
-                console.log('ICE Candidate discovered:', {
-                    type: type || 'unknown',
-                    protocol: protocol || 'unknown',
-                    candidate: candidate.candidate
-                });
-                
-                const messages = {
-                    'host': '🏠 Found local network path',
-                    'srflx': '🌐 Found public internet path (via STUN)',
-                    'relay': '🔁 Found relay path (via TURN server)'
-                };
-                if (type && messages[type]) {
-                    this.onStatusUpdate(messages[type], 'info');
-                }
-            } else {
-                this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
-                console.log('ICE candidate gathering completed');
+        dc.onmessage = (event) => {
+            this.handleIncomingData(event.data);
+        };
+        
+        dc.onclose = () => {
+            this.hasEstablishedConnection = false;
+            this.onStatusUpdate('Peer disconnected', 'warning');
+            if (this.onConnectionStateChange) {
+                this.onConnectionStateChange(false);
             }
         };
+        
+        dc.onerror = (error) => {
+            this.onStatusUpdate(`❌ Data channel error: ${error}`, 'error');
+        };
     }
-
+    
+    async createOffer() {
+        try {
+            this.onStatusUpdate('🔗 Creating connection offer...', 'info');
+            const offer = await this.peerConnection.createOffer();
+            await this.peerConnection.setLocalDescription(offer);
+            
+            // Send offer via signaling
+            await this.sendSignalingMessage({
+                type: 'offer',
+                data: {
+                    sdp: offer.sdp,
+                    type: offer.type
+                }
+            });
+            
+            this.onStatusUpdate('📤 Sent connection offer', 'info');
+        } catch (error) {
+            this.onStatusUpdate(`❌ Failed to create offer: ${error.message}`, 'error');
+        }
+    }
+    
+    async handleOffer(offerData) {
+        try {
+            this.onStatusUpdate('📥 Received connection offer', 'info');
+            
+            // If we don't have a data channel yet and we're not the initiator, wait for it
+            if (!this.dataChannel && !this.isInitiator) {
+                // Data channel will be created by ondatachannel event
+            }
+            
+            await this.peerConnection.setRemoteDescription({
+                type: 'offer',
+                sdp: offerData.sdp
+            });
+            
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
+            
+            // Send answer via signaling
+            await this.sendSignalingMessage({
+                type: 'answer',
+                data: {
+                    sdp: answer.sdp,
+                    type: answer.type
+                }
+            });
+            
+            this.onStatusUpdate('📤 Sent connection answer', 'info');
+        } catch (error) {
+            this.onStatusUpdate(`❌ Failed to handle offer: ${error.message}`, 'error');
+        }
+    }
+    
+    async handleAnswer(answerData) {
+        try {
+            this.onStatusUpdate('📥 Received connection answer', 'info');
+            await this.peerConnection.setRemoteDescription({
+                type: 'answer',
+                sdp: answerData.sdp
+            });
+        } catch (error) {
+            this.onStatusUpdate(`❌ Failed to handle answer: ${error.message}`, 'error');
+        }
+    }
+    
+    async handleIceCandidate(candidateData) {
+        try {
+            if (this.peerConnection.remoteDescription) {
+                await this.peerConnection.addIceCandidate({
+                    candidate: candidateData.candidate,
+                    sdpMid: candidateData.sdpMid,
+                    sdpMLineIndex: candidateData.sdpMLineIndex
+                });
+            } else {
+                console.log('Received ICE candidate before remote description, ignoring');
+            }
+        } catch (error) {
+            console.error('Failed to add ICE candidate:', error);
+        }
+    }
+    
+    async sendSignalingMessage(message) {
+        try {
+            const response = await fetch(this.signalingUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: message.type,
+                    data: message.data,
+                    to: this.remotePeerId
+                })
+            });
+            
+            const fullUrl = `${this.signalingUrl}?action=send&peer=${this.myPeerId}&room=${this.roomId}`;
+            const sendResponse = await fetch(fullUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(message)
+            });
+            
+            const result = await sendResponse.json();
+            if (!result.success) {
+                throw new Error('Failed to send signaling message');
+            }
+        } catch (error) {
+            console.error('Error sending signaling message:', error);
+        }
+    }
+    
+    startPolling() {
+        if (this.pollingInterval) {
+            return; // Already polling
+        }
+        
+        this.pollingInterval = setInterval(async () => {
+            try {
+                const url = `${this.signalingUrl}?action=poll&room=${this.roomId}&peer=${this.myPeerId}&since=${this.lastPollTimestamp}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success && data.messages) {
+                    for (const message of data.messages) {
+                        await this.handleSignalingMessage(message);
+                    }
+                    this.lastPollTimestamp = data.timestamp;
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+            }
+        }, SIGNALING_CONFIG.pollingInterval);
+    }
+    
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+    }
+    
+    async handleSignalingMessage(message) {
+        // Set remote peer ID if we don't have it yet
+        if (!this.remotePeerId && message.from && message.from !== this.myPeerId) {
+            this.remotePeerId = message.from;
+        }
+        
+        switch (message.type) {
+            case 'offer':
+                await this.handleOffer(message.data);
+                break;
+            case 'answer':
+                await this.handleAnswer(message.data);
+                break;
+            case 'ice-candidate':
+                await this.handleIceCandidate(message.data);
+                break;
+            default:
+                console.log('Unknown signaling message type:', message.type);
+        }
+    }
+    
+    parseCandidateType(candidateString) {
+        if (!candidateString || typeof candidateString !== 'string') return null;
+        const match = candidateString.match(/\styp\s+(\w+)/);
+        return match ? match[1] : null;
+    }
+    
     handleIncomingData(data) {
         const message = typeof data === 'string' ? JSON.parse(data) : data;
         
@@ -341,17 +480,18 @@ export class WebRTCManager {
             this.onMessage({ type: 'midi', data: message });
         }
     }
-
+    
     send(data) {
-        if (this.dataChannel && this.dataChannel.open) {
-            this.dataChannel.send(data);
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            const message = typeof data === 'string' ? data : JSON.stringify(data);
+            this.dataChannel.send(message);
             return true;
         }
         return false;
     }
-
+    
     sendPing() {
-        if (!this.dataChannel || !this.dataChannel.open) {
+        if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
             this.onStatusUpdate('Data channel not open', 'error');
             return;
         }
@@ -370,22 +510,22 @@ export class WebRTCManager {
             setTimeout(() => {
                 const pingId = i + 1;
                 const timestamp = performance.now();
-                this.dataChannel.send({ type: 'ping', timestamp, pingId });
+                this.send({ type: 'ping', timestamp, pingId });
                 this.pingStats.sentTimes[pingId] = timestamp;
             }, i * 100);
         }
     }
-
+    
     handlePing(message) {
-        if (this.dataChannel && this.dataChannel.open) {
-            this.dataChannel.send({
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.send({
                 type: 'pong',
                 timestamp: message.timestamp,
                 pingId: message.pingId
             });
         }
     }
-
+    
     handlePong(message) {
         if (!message || typeof message.timestamp !== 'number' || !message.pingId) {
             console.error('Invalid pong message received:', message);
@@ -403,7 +543,7 @@ export class WebRTCManager {
             this.pingStats.inProgress = false;
         }
     }
-
+    
     displayPingStatistics() {
         const times = this.pingStats.times;
         const min = Math.min(...times);
@@ -415,25 +555,37 @@ export class WebRTCManager {
             'success'
         );
     }
-
-    disconnect() {
-        this.manualDisconnect = true; // Prevent automatic reconnection
-        this.reconnectAttempts = 0;
-        this.hasEstablishedConnection = false; // Reset connection flag
-        this.isInitiatingConnection = false; // Reset initiating flag
+    
+    async disconnect() {
+        this.manualDisconnect = true;
+        this.hasEstablishedConnection = false;
         
+        // Stop polling
+        this.stopPolling();
+        
+        // Leave room via signaling
+        if (this.roomId && this.myPeerId) {
+            try {
+                await fetch(`${this.signalingUrl}?action=leave&room=${this.roomId}&peer=${this.myPeerId}`);
+            } catch (error) {
+                console.error('Error leaving room:', error);
+            }
+        }
+        
+        // Close data channel
         if (this.dataChannel) {
             this.dataChannel.close();
             this.dataChannel = null;
         }
         
-        if (this.peer) {
-            this.peer.destroy();
-            this.peer = null;
+        // Close peer connection
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
         }
     }
-
+    
     isConnected() {
-        return this.dataChannel && this.dataChannel.open;
+        return this.dataChannel && this.dataChannel.readyState === 'open';
     }
 }
