@@ -1,44 +1,34 @@
 # Web MIDI Streamer
 
-A real-time WebRTC-based MIDI streaming application that allows two users to stream MIDI data between their devices using **PeerJS** for backendless deployment.
+A real-time WebRTC-based MIDI streaming application that allows two users to stream MIDI data between their devices using HTTP polling-based signaling.
 
-## 🚀 Deployment Options
+## 🚀 Quick Start
 
-### Static Deployment (Recommended - No Backend Required!)
-
-The application now uses **PeerJS** for WebRTC signaling, which means **no backend server is required**! You can deploy the static files anywhere:
-
-#### GitHub Pages (Free & Easy)
-1. Push the files to a GitHub repository
-2. Go to Settings → Pages
-3. Select branch and folder
-4. Your app will be live at `https://yourusername.github.io/web_midi_streamer/`
-
-#### Netlify, Vercel, Cloudflare Pages
-Simply connect your repository and deploy - these services automatically detect and deploy static sites for free.
-
-#### Local Static Server
+### Local Development
 ```bash
-# Serve files locally with any HTTP server
+# Serve the application locally
+php -S localhost:8080
+# or use Python
 python3 -m http.server 8080
-# or
-npx serve .
 ```
 
-Then open `http://localhost:8080/?room=myroom`
+Then open `http://localhost:8080/`
 
-### Legacy Backend Deployment (Optional)
-
-If you prefer to use the original Python backend for signaling (instead of PeerJS cloud), see [Legacy Backend Setup](#legacy-backend-setup) below.
+### Deployment
+The application requires a PHP backend for signaling. Deploy to any hosting service that supports PHP:
+- Traditional shared hosting (cPanel, etc.)
+- VPS or cloud servers
+- Platform-as-a-Service (Heroku, etc.)
 
 ## Features
 
 - **Real-time MIDI streaming** over WebRTC data channels
-- **Backendless deployment** using PeerJS cloud signaling (free)
+- **HTTP polling signaling** - Simple PHP-based signaling server
 - **Room-based connections** - create or join rooms via URL parameter
 - **URL sharing** - share a URL with peer ID for easy connection
 - **SysEx support** - optional support for System Exclusive messages
 - **Timestamp synchronization** - experimental feature for better timing on slow connections
+- **MIDI chimes** - customizable audio feedback for connection events
 - **Accessibility** - ARIA live regions and audio feedback for MIDI events
 - **Keyboard navigation** - fully accessible via keyboard
 - **Multiple MIDI devices** - support for various MIDI input and output devices
@@ -47,7 +37,8 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
 
 - Modern web browser with Web MIDI API support (Chrome, Edge, Opera)
 - MIDI devices (e.g., Nord keyboards) connected to your computer
-- Internet connection (for PeerJS cloud signaling)
+- PHP-enabled web server for signaling
+- Internet connection
 
 ## Quick Start
 
@@ -77,18 +68,18 @@ If you prefer to use the original Python backend for signaling (instead of PeerJ
 
 ```
 ┌─────────┐                    ┌──────────────────┐                    ┌─────────┐
-│ User 1  │ ◄──── signaling ──►│ PeerJS Cloud     │◄──── signaling ────►│ User 2  │
-│ Browser │                    │ (free service)   │                    │ Browser │
+│ User 1  │ ◄──── signaling ──►│ signaling.php    │◄──── signaling ────►│ User 2  │
+│ Browser │                    │ (HTTP polling)   │                    │ Browser │
 └─────────┘                    └──────────────────┘                    └─────────┘
      │                                                                       │
      └──────────────────── Direct P2P MIDI Data ────────────────────────────┘
                           (WebRTC Data Channel)
 ```
 
-1. Users connect to PeerJS cloud signaling server
+1. Users connect to signaling server via HTTP polling
 2. Peer IDs are shared via URL
-3. PeerJS handles all WebRTC negotiation automatically
-4. MIDI data flows directly peer-to-peer (bypasses PeerJS server)
+3. Signaling server handles WebRTC offer/answer exchange
+4. MIDI data flows directly peer-to-peer (bypasses signaling server)
 
 ## Network Connectivity & TURN Servers
 
@@ -117,57 +108,103 @@ To verify TURN relay is working (useful when P2P connects fine):
 
 ### For Production Use
 
-The app uses free public TURN servers by default. For production deployments or better performance:
+The app uses a default STUN server. For production deployments or better connectivity across strict firewalls:
 
 - **Set up your own TURN server** - See [TURN_SETUP.md](TURN_SETUP.md) for instructions
 - **Use commercial TURN service** - Twilio, Xirsys, or Metered
 
-The included free TURN servers should work fine for personal use and testing.
-
 ### Testing TURN Connectivity
 
-To test that TURN relay is working correctly, you can force the app to use only TURN relay (disabling direct P2P):
+To test that TURN relay is working correctly, force the app to use only TURN relay:
 
-1. Add `?forceTurn=true` to the URL when both users connect
-2. Example: `https://your-domain.com/?forceTurn=true`
-3. The app will display "TURN relay mode" message
-4. Check the browser console to see "relay" type ICE candidates
-
-This helps verify your TURN server is configured correctly.
+1. Add `?forceTurn=true` to the URL: `https://your-domain.com/?forceTurn=true`
+2. The app will display "TURN relay mode" message
+3. Check the browser console for "relay" type ICE candidates
 
 ## Settings
 
+### Basic Settings
 - **Enable SysEx Support**: Allow System Exclusive messages (required for advanced keyboard features)
 - **Enable Timestamp Sync**: Experimental feature that sends MIDI data with timestamps for better timing on slow connections
 - **Enable Audio Feedback**: Accessibility feature that announces MIDI events (e.g., "C5 on", "C5 off")
 - **Show MIDI Activity**: Display MIDI events in real-time (accessibility feature)
 
+### MIDI Chimes
+The application supports customizable MIDI chimes for connection events. Configure chimes in `chimes.json`:
+
+```json
+{
+  "success": {
+    "type": "notes",
+    "notes": "C5 E5 G5",
+    "velocity": 100,
+    "duration": 150
+  },
+  "error": {
+    "type": "notes", 
+    "notes": "E5 C5 A4 F4",
+    "velocity": 120,
+    "duration": 200
+  }
+}
+```
+
+Available chime types: `success`, `connecting`, `warning`, `error`, `info`
+
+## Signaling Server Setup
+
+The application uses a custom PHP-based signaling server for WebRTC negotiation:
+
+1. **Set up signaling directory**
+   ```bash
+   mkdir -p signaling_data
+   chmod 755 signaling_data
+   ```
+
+2. **Configure TURN server** (optional, for better connectivity)
+   ```bash
+   cp config.example.php config.php
+   # Edit config.php with your TURN server details
+   ```
+
+3. **Start server**
+   ```bash
+   php -S localhost:8080
+   ```
+
+The signaling server handles:
+- WebRTC offer/answer exchange
+- ICE candidate relay
+- Room management
+- Peer discovery
+
+For production deployment, consider using Redis instead of file storage for better performance.
+
 ## Architecture
 
-The application is a modern single-page application (SPA) with no backend requirements:
+The application is a modern single-page application (SPA) with a PHP signaling backend:
 
 1. **Frontend** (`index.html`, `src/*.js`, `style.css`):
    - Web MIDI API integration for device access
-   - PeerJS integration for WebRTC signaling
+   - Native WebRTC implementation for peer connections
    - WebRTC peer-to-peer data channels for MIDI streaming
    - User interface and controls
 
-2. **Signaling** (PeerJS Cloud):
-   - Free hosted signaling service
-   - Handles WebRTC negotiation (offers, answers, ICE candidates)
+2. **Signaling Backend** (`signaling.php`):
+   - HTTP polling-based signaling
+   - WebRTC negotiation (offers, answers, ICE candidates)
    - Does NOT see or handle MIDI data
 
-3. **TURN Credentials** (Optional PHP backend):
-   - `get-turn-credentials.php` - Generates time-limited TURN credentials
-   - Only needed if using your own TURN server
-   - Can be deployed alongside static files or separately
+3. **TURN Credentials** (`get-turn-credentials.php`):
+   - Generates time-limited TURN credentials
+   - Optional, for improved connectivity
 
 ### Code Structure
 
 The code is modular and well-organized:
 
 - `src/main.js` - Application entry point and orchestration
-- `src/webrtc.js` - WebRTC connection management and PeerJS integration
+- `src/webrtc.js` - WebRTC connection management with HTTP polling signaling
 - `src/midi.js` - MIDI device handling and message processing
 - `src/ui.js` - User interface updates and DOM manipulation
 - `src/config.js` - Configuration and TURN credential management
