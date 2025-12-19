@@ -37,7 +37,7 @@
   "_example_midi_file": {
     "type": "midi",
     "file": "./chimes/custom-success.mid",
-    "comment": "Example of loading a custom MIDI file (not yet fully implemented)"
+    "comment": "MIDI file playback is a future feature - currently falls back to default note"
   },
   "_instructions": {
     "comment": "See CHIMES.md for full documentation on customizing chimes"

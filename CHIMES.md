@@ -32,9 +32,11 @@ Play a sequence of notes specified by name:
 - Octave: `-1` to `9` (middle C is `C4`)
 - Examples: `C4`, `F#5`, `Bb3`, `A4`
 
-### 2. MIDI File (Advanced)
+### 2. MIDI File (Future Feature)
 
-Load and play a MIDI file:
+> **Note:** MIDI file playback is planned for a future update. Currently, only note sequences are supported.
+
+For future versions, you'll be able to load custom MIDI files:
 
 ```json
 {
@@ -45,11 +47,7 @@ Load and play a MIDI file:
 }
 ```
 
-**Parameters:**
-- `type`: Must be `"midi"` for MIDI files
-- `file`: Path to MIDI file (relative to root directory)
-
-> **Note:** MIDI file playback is currently a placeholder. Full implementation would require a MIDI parser library.
+If you configure a MIDI file type, the application will fall back to playing a default note instead.
 
 ## Available Chime Types
 
@@ -102,19 +100,21 @@ Load and play a MIDI file:
 {
   "success": {
     "type": "midi",
-    "file": "./custom-chimes/success.mid"
+    "file": "./custom-chimes/success.mid",
+    "comment": "MIDI file support coming in future update - currently uses fallback"
   }
 }
 ```
 
-## Creating Custom MIDI Files
+## Future Features
 
-1. Create your MIDI files using a DAW or MIDI editor
-2. Keep files short (< 1 second recommended)
-3. Use simple note sequences for best results
-4. Save in standard MIDI format (.mid)
-5. Place files in a directory (e.g., `./chimes/`)
-6. Reference in `chimes.json`
+### MIDI File Playback
+MIDI file playback is planned for a future release. When implemented, you'll be able to:
+1. Create custom MIDI files using your DAW
+2. Save them in a `chimes/` directory
+3. Reference them in `chimes.json`
+
+Currently, configuring `"type": "midi"` will fall back to playing a default note.
 
 ## Fallback Behavior
 

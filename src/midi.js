@@ -7,13 +7,15 @@ export class MIDIManager {
         this.selectedOutput = null;
         this.onMessage = null;
         this.chimes = null; // Loaded from chimes.json
-        this.loadChimes();
+        this.chimesLoaded = false;
+        this.chimesLoading = this.loadChimes(); // Start loading immediately
     }
 
     async loadChimes() {
         try {
             const response = await fetch('chimes.json');
             this.chimes = await response.json();
+            this.chimesLoaded = true;
             console.log('Loaded MIDI chimes configuration');
         } catch (error) {
             console.warn('Failed to load chimes.json, using defaults:', error);
@@ -50,6 +52,7 @@ export class MIDIManager {
                     duration: 80
                 }
             };
+            this.chimesLoaded = true;
         }
     }
 
@@ -210,10 +213,17 @@ export class MIDIManager {
     async playStatusChime(type) {
         if (!this.selectedOutput) return;
         
-        // Wait for chimes to load if still loading
-        if (!this.chimes) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            if (!this.chimes) return; // Still not loaded, skip
+        // Wait for chimes to finish loading with timeout
+        if (!this.chimesLoaded) {
+            try {
+                await Promise.race([
+                    this.chimesLoading,
+                    new Promise((_, reject) => setTimeout(() => reject('timeout'), 500))
+                ]);
+            } catch (error) {
+                console.warn('Chimes loading timed out or failed, skipping chime');
+                return;
+            }
         }
         
         const chimeConfig = this.chimes[type] || this.chimes['info'];
@@ -221,8 +231,10 @@ export class MIDIManager {
         
         // Handle different chime types
         if (chimeConfig.type === 'midi') {
-            // Load and play MIDI file
-            await this.playMidiFile(chimeConfig.file);
+            // MIDI file playback not yet implemented
+            console.warn('MIDI file playback not yet implemented, using default chime');
+            // Fall back to playing a simple note
+            this.playNoteSequence({ notes: 'A4', velocity: 90, duration: 150 });
         } else if (chimeConfig.type === 'notes') {
             // Play note sequence
             this.playNoteSequence(chimeConfig);
@@ -252,27 +264,5 @@ export class MIDIManager {
             }, delay);
             delay += duration + 50; // Small gap between notes
         });
-    }
-    
-    /**
-     * Load and play a MIDI file
-     * @param {string} filePath - Path to MIDI file
-     */
-    async playMidiFile(filePath) {
-        try {
-            const response = await fetch(filePath);
-            const arrayBuffer = await response.arrayBuffer();
-            
-            // Parse MIDI file (simplified - would need a full MIDI parser for production)
-            // For now, just log that we received it
-            console.log('MIDI file loaded:', filePath, 'Size:', arrayBuffer.byteLength);
-            
-            // TODO: Implement full MIDI file parsing and playback
-            // This would require a MIDI file parser library or custom implementation
-            console.warn('MIDI file playback not yet fully implemented');
-            
-        } catch (error) {
-            console.error('Failed to load MIDI file:', filePath, error);
-        }
     }
 }
