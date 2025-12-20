@@ -48,8 +48,9 @@ class MIDIStreamer {
         document.getElementById('ipv6Enabled').checked = this.settings.ipv6Enabled;
         
         // Set initial room name from URL if present
-        if (this.roomName) {
-            document.getElementById('roomName').value = this.roomName;
+        const roomNameInput = document.getElementById('roomNameInput');
+        if (this.roomName && roomNameInput) {
+            roomNameInput.value = this.roomName;
         }
         
         // Check if TURN relay mode is enabled
@@ -151,7 +152,14 @@ class MIDIStreamer {
     async connect() {
         try {
             // Get room name from input field
-            const roomName = document.getElementById('roomName').value.trim();
+            const roomNameInput = document.getElementById('roomNameInput');
+            
+            if (!roomNameInput) {
+                this.ui.addMessage('Room name input not found', 'error');
+                return;
+            }
+            
+            const roomName = roomNameInput.value.trim();
             
             if (!roomName) {
                 this.ui.addMessage('Please enter a room name', 'error');

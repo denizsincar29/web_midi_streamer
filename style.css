@@ -102,6 +102,15 @@ h2 {
     font-weight: bold;
     color: #764ba2;
 }
+.room-info {
+    background: #e7f3ff;
+    border-left: 4px solid #667eea;
+}
+
+.room-info #roomName {
+    font-weight: bold;
+    color: #764ba2;
+}
 
 .status-container {
     display: flex;
