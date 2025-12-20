@@ -1,28 +1,41 @@
 # PWA Icons
 
-This directory should contain the following icon files for the Progressive Web App:
+✅ **Icons have been generated!**
 
-- `icon-192x192.png` - 192x192 pixels icon
-- `icon-512x512.png` - 512x512 pixels icon
+This directory contains the PWA icon files:
 
-## Creating Icons
+- ✅ `icon-192x192.png` - 192x192 pixels (879 bytes)
+- ✅ `icon-512x512.png` - 512x512 pixels (2.5 KB)
+- ✅ `icon.svg` - SVG source template
 
-You can create these icons using any image editor. The icons should:
-- Have a transparent or solid background
-- Feature a recognizable MIDI/music symbol (e.g., piano keys, musical note, or MIDI connector)
-- Use the app's color scheme (purple gradient: #667eea to #764ba2)
+## Design
 
-### Quick Icon Generation
+The icons feature:
+- **Purple gradient background** matching the app's color scheme (#667eea to #764ba2)
+- **Piano keys** - 5 white keys with 3 black keys representing MIDI keyboard
+- **Connection symbol** - Two nodes connected with a curved line representing WebRTC connection
 
-Use an online tool like:
-- https://realfavicongenerator.net/
-- https://www.pwabuilder.com/imageGenerator
+## Regenerating Icons
 
-Or create with ImageMagick:
+If you need to regenerate the icons, run:
+
 ```bash
-# Create a simple colored icon with text
-convert -size 512x512 xc:"#667eea" -gravity center -pointsize 200 -fill white -annotate +0+0 "🎹" icon-512x512.png
-convert icon-512x512.png -resize 192x192 icon-192x192.png
+python3 generate_icons.py
 ```
 
-For now, temporary placeholder icons will be generated automatically.
+The script requires Pillow (PIL):
+```bash
+pip3 install Pillow
+```
+
+## Files
+
+- `icon-192x192.png` - Used for PWA install and Android home screen
+- `icon-512x512.png` - Used for PWA splash screen and high-resolution displays  
+- `icon.svg` - Vector source (can be edited in Inkscape or similar)
+- `favicon.ico` - Browser tab icon (generated from 192x192)
+
+## Icon Preview
+
+The icons show piano keys (representing MIDI) with a connection symbol above (representing WebRTC streaming), all on the app's signature purple gradient background.
+
