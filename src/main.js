@@ -81,6 +81,16 @@ class MIDIStreamer {
         document.getElementById('timestampEnabled').addEventListener('change', (e) => {
             this.settings.timestampEnabled = e.target.checked;
             this.ui.addMessage(`Timestamp sync ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            
+            // Send settings sync to remote peer
+            if (this.webrtc && this.webrtc.isConnected()) {
+                this.webrtc.send({
+                    type: 'settings_sync',
+                    data: {
+                        timestampEnabled: e.target.checked
+                    }
+                });
+            }
         });
         
         document.getElementById('audioFeedbackEnabled').addEventListener('change', (e) => {
@@ -174,8 +184,27 @@ class MIDIStreamer {
         if (msg.type === 'test_note') {
             this.ui.addMessage(`Received test note via WebRTC: ${msg.data}`, 'success');
             this.midi.send(msg.data);
+        } else if (msg.type === 'settings_sync') {
+            // Remote peer changed their timestamp sync setting - sync ours
+            if (msg.data.timestampEnabled !== undefined) {
+                this.settings.timestampEnabled = msg.data.timestampEnabled;
+                document.getElementById('timestampEnabled').checked = msg.data.timestampEnabled;
+                this.ui.addMessage(`Timestamp sync ${msg.data.timestampEnabled ? 'enabled' : 'disabled'} by remote peer`, 'info');
+            }
         } else if (msg.type === 'midi') {
-            const { data } = msg.data;
+            const { data, timestamp } = msg.data;
+            
+            // If timestamp is present, calculate delay and compensate
+            if (timestamp && this.settings.timestampEnabled) {
+                const now = performance.now();
+                const delay = now - timestamp;
+                
+                // If delay is reasonable (not from clock skew), log it
+                if (delay >= 0 && delay < 10000) {
+                    console.log(`MIDI message delay: ${delay.toFixed(2)}ms`);
+                }
+            }
+            
             this.midi.send(data);
             
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {

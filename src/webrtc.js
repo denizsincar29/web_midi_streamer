@@ -595,6 +595,8 @@ export class WebRTCManager {
             this.handlePong(message);
         } else if (message.type === 'test_note') {
             this.onMessage({ type: 'test_note', data: message.data });
+        } else if (message.type === 'settings_sync') {
+            this.onMessage({ type: 'settings_sync', data: message.data });
         } else {
             this.onMessage({ type: 'midi', data: message });
         }
