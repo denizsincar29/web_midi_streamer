@@ -1,17 +1,27 @@
 // Service Worker for Web MIDI Streamer PWA
 const CACHE_NAME = 'midi-streamer-v1';
+
+// Get the base path from the service worker's own URL
+const getBasePath = () => {
+  const swPath = self.location.pathname;
+  return swPath.substring(0, swPath.lastIndexOf('/') + 1);
+};
+
+const basePath = getBasePath();
+
+// URLs to cache (relative to the service worker location)
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/src/main.js',
-  '/src/webrtc.js',
-  '/src/midi.js',
-  '/src/ui.js',
-  '/src/utils.js',
-  '/src/config.js',
-  '/src/i18n.js',
-  '/manifest.json'
+  basePath,
+  basePath + 'index.html',
+  basePath + 'style.css',
+  basePath + 'src/main.js',
+  basePath + 'src/webrtc.js',
+  basePath + 'src/midi.js',
+  basePath + 'src/ui.js',
+  basePath + 'src/utils.js',
+  basePath + 'src/config.js',
+  basePath + 'src/i18n.js',
+  basePath + 'manifest.json'
 ];
 
 // Install event - cache resources
@@ -19,7 +29,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
+        console.log('Opened cache, base path:', basePath);
         return cache.addAll(urlsToCache);
       })
       .catch((error) => {
@@ -28,6 +38,7 @@ self.addEventListener('install', (event) => {
   );
   // Force the waiting service worker to become the active service worker
   self.skipWaiting();
+});
 });
 
 // Fetch event - serve from cache, fallback to network
