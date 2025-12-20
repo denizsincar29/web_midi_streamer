@@ -15,6 +15,12 @@ class MIDIStreamer {
             ipv6Enabled: true  // Auto-try both IPv4 and IPv6 by default for better connectivity
         };
         
+        // Flag to prevent infinite sync loops
+        this.isUpdatingFromRemote = false;
+        
+        // Timestamp sync configuration
+        this.MAX_TIMESTAMP_DELAY_MS = 10000; // Maximum acceptable delay (10 seconds)
+        
         this.midi = new MIDIManager();
         this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
@@ -82,8 +88,8 @@ class MIDIStreamer {
             this.settings.timestampEnabled = e.target.checked;
             this.ui.addMessage(`Timestamp sync ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
             
-            // Send settings sync to remote peer
-            if (this.webrtc && this.webrtc.isConnected()) {
+            // Send settings sync to remote peer (only if not updating from remote)
+            if (!this.isUpdatingFromRemote && this.webrtc && this.webrtc.isConnected()) {
                 this.webrtc.send({
                     type: 'settings_sync',
                     data: {
@@ -187,9 +193,11 @@ class MIDIStreamer {
         } else if (msg.type === 'settings_sync') {
             // Remote peer changed their timestamp sync setting - sync ours
             if (msg.data.timestampEnabled !== undefined) {
+                this.isUpdatingFromRemote = true;
                 this.settings.timestampEnabled = msg.data.timestampEnabled;
                 document.getElementById('timestampEnabled').checked = msg.data.timestampEnabled;
                 this.ui.addMessage(`Timestamp sync ${msg.data.timestampEnabled ? 'enabled' : 'disabled'} by remote peer`, 'info');
+                this.isUpdatingFromRemote = false;
             }
         } else if (msg.type === 'midi') {
             const { data, timestamp } = msg.data;
@@ -200,7 +208,7 @@ class MIDIStreamer {
                 const delay = now - timestamp;
                 
                 // If delay is reasonable (not from clock skew), log it
-                if (delay >= 0 && delay < 10000) {
+                if (delay >= 0 && delay < this.MAX_TIMESTAMP_DELAY_MS) {
                     console.log(`MIDI message delay: ${delay.toFixed(2)}ms`);
                 }
             }
