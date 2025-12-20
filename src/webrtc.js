@@ -27,6 +27,7 @@ export class WebRTCManager {
         // ICE candidate queue for candidates that arrive before remote description
         this.pendingIceCandidates = [];
         this.MAX_PENDING_ICE_CANDIDATES = 50; // Prevent unbounded queue growth
+        this.isProcessingPendingCandidates = false;
         
         // Signaling
         this.signalingUrl = null;
@@ -431,17 +432,27 @@ export class WebRTCManager {
     }
     
     async processPendingIceCandidates() {
+        // Prevent concurrent processing
+        if (this.isProcessingPendingCandidates) {
+            return;
+        }
+        
         if (this.pendingIceCandidates.length > 0) {
-            console.log(`Processing ${this.pendingIceCandidates.length} queued ICE candidate(s)`);
-            const candidates = [...this.pendingIceCandidates];
-            this.pendingIceCandidates = [];
-            
-            for (const candidateData of candidates) {
-                try {
-                    await this.addIceCandidate(candidateData);
-                } catch (error) {
-                    console.error('Failed to add queued ICE candidate:', error);
+            this.isProcessingPendingCandidates = true;
+            try {
+                console.log(`Processing ${this.pendingIceCandidates.length} queued ICE candidate(s)`);
+                const candidates = [...this.pendingIceCandidates];
+                this.pendingIceCandidates = [];
+                
+                for (const candidateData of candidates) {
+                    try {
+                        await this.addIceCandidate(candidateData);
+                    } catch (error) {
+                        console.error('Failed to add queued ICE candidate:', error);
+                    }
                 }
+            } finally {
+                this.isProcessingPendingCandidates = false;
             }
         }
     }
@@ -539,7 +550,10 @@ export class WebRTCManager {
         // Note: Reflexive candidates may also include raddr and rport parameters
         // IPv6 addresses contain multiple colons (at least 2)
         
-        // Match the standard ICE candidate format and extract the IP address
+        // Match the standard ICE candidate format and extract the IP address (5th field)
+        // Example: "candidate:842163049 1 udp 1686052607 192.168.1.1 51820 typ srflx"
+        //          Groups:     foundation^ ^component ^protocol ^priority ^ip      ^port
+        // The regex captures group 1 which is the IP address before the port number
         const match = candidateString.match(/candidate:\S+\s+\d+\s+\S+\s+\d+\s+(\S+)\s+\d+\s+typ/);
         
         if (match && match[1]) {
