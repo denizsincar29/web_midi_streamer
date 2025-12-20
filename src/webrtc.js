@@ -24,6 +24,9 @@ export class WebRTCManager {
         // IPv6 support (enabled by default for auto-try)
         this.ipv6Enabled = true;
         
+        // ICE candidate queue for candidates that arrive before remote description
+        this.pendingIceCandidates = [];
+        
         // Signaling
         this.signalingUrl = null;
         this.pollingInterval = null;
@@ -121,6 +124,9 @@ export class WebRTCManager {
             
             this.peerConnection = new RTCPeerConnection(config);
             this.setupPeerConnectionHandlers();
+            
+            // Clear any pending ICE candidates from previous connection
+            this.pendingIceCandidates = [];
             
             if (this.isInitiator || remotePeerId) {
                 // If we're initiator or explicitly connecting to someone, create data channel
@@ -347,6 +353,9 @@ export class WebRTCManager {
                 sdp: offerData.sdp
             });
             
+            // Process any ICE candidates that arrived before the remote description
+            await this.processPendingIceCandidates();
+            
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
             
@@ -372,6 +381,9 @@ export class WebRTCManager {
                 type: 'answer',
                 sdp: answerData.sdp
             });
+            
+            // Process any ICE candidates that arrived before the remote description
+            await this.processPendingIceCandidates();
         } catch (error) {
             this.onStatusUpdate(`❌ Failed to handle answer: ${error.message}`, 'error');
         }
@@ -400,10 +412,22 @@ export class WebRTCManager {
                     sdpMLineIndex: candidateData.sdpMLineIndex
                 });
             } else {
-                console.log('Received ICE candidate before remote description, ignoring');
+                // Queue candidates that arrive before remote description
+                console.log('Queuing ICE candidate (remote description not set yet)');
+                this.pendingIceCandidates.push(candidateData);
             }
         } catch (error) {
             console.error('Failed to add ICE candidate:', error);
+        }
+    }
+    
+    async processPendingIceCandidates() {
+        if (this.pendingIceCandidates.length > 0) {
+            console.log(`Processing ${this.pendingIceCandidates.length} queued ICE candidate(s)`);
+            for (const candidateData of this.pendingIceCandidates) {
+                await this.handleIceCandidate(candidateData);
+            }
+            this.pendingIceCandidates = [];
         }
     }
     
