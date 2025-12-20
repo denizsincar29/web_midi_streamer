@@ -19,36 +19,36 @@ export class MIDIManager {
             console.log('Loaded MIDI chimes configuration');
         } catch (error) {
             console.warn('Failed to load chimes.json, using defaults:', error);
-            // Fallback to default chimes
+            // Fallback to default chimes (reduced velocity for quieter sound)
             this.chimes = {
                 'success': {
                     type: 'notes',
                     notes: 'C5 E5',
-                    velocity: 100,
+                    velocity: 60,
                     duration: 100
                 },
                 'info': {
                     type: 'notes',
                     notes: 'A4',
-                    velocity: 90,
+                    velocity: 50,
                     duration: 150
                 },
                 'warning': {
                     type: 'notes',
                     notes: 'G4 F4',
-                    velocity: 100,
+                    velocity: 60,
                     duration: 100
                 },
                 'error': {
                     type: 'notes',
                     notes: 'F4 D4',
-                    velocity: 110,
+                    velocity: 65,
                     duration: 200
                 },
                 'connecting': {
                     type: 'notes',
                     notes: 'E4 G4',
-                    velocity: 85,
+                    velocity: 50,
                     duration: 80
                 }
             };

@@ -2,6 +2,7 @@ import { getRoomNameFromURL, copyToClipboard } from './utils.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
+import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 
 class MIDIStreamer {
     constructor() {
@@ -9,7 +10,6 @@ class MIDIStreamer {
         this.settings = {
             sysexEnabled: false,
             timestampEnabled: false,
-            audioFeedbackEnabled: false,
             showMidiActivity: false,
             midiEchoEnabled: false,
             ipv6Enabled: true  // Auto-try both IPv4 and IPv6 by default for better connectivity
@@ -34,7 +34,7 @@ class MIDIStreamer {
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
             if (connected) {
-                this.ui.updateConnectionStatus('Connected to peer', 'connected');
+                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
             }
         };
         
@@ -42,6 +42,9 @@ class MIDIStreamer {
     }
 
     async init() {
+        // Initialize i18n
+        this.initI18n();
+        
         this.setupEventListeners();
         
         // Set initial checkbox states from settings
@@ -75,12 +78,78 @@ class MIDIStreamer {
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
         
         if (this.roomName) {
-            this.ui.updateRoomName(`Room: ${this.roomName}`);
+            this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
             this.ui.addMessage(`Auto-connecting to room '${this.roomName}'...`, 'info');
             this.connect();
         } else {
-            this.ui.updateRoomName('Enter Room Name');
+            this.ui.updateRoomName(t('status.enterRoomName'));
             this.ui.addMessage('Enter a room name and click "Connect" to join', 'info');
+        }
+    }
+
+    initI18n() {
+        // Set up language selector
+        const languageSelect = document.getElementById('languageSelect');
+        languageSelect.value = getCurrentLanguage();
+        
+        languageSelect.addEventListener('change', (e) => {
+            setLanguage(e.target.value);
+            this.updatePageTranslations();
+            document.documentElement.lang = e.target.value;
+        });
+        
+        // Initial translation update
+        this.updatePageTranslations();
+    }
+
+    updatePageTranslations() {
+        // Update all elements with data-i18n attribute
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            element.textContent = t(key);
+        });
+        
+        // Update placeholders
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-i18n-placeholder');
+            element.placeholder = t(key);
+        });
+        
+        // Update dynamic content
+        this.updateDynamicTranslations();
+    }
+
+    updateDynamicTranslations() {
+        // Update room name if not connected
+        if (!this.webrtc.isConnected() && !this.roomName) {
+            this.ui.updateRoomName(t('status.enterRoomName'));
+        }
+        
+        // Update connection status based on connection state
+        if (this.webrtc.peerConnection) {
+            const state = this.webrtc.peerConnection.connectionState;
+            if (state === 'connected') {
+                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
+            } else if (state === 'connecting') {
+                this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
+            } else {
+                this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+            }
+        } else {
+            this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+        }
+        
+        // Update share URL label if it exists
+        const shareSection = document.getElementById('shareUrlSection');
+        if (shareSection) {
+            const label = shareSection.querySelector('p');
+            if (label) {
+                label.textContent = t('connection.shareUrl');
+            }
+            const copyBtn = shareSection.querySelector('button');
+            if (copyBtn) {
+                copyBtn.textContent = t('connection.copyUrl');
+            }
         }
     }
 
@@ -105,11 +174,6 @@ class MIDIStreamer {
             }
         });
         
-        document.getElementById('audioFeedbackEnabled').addEventListener('change', (e) => {
-            this.settings.audioFeedbackEnabled = e.target.checked;
-            this.ui.addMessage(`Audio feedback ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
-        });
-        
         document.getElementById('showMidiActivity').addEventListener('change', (e) => {
             this.settings.showMidiActivity = e.target.checked;
             this.ui.toggleMidiActivity(e.target.checked);
@@ -127,6 +191,20 @@ class MIDIStreamer {
         document.getElementById('refreshDevices').addEventListener('click', () => {
             this.midi.refreshDevices();
             this.ui.addMessage('MIDI devices refreshed', 'info');
+        });
+        
+        // Help button event listener - navigate to help page
+        const helpBtn = document.getElementById('helpBtn');
+        helpBtn.addEventListener('click', () => {
+            // Determine which help page to load based on current language
+            const currentLang = getCurrentLanguage();
+            const helpPage = currentLang === 'ru' ? 'help-ru.html' : 'help-en.html';
+            
+            // Get current page URL for return link
+            const currentUrl = window.location.href;
+            
+            // Navigate to help page with return parameter
+            window.location.href = `${helpPage}?return=${encodeURIComponent(currentUrl)}`;
         });
         
         document.getElementById('connectBtn').addEventListener('click', () => this.connect());
@@ -181,7 +259,7 @@ class MIDIStreamer {
                 });
             }
             
-            this.ui.updateConnectionStatus('Waiting for peer...', 'connecting');
+            this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
         } catch (error) {
             this.ui.addMessage(`Connection failed: ${error.message}`, 'error');

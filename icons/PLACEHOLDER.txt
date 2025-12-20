@@ -1,0 +1,13 @@
+Note: The actual PNG icons need to be created manually or using an image editor.
+
+For development/testing, the app will fall back to the favicon if icons are missing.
+
+To create icons quickly, use one of these methods:
+
+1. Online tool: https://www.pwabuilder.com/imageGenerator
+2. Use an SVG to PNG converter with the icon.svg file
+3. Create with any graphics editor (GIMP, Photoshop, etc.)
+
+Required files:
+- icon-192x192.png (192x192 pixels)
+- icon-512x512.png (512x512 pixels)

@@ -59,30 +59,6 @@ The application requires a PHP backend for signaling. Deploy to any hosting serv
 - PHP-enabled web server for signaling
 - Internet connection
 
-## Quick Start
-
-1. **Deploy the app** (choose one):
-   - Upload all files to any static hosting service (GitHub Pages, Netlify, Vercel, etc.)
-   - Or run locally: `python3 -m http.server 8080`
-
-2. **User 1**: Open the app:
-   ```
-   https://your-domain.com/
-   ```
-   - Click "Connect to Room"
-   - Copy the shareable URL that appears (e.g., `https://your-domain.com/?peer=midi-123456-abc`)
-
-3. **User 2**: Open the shareable URL from User 1
-   - The app will automatically connect - **no button click needed!**
-   - Wait for "Data channel open" message
-
-4. **Configure MIDI**:
-   - Grant MIDI access when prompted
-   - Select your MIDI input device (your keyboard)
-   - Select your MIDI output device (for hearing the other user)
-
-5. **Play!** - MIDI data streams directly between peers in real-time
-
 ## How It Works
 
 ```
@@ -96,9 +72,26 @@ The application requires a PHP backend for signaling. Deploy to any hosting serv
 ```
 
 1. Users connect to signaling server via HTTP polling
-2. Peer IDs are shared via URL
-3. Signaling server handles WebRTC offer/answer exchange
+2. Room names are shared via URL
+3. Signaling server handles WebRTC offer/answer exchange and ICE candidate relay
 4. MIDI data flows directly peer-to-peer (bypasses signaling server)
+
+## Usage Steps
+
+1. **User 1**: Open the app and enter a room name
+   - Click "Connect to Room"
+   - Copy the shareable URL that appears (e.g., `https://your-domain.com/?room=my-room`)
+
+2. **User 2**: Open the shareable URL from User 1
+   - The app will automatically connect to the same room
+   - Wait for "Data channel open" message
+
+3. **Configure MIDI**:
+   - Grant MIDI access when prompted
+   - Select your MIDI input device (your keyboard)
+   - Select your MIDI output device (for hearing the other user)
+
+4. **Play!** - MIDI data streams directly between peers in real-time
 
 ## Network Connectivity & TURN Servers
 
@@ -131,14 +124,6 @@ The app uses a default STUN server. For production deployments or better connect
 
 - **Set up your own TURN server** - See [TURN_SETUP.md](TURN_SETUP.md) for instructions
 - **Use commercial TURN service** - Twilio, Xirsys, or Metered
-
-### Testing TURN Connectivity
-
-To test that TURN relay is working correctly, force the app to use only TURN relay:
-
-1. Add `?forceTurn=true` to the URL: `https://your-domain.com/?forceTurn=true`
-2. The app will display "TURN relay mode" message
-3. Check the browser console for "relay" type ICE candidates
 
 ## Settings
 
@@ -292,14 +277,13 @@ python3 -m http.server 8080
 
 ### Connection Issues
 
-- **"Peer is not defined" error**: The PeerJS library failed to load. Check your internet connection or ad blocker settings.
-- **"Peer unavailable" error**: The other user needs to connect first and share their peer ID URL with you.
 - **Connection takes a long time**: WebRTC negotiation can take 5-10 seconds. Wait for the "Data channel open" message.
 - **Connection fails entirely**: 
   - Ensure both users have internet access
   - Check browser console for specific error messages
   - Verify TURN servers are accessible (see testing section above)
   - Try the `?forceTurn=true` mode to test TURN relay
+- **"No ICE candidates" error**: Check that the signaling server is running and accessible. Ensure both peers can reach the server.
 
 ### MIDI Issues
 
