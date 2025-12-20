@@ -205,11 +205,21 @@ class MIDIStreamer {
             // If timestamp is present, calculate delay and compensate
             if (timestamp && this.settings.timestampEnabled) {
                 const now = performance.now();
-                const delay = now - timestamp;
+                const rawDelay = now - timestamp;
+                
+                // Get estimated one-way latency from ping measurements
+                const estimatedLatency = this.webrtc.getEstimatedLatency();
+                
+                // Calculate actual processing delay by subtracting network latency
+                const processingDelay = rawDelay - estimatedLatency;
                 
                 // If delay is reasonable (not from clock skew), log it
-                if (delay >= 0 && delay < this.MAX_TIMESTAMP_DELAY_MS) {
-                    console.log(`MIDI message delay: ${delay.toFixed(2)}ms`);
+                if (rawDelay >= 0 && rawDelay < this.MAX_TIMESTAMP_DELAY_MS) {
+                    if (estimatedLatency > 0) {
+                        console.log(`MIDI message - Raw delay: ${rawDelay.toFixed(2)}ms, Network latency: ${estimatedLatency.toFixed(2)}ms, Processing delay: ${processingDelay.toFixed(2)}ms`);
+                    } else {
+                        console.log(`MIDI message - Raw delay: ${rawDelay.toFixed(2)}ms (run ping test for latency compensation)`);
+                    }
                 }
             }
             

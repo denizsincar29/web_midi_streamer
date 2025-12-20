@@ -52,7 +52,8 @@ export class WebRTCManager {
             totalPings: 0,
             times: [],
             sentTimes: {},
-            inProgress: false
+            inProgress: false,
+            lastAvgRoundTripTime: 0  // Store the last average for timestamp compensation
         };
     }
     
@@ -301,6 +302,11 @@ export class WebRTCManager {
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(true);
             }
+            
+            // Automatically measure latency after connection is established
+            setTimeout(() => {
+                this.sendPing();
+            }, 1000); // Wait 1 second for connection to stabilize
         };
         
         dc.onmessage = (event) => {
@@ -671,10 +677,21 @@ export class WebRTCManager {
         const max = Math.max(...times);
         const avg = times.reduce((a, b) => a + b, 0) / times.length;
         
+        // Store the average for timestamp compensation
+        this.pingStats.lastAvgRoundTripTime = avg;
+        
         this.onStatusUpdate(
             `Ping test complete - Min: ${min.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Avg: ${avg.toFixed(2)}ms`,
             'success'
         );
+    }
+    
+    /**
+     * Get the estimated one-way latency based on ping measurements
+     * @returns {number} One-way latency in milliseconds (half of round-trip time)
+     */
+    getEstimatedLatency() {
+        return this.pingStats.lastAvgRoundTripTime / 2;
     }
     
     async disconnect() {
