@@ -1,7 +1,22 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "Pillow>=10.0.0",
+# ]
+# ///
 """
 Generate PWA icons for Web MIDI Streamer
 Creates 192x192 and 512x512 PNG icons with piano keys and connection symbols
+
+Usage:
+    uv run generate_icons.py
+    
+Example:
+    uv run generate_icons.py
+    
+Note:
+    - When using 'uv run', Pillow will be automatically installed
+    - If using python directly: pip install Pillow
 """
 
 from PIL import Image, ImageDraw, ImageFont
