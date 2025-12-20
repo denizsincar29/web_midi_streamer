@@ -1,8 +1,8 @@
 import { NOTE_NAMES } from './config.js';
 
-export function getRemotePeerIdFromURL() {
+export function getRoomNameFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get('peer') || null;
+    return params.get('room') || null;
 }
 
 export function shouldForceTurnRelay() {

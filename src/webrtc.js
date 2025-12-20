@@ -21,6 +21,14 @@ export class WebRTCManager {
         this.hasEstablishedConnection = false;
         this.manualDisconnect = false;
         
+        // IPv6 support (enabled by default for auto-try)
+        this.ipv6Enabled = true;
+        
+        // ICE candidate queue for candidates that arrive before remote description
+        this.pendingIceCandidates = [];
+        this.MAX_PENDING_ICE_CANDIDATES = 50; // Prevent unbounded queue growth
+        this.isProcessingPendingCandidates = false;
+        
         // Signaling
         this.signalingUrl = null;
         this.pollingInterval = null;
@@ -36,6 +44,7 @@ export class WebRTCManager {
         this.RECONNECT_BASE_DELAY_MS = 1000;
         this.RECONNECT_BACKOFF_MULTIPLIER = 2;
         this.RECONNECT_MAX_DELAY_MS = 5000;
+        this.CONNECTION_STABILIZATION_DELAY_MS = 1000; // Wait for connection to stabilize before ping
     }
     
     resetPingStats() {
@@ -44,7 +53,8 @@ export class WebRTCManager {
             totalPings: 0,
             times: [],
             sentTimes: {},
-            inProgress: false
+            inProgress: false,
+            lastAvgRoundTripTime: 0  // Store the last average for timestamp compensation
         };
     }
     
@@ -56,27 +66,21 @@ export class WebRTCManager {
 
     /**
      * Connect to a room and establish WebRTC connection
-     * @param {string|null} remotePeerId - If provided, connect to this specific peer
-     * @returns {Promise<string|null>} Returns share URL if creating room, null if joining
+     * @param {string} roomName - Room name to join
+     * @returns {Promise<string>} Returns share URL with room name
      */
-    async connect(remotePeerId = null) {
+    async connect(roomName) {
+        if (!roomName || typeof roomName !== 'string') {
+            throw new Error('Room name is required');
+        }
+        
         this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
         const iceServers = await getTurnCredentials();
         
         // Generate our peer ID
         this.myPeerId = generatePeerId();
-        this.remotePeerId = remotePeerId;
-        
-        // Determine room ID
-        if (remotePeerId) {
-            // Joining existing room - use remote peer ID as room
-            this.roomId = remotePeerId;
-            this.isInitiator = false;
-        } else {
-            // Creating new room - use our peer ID as room
-            this.roomId = this.myPeerId;
-            this.isInitiator = true;
-        }
+        this.roomId = roomName; // Use room name directly as room ID
+        this.isInitiator = false; // Will be determined by who's already in the room
         
         // Set up signaling URL
         let baseUrl = window.location.pathname;
@@ -90,7 +94,7 @@ export class WebRTCManager {
         
         try {
             const joinResponse = await fetch(
-                `${this.signalingUrl}?action=join&room=${this.roomId}&peer=${this.myPeerId}`
+                `${this.signalingUrl}?action=join&room=${encodeURIComponent(this.roomId)}&peer=${this.myPeerId}`
             );
             const joinData = await joinResponse.json();
             
@@ -119,29 +123,26 @@ export class WebRTCManager {
             this.peerConnection = new RTCPeerConnection(config);
             this.setupPeerConnectionHandlers();
             
-            if (this.isInitiator || remotePeerId) {
-                // If we're initiator or explicitly connecting to someone, create data channel
-                this.createDataChannel();
-                
-                // Wait a bit for the other peer to join
-                if (this.isInitiator && !remotePeerId) {
-                    // Creating room - return share URL and wait for peer
-                    const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${this.myPeerId}`;
-                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
-                    return shareUrl;
-                }
-                
-                // Joining room or connecting to specific peer
-                if (joinData.peers && joinData.peers.length > 0) {
-                    // Peer already in room, create offer
-                    this.remotePeerId = joinData.peers[0];
-                    await this.createOffer();
-                } else {
-                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
-                }
+            // Clear any pending ICE candidates from previous connection
+            this.pendingIceCandidates = [];
+            
+            // Always create data channel
+            this.createDataChannel();
+            
+            // Check if there's already a peer in the room
+            if (joinData.peers && joinData.peers.length > 0) {
+                // Peer already in room, create offer
+                this.remotePeerId = joinData.peers[0];
+                this.isInitiator = true;
+                await this.createOffer();
+            } else {
+                // First one in room, wait for peer
+                this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
             }
             
-            return null;
+            // Return shareable URL with room name
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomName)}`;
+            return shareUrl;
             
         } catch (error) {
             this.onStatusUpdate(`❌ Connection failed: ${error.message}`, 'error');
@@ -162,17 +163,26 @@ export class WebRTCManager {
                     return;
                 }
                 
+                // Filter candidates based on IPv6 setting
+                if (!this.shouldUseCandidate(candidate)) {
+                    const isIPv6 = this.isIPv6Candidate(candidate.candidate);
+                    console.log(`Filtered out ${isIPv6 ? 'IPv6' : 'IPv4'} candidate (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'}):`, candidate.candidate);
+                    return;
+                }
+                
                 const type = candidate.type || this.parseCandidateType(candidate.candidate);
+                const isIPv6 = this.isIPv6Candidate(candidate.candidate);
                 console.log('ICE Candidate discovered:', {
                     type: type || 'unknown',
                     protocol: candidate.protocol || 'unknown',
+                    ipVersion: isIPv6 ? 'IPv6' : 'IPv4',
                     candidate: candidate.candidate
                 });
                 
                 const messages = {
-                    'host': '🏠 Found local network path',
-                    'srflx': '🌐 Found public internet path (via STUN)',
-                    'relay': '🔁 Found relay path (via TURN server)'
+                    'host': `🏠 Found local network path ${isIPv6 ? '(IPv6)' : '(IPv4)'}`,
+                    'srflx': `🌐 Found public internet path ${isIPv6 ? '(IPv6)' : '(IPv4)'} (via STUN)`,
+                    'relay': `🔁 Found relay path ${isIPv6 ? '(IPv6)' : '(IPv4)'} (via TURN server)`
                 };
                 if (type && messages[type]) {
                     this.onStatusUpdate(messages[type], 'info');
@@ -281,6 +291,11 @@ export class WebRTCManager {
             if (this.onConnectionStateChange) {
                 this.onConnectionStateChange(true);
             }
+            
+            // Automatically measure latency after connection is established
+            setTimeout(() => {
+                this.sendPing();
+            }, this.CONNECTION_STABILIZATION_DELAY_MS);
         };
         
         dc.onmessage = (event) => {
@@ -335,6 +350,9 @@ export class WebRTCManager {
                 sdp: offerData.sdp
             });
             
+            // Process any ICE candidates that arrived before the remote description
+            await this.processPendingIceCandidates();
+            
             const answer = await this.peerConnection.createAnswer();
             await this.peerConnection.setLocalDescription(answer);
             
@@ -360,6 +378,9 @@ export class WebRTCManager {
                 type: 'answer',
                 sdp: answerData.sdp
             });
+            
+            // Process any ICE candidates that arrived before the remote description
+            await this.processPendingIceCandidates();
         } catch (error) {
             this.onStatusUpdate(`❌ Failed to handle answer: ${error.message}`, 'error');
         }
@@ -368,16 +389,66 @@ export class WebRTCManager {
     async handleIceCandidate(candidateData) {
         try {
             if (this.peerConnection.remoteDescription) {
-                await this.peerConnection.addIceCandidate({
-                    candidate: candidateData.candidate,
-                    sdpMid: candidateData.sdpMid,
-                    sdpMLineIndex: candidateData.sdpMLineIndex
-                });
+                await this.addIceCandidate(candidateData);
             } else {
-                console.log('Received ICE candidate before remote description, ignoring');
+                // Queue candidates that arrive before remote description
+                if (this.pendingIceCandidates.length < this.MAX_PENDING_ICE_CANDIDATES) {
+                    console.log('Queuing ICE candidate (remote description not set yet)');
+                    this.pendingIceCandidates.push(candidateData);
+                } else {
+                    console.warn('ICE candidate queue full, dropping candidate');
+                }
             }
         } catch (error) {
-            console.error('Failed to add ICE candidate:', error);
+            console.error('Failed to handle ICE candidate:', error);
+        }
+    }
+    
+    async addIceCandidate(candidateData) {
+        // Create a temporary candidate object to check if we should use it
+        const tempCandidate = {
+            candidate: candidateData.candidate,
+            sdpMid: candidateData.sdpMid,
+            sdpMLineIndex: candidateData.sdpMLineIndex
+        };
+        
+        // Filter based on IPv6 setting
+        if (!this.shouldUseCandidate(tempCandidate)) {
+            const isIPv6 = this.isIPv6Candidate(candidateData.candidate);
+            console.log(`Filtered incoming ${isIPv6 ? 'IPv6' : 'IPv4'} candidate from remote peer (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'})`);
+            return;
+        }
+        
+        await this.peerConnection.addIceCandidate({
+            candidate: candidateData.candidate,
+            sdpMid: candidateData.sdpMid,
+            sdpMLineIndex: candidateData.sdpMLineIndex
+        });
+    }
+    
+    async processPendingIceCandidates() {
+        // Prevent concurrent processing
+        if (this.isProcessingPendingCandidates) {
+            return;
+        }
+        
+        if (this.pendingIceCandidates.length > 0) {
+            this.isProcessingPendingCandidates = true;
+            try {
+                console.log(`Processing ${this.pendingIceCandidates.length} queued ICE candidate(s)`);
+                const candidates = [...this.pendingIceCandidates];
+                this.pendingIceCandidates = [];
+                
+                for (const candidateData of candidates) {
+                    try {
+                        await this.addIceCandidate(candidateData);
+                    } catch (error) {
+                        console.error('Failed to add queued ICE candidate:', error);
+                    }
+                }
+            } finally {
+                this.isProcessingPendingCandidates = false;
+            }
         }
     }
     
@@ -462,6 +533,54 @@ export class WebRTCManager {
         return match ? match[1] : null;
     }
     
+    /**
+     * Check if an ICE candidate is IPv6
+     * @param {string} candidateString - The ICE candidate string
+     * @returns {boolean} True if the candidate is IPv6
+     */
+    isIPv6Candidate(candidateString) {
+        if (!candidateString || typeof candidateString !== 'string') return false;
+        
+        // ICE candidate format (simplified): candidate:foundation component protocol priority ip port typ type
+        // Note: Reflexive candidates may also include raddr and rport parameters
+        // IPv6 addresses contain multiple colons (at least 2)
+        
+        // Match the standard ICE candidate format and extract the IP address (5th field)
+        // Example: "candidate:842163049 1 udp 1686052607 192.168.1.1 51820 typ srflx"
+        //          Groups:     foundation^ ^component ^protocol ^priority ^ip      ^port
+        // The regex captures group 1 which is the IP address before the port number
+        const match = candidateString.match(/candidate:\S+\s+\d+\s+\S+\s+\d+\s+(\S+)\s+\d+\s+typ/);
+        
+        if (match && match[1]) {
+            const ipAddress = match[1];
+            // IPv6 addresses have multiple colons (at least 2 for the shortest form ::1)
+            // Count colons to reliably distinguish IPv6 from IPv4
+            const colonCount = (ipAddress.match(/:/g) || []).length;
+            return colonCount >= 2;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Filter ICE candidate based on IPv6 setting
+     * @param {RTCIceCandidate} candidate - The ICE candidate to check
+     * @returns {boolean} True if the candidate should be used
+     */
+    shouldUseCandidate(candidate) {
+        if (!candidate || !candidate.candidate) return false;
+        
+        const isIPv6 = this.isIPv6Candidate(candidate.candidate);
+        
+        // If IPv6 is enabled, accept all candidates (IPv4 and IPv6)
+        if (this.ipv6Enabled) {
+            return true;
+        }
+        
+        // If IPv6 is disabled, only accept IPv4 candidates
+        return !isIPv6;
+    }
+    
     handleIncomingData(data) {
         const message = typeof data === 'string' ? JSON.parse(data) : data;
         
@@ -471,6 +590,8 @@ export class WebRTCManager {
             this.handlePong(message);
         } else if (message.type === 'test_note') {
             this.onMessage({ type: 'test_note', data: message.data });
+        } else if (message.type === 'settings_sync') {
+            this.onMessage({ type: 'settings_sync', data: message.data });
         } else {
             this.onMessage({ type: 'midi', data: message });
         }
@@ -545,10 +666,21 @@ export class WebRTCManager {
         const max = Math.max(...times);
         const avg = times.reduce((a, b) => a + b, 0) / times.length;
         
+        // Store the average for timestamp compensation
+        this.pingStats.lastAvgRoundTripTime = avg;
+        
         this.onStatusUpdate(
             `Ping test complete - Min: ${min.toFixed(2)}ms, Max: ${max.toFixed(2)}ms, Avg: ${avg.toFixed(2)}ms`,
             'success'
         );
+    }
+    
+    /**
+     * Get the estimated one-way latency based on ping measurements
+     * @returns {number} One-way latency in milliseconds (half of round-trip time)
+     */
+    getEstimatedLatency() {
+        return this.pingStats.lastAvgRoundTripTime / 2;
     }
     
     async disconnect() {
@@ -578,6 +710,16 @@ export class WebRTCManager {
             this.peerConnection.close();
             this.peerConnection = null;
         }
+        
+        // Clear pending ICE candidates to prevent errors on reconnect
+        this.pendingIceCandidates = [];
+        
+        // Reset connection state
+        this.myPeerId = null;
+        this.remotePeerId = null;
+        this.roomId = null;
+        this.isInitiator = false;
+        this.connectionTypeReported = false;
     }
     
     isConnected() {

@@ -53,6 +53,11 @@
             <!-- Connection Controls -->
             <section class="controls">
                 <h2>Connection</h2>
+                <div class="room-input-group">
+                    <label for="roomNameInput">Room Name:</label>
+                    <input type="text" id="roomNameInput" placeholder="Enter room name" value="">
+                    <p class="description">Both peers must enter the same room name to connect</p>
+                </div>
                 <button id="connectBtn" class="btn btn-primary">Connect to Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled>Disconnect</button>
             </section>
@@ -93,6 +98,14 @@
                             Show MIDI Activity
                         </label>
                         <p id="midi-activity-desc" class="description">Display and announce MIDI events via screen reader</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="ipv6Enabled" aria-describedby="ipv6-desc">
+                            Enable IPv6 P2P (Experimental)
+                        </label>
+                        <p id="ipv6-desc" class="description">Attempt IPv6 connections for peer-to-peer communication. If disabled, only IPv4 will be used.</p>
                     </div>
                     
                     <h3>Debug Tools</h3>
