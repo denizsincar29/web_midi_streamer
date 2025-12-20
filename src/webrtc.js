@@ -26,6 +26,7 @@ export class WebRTCManager {
         
         // ICE candidate queue for candidates that arrive before remote description
         this.pendingIceCandidates = [];
+        this.MAX_PENDING_ICE_CANDIDATES = 50; // Prevent unbounded queue growth
         
         // Signaling
         this.signalingUrl = null;
@@ -392,42 +393,56 @@ export class WebRTCManager {
     async handleIceCandidate(candidateData) {
         try {
             if (this.peerConnection.remoteDescription) {
-                // Create a temporary candidate object to check if we should use it
-                const tempCandidate = {
-                    candidate: candidateData.candidate,
-                    sdpMid: candidateData.sdpMid,
-                    sdpMLineIndex: candidateData.sdpMLineIndex
-                };
-                
-                // Filter based on IPv6 setting
-                if (!this.shouldUseCandidate(tempCandidate)) {
-                    const isIPv6 = this.isIPv6Candidate(candidateData.candidate);
-                    console.log(`Filtered incoming ${isIPv6 ? 'IPv6' : 'IPv4'} candidate from remote peer (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'})`);
-                    return;
-                }
-                
-                await this.peerConnection.addIceCandidate({
-                    candidate: candidateData.candidate,
-                    sdpMid: candidateData.sdpMid,
-                    sdpMLineIndex: candidateData.sdpMLineIndex
-                });
+                await this.addIceCandidate(candidateData);
             } else {
                 // Queue candidates that arrive before remote description
-                console.log('Queuing ICE candidate (remote description not set yet)');
-                this.pendingIceCandidates.push(candidateData);
+                if (this.pendingIceCandidates.length < this.MAX_PENDING_ICE_CANDIDATES) {
+                    console.log('Queuing ICE candidate (remote description not set yet)');
+                    this.pendingIceCandidates.push(candidateData);
+                } else {
+                    console.warn('ICE candidate queue full, dropping candidate');
+                }
             }
         } catch (error) {
-            console.error('Failed to add ICE candidate:', error);
+            console.error('Failed to handle ICE candidate:', error);
         }
+    }
+    
+    async addIceCandidate(candidateData) {
+        // Create a temporary candidate object to check if we should use it
+        const tempCandidate = {
+            candidate: candidateData.candidate,
+            sdpMid: candidateData.sdpMid,
+            sdpMLineIndex: candidateData.sdpMLineIndex
+        };
+        
+        // Filter based on IPv6 setting
+        if (!this.shouldUseCandidate(tempCandidate)) {
+            const isIPv6 = this.isIPv6Candidate(candidateData.candidate);
+            console.log(`Filtered incoming ${isIPv6 ? 'IPv6' : 'IPv4'} candidate from remote peer (IPv6 ${this.ipv6Enabled ? 'enabled' : 'disabled'})`);
+            return;
+        }
+        
+        await this.peerConnection.addIceCandidate({
+            candidate: candidateData.candidate,
+            sdpMid: candidateData.sdpMid,
+            sdpMLineIndex: candidateData.sdpMLineIndex
+        });
     }
     
     async processPendingIceCandidates() {
         if (this.pendingIceCandidates.length > 0) {
             console.log(`Processing ${this.pendingIceCandidates.length} queued ICE candidate(s)`);
-            for (const candidateData of this.pendingIceCandidates) {
-                await this.handleIceCandidate(candidateData);
-            }
+            const candidates = [...this.pendingIceCandidates];
             this.pendingIceCandidates = [];
+            
+            for (const candidateData of candidates) {
+                try {
+                    await this.addIceCandidate(candidateData);
+                } catch (error) {
+                    console.error('Failed to add queued ICE candidate:', error);
+                }
+            }
         }
     }
     
