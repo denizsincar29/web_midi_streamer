@@ -136,8 +136,8 @@ export class WebRTCManager {
                 this.isInitiator = true;
                 await this.createOffer();
             } else {
-                // First one in room, wait for peer
-                this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
+                // First one in room, wait for other participant
+                this.onStatusUpdate('⏳ Waiting for other participant to join...', 'info');
             }
             
             // Return shareable URL with room name
@@ -145,7 +145,7 @@ export class WebRTCManager {
             return shareUrl;
             
         } catch (error) {
-            this.onStatusUpdate(`❌ Connection failed: ${error.message}`, 'error');
+            this.onStatusUpdate(`❌ Connection failed: ${error.message}. Please check your internet connection and try again.`, 'error');
             throw error;
         }
     }
@@ -345,7 +345,7 @@ export class WebRTCManager {
             
             this.onStatusUpdate('📤 Sent connection offer', 'info');
         } catch (error) {
-            this.onStatusUpdate(`❌ Failed to create offer: ${error.message}`, 'error');
+            this.onStatusUpdate(`❌ Failed to create connection offer. Please try again.`, 'error');
         }
     }
     
@@ -380,7 +380,7 @@ export class WebRTCManager {
             
             this.onStatusUpdate('📤 Sent connection answer', 'info');
         } catch (error) {
-            this.onStatusUpdate(`❌ Failed to handle offer: ${error.message}`, 'error');
+            this.onStatusUpdate(`❌ Failed to accept connection. Please try again.`, 'error');
         }
     }
     
@@ -395,7 +395,7 @@ export class WebRTCManager {
             // Process any ICE candidates that arrived before the remote description
             await this.processPendingIceCandidates();
         } catch (error) {
-            this.onStatusUpdate(`❌ Failed to handle answer: ${error.message}`, 'error');
+            this.onStatusUpdate(`❌ Connection answer failed. Please try reconnecting.`, 'error');
         }
     }
     

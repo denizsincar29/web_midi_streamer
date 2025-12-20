@@ -10,7 +10,6 @@ class MIDIStreamer {
         this.settings = {
             sysexEnabled: false,
             timestampEnabled: false,
-            audioFeedbackEnabled: false,
             showMidiActivity: false,
             midiEchoEnabled: false,
             ipv6Enabled: true  // Auto-try both IPv4 and IPv6 by default for better connectivity
@@ -175,11 +174,6 @@ class MIDIStreamer {
             }
         });
         
-        document.getElementById('audioFeedbackEnabled').addEventListener('change', (e) => {
-            this.settings.audioFeedbackEnabled = e.target.checked;
-            this.ui.addMessage(`Audio feedback ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
-        });
-        
         document.getElementById('showMidiActivity').addEventListener('change', (e) => {
             this.settings.showMidiActivity = e.target.checked;
             this.ui.toggleMidiActivity(e.target.checked);
@@ -284,7 +278,7 @@ class MIDIStreamer {
                 });
             }
             
-            this.ui.updateConnectionStatus('Waiting for peer...', 'connecting');
+            this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
         } catch (error) {
             this.ui.addMessage(`Connection failed: ${error.message}`, 'error');
