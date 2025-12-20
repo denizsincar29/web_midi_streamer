@@ -66,27 +66,21 @@ export class WebRTCManager {
 
     /**
      * Connect to a room and establish WebRTC connection
-     * @param {string|null} remotePeerId - If provided, connect to this specific peer
-     * @returns {Promise<string|null>} Returns share URL if creating room, null if joining
+     * @param {string} roomName - Room name to join
+     * @returns {Promise<string>} Returns share URL with room name
      */
-    async connect(remotePeerId = null) {
+    async connect(roomName) {
+        if (!roomName || typeof roomName !== 'string') {
+            throw new Error('Room name is required');
+        }
+        
         this.onStatusUpdate('🔑 Fetching TURN credentials...', 'info');
         const iceServers = await getTurnCredentials();
         
         // Generate our peer ID
         this.myPeerId = generatePeerId();
-        this.remotePeerId = remotePeerId;
-        
-        // Determine room ID
-        if (remotePeerId) {
-            // Joining existing room - use remote peer ID as room
-            this.roomId = remotePeerId;
-            this.isInitiator = false;
-        } else {
-            // Creating new room - use our peer ID as room
-            this.roomId = this.myPeerId;
-            this.isInitiator = true;
-        }
+        this.roomId = roomName; // Use room name directly as room ID
+        this.isInitiator = false; // Will be determined by who's already in the room
         
         // Set up signaling URL
         let baseUrl = window.location.pathname;
@@ -100,7 +94,7 @@ export class WebRTCManager {
         
         try {
             const joinResponse = await fetch(
-                `${this.signalingUrl}?action=join&room=${this.roomId}&peer=${this.myPeerId}`
+                `${this.signalingUrl}?action=join&room=${encodeURIComponent(this.roomId)}&peer=${this.myPeerId}`
             );
             const joinData = await joinResponse.json();
             
@@ -132,29 +126,23 @@ export class WebRTCManager {
             // Clear any pending ICE candidates from previous connection
             this.pendingIceCandidates = [];
             
-            if (this.isInitiator || remotePeerId) {
-                // If we're initiator or explicitly connecting to someone, create data channel
-                this.createDataChannel();
-                
-                // Wait a bit for the other peer to join
-                if (this.isInitiator && !remotePeerId) {
-                    // Creating room - return share URL and wait for peer
-                    const shareUrl = `${window.location.origin}${window.location.pathname}?peer=${this.myPeerId}`;
-                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
-                    return shareUrl;
-                }
-                
-                // Joining room or connecting to specific peer
-                if (joinData.peers && joinData.peers.length > 0) {
-                    // Peer already in room, create offer
-                    this.remotePeerId = joinData.peers[0];
-                    await this.createOffer();
-                } else {
-                    this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
-                }
+            // Always create data channel
+            this.createDataChannel();
+            
+            // Check if there's already a peer in the room
+            if (joinData.peers && joinData.peers.length > 0) {
+                // Peer already in room, create offer
+                this.remotePeerId = joinData.peers[0];
+                this.isInitiator = true;
+                await this.createOffer();
+            } else {
+                // First one in room, wait for peer
+                this.onStatusUpdate('⏳ Waiting for peer to join...', 'info');
             }
             
-            return null;
+            // Return shareable URL with room name
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomName)}`;
+            return shareUrl;
             
         } catch (error) {
             this.onStatusUpdate(`❌ Connection failed: ${error.message}`, 'error');
@@ -722,6 +710,16 @@ export class WebRTCManager {
             this.peerConnection.close();
             this.peerConnection = null;
         }
+        
+        // Clear pending ICE candidates to prevent errors on reconnect
+        this.pendingIceCandidates = [];
+        
+        // Reset connection state
+        this.myPeerId = null;
+        this.remotePeerId = null;
+        this.roomId = null;
+        this.isInitiator = false;
+        this.connectionTypeReported = false;
     }
     
     isConnected() {

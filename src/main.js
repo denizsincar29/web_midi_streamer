@@ -1,11 +1,11 @@
-import { getRemotePeerIdFromURL, copyToClipboard } from './utils.js';
+import { getRoomNameFromURL, copyToClipboard } from './utils.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
 
 class MIDIStreamer {
     constructor() {
-        this.remotePeerId = getRemotePeerIdFromURL();
+        this.roomName = getRoomNameFromURL();
         this.settings = {
             sysexEnabled: false,
             timestampEnabled: false,
@@ -47,6 +47,11 @@ class MIDIStreamer {
         // Set initial checkbox states from settings
         document.getElementById('ipv6Enabled').checked = this.settings.ipv6Enabled;
         
+        // Set initial room name from URL if present
+        if (this.roomName) {
+            document.getElementById('roomName').value = this.roomName;
+        }
+        
         // Check if TURN relay mode is enabled
         const params = new URLSearchParams(window.location.search);
         if (params.get('forceTurn') === 'true') {
@@ -68,13 +73,13 @@ class MIDIStreamer {
         
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
         
-        if (this.remotePeerId) {
-            this.ui.updateRoomName('Connecting to peer...');
-            this.ui.addMessage(`Auto-connecting to peer...`, 'info');
+        if (this.roomName) {
+            this.ui.updateRoomName(`Room: ${this.roomName}`);
+            this.ui.addMessage(`Auto-connecting to room '${this.roomName}'...`, 'info');
             this.connect();
         } else {
-            this.ui.updateRoomName('Create Connection');
-            this.ui.addMessage('Click "Connect" to generate a shareable link', 'info');
+            this.ui.updateRoomName('Enter Room Name');
+            this.ui.addMessage('Enter a room name and click "Connect" to join', 'info');
         }
     }
 
@@ -145,11 +150,22 @@ class MIDIStreamer {
 
     async connect() {
         try {
-            const shareUrl = await this.webrtc.connect(this.remotePeerId);
+            // Get room name from input field
+            const roomName = document.getElementById('roomName').value.trim();
+            
+            if (!roomName) {
+                this.ui.addMessage('Please enter a room name', 'error');
+                return;
+            }
+            
+            const shareUrl = await this.webrtc.connect(roomName);
             
             if (shareUrl) {
-                this.ui.updateRoomName('Connected');
-                this.ui.addMessage(`Share this URL with peer: ${shareUrl}`, 'info');
+                this.ui.updateRoomName(`Room: ${roomName}`);
+                this.ui.addMessage(`Connected to room '${roomName}'`, 'success');
+                this.ui.addMessage(`Share this URL: ${shareUrl}`, 'info');
+                
+                // Display shareable link
                 this.ui.displayShareableUrl(shareUrl, (url) => {
                     copyToClipboard(url)
                         .then(() => this.ui.addMessage('URL copied to clipboard!', 'success'))
