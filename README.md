@@ -4,12 +4,31 @@ A real-time WebRTC-based MIDI streaming application that allows two users to str
 
 ## 🚀 Quick Start
 
+### Setup (First Time)
+
+Run the interactive setup script to configure the application:
+
+```bash
+python3 setup.py
+```
+
+This will:
+- Create `config.php` with your TURN server settings
+- Create `chimes.json` for MIDI notification sounds
+- Set up the `signaling_data/` directory
+
+Alternatively, you can manually copy the example files:
+```bash
+cp config.example.php config.php
+cp chimes.example.json chimes.json
+mkdir -p signaling_data
+# Then edit config.php with your settings
+```
+
 ### Local Development
 ```bash
-# Serve the application locally
+# Start the server
 php -S localhost:8080
-# or use Python
-python3 -m http.server 8080
 ```
 
 Then open `http://localhost:8080/`
@@ -154,9 +173,28 @@ The application supports customizable MIDI chimes for connection events. Configu
 
 Available chime types: `success`, `connecting`, `warning`, `error`, `info`
 
+To customize chimes, edit `chimes.json` after running the setup script.
+
 ## Signaling Server Setup
 
-The application uses a custom PHP-based signaling server for WebRTC negotiation:
+The application uses a custom PHP-based signaling server for WebRTC negotiation.
+
+### Automated Setup (Recommended)
+
+Run the setup script which will guide you through configuration:
+
+```bash
+python3 setup.py
+```
+
+This interactive script will:
+- Create `config.php` with your TURN server settings
+- Copy `chimes.example.json` to `chimes.json`
+- Create the `signaling_data/` directory with proper permissions
+
+### Manual Setup
+
+If you prefer manual configuration:
 
 1. **Set up signaling directory**
    ```bash
@@ -170,7 +208,13 @@ The application uses a custom PHP-based signaling server for WebRTC negotiation:
    # Edit config.php with your TURN server details
    ```
 
-3. **Start server**
+3. **Configure MIDI chimes**
+   ```bash
+   cp chimes.example.json chimes.json
+   # Optionally customize chimes.json
+   ```
+
+4. **Start server**
    ```bash
    php -S localhost:8080
    ```

@@ -46,6 +46,9 @@ Thumbs.db
 # Configuration files with secrets
 config.php
 
+# Generated configuration files
+chimes.json
+
 # Signaling server data directory
 signaling_data/
 
