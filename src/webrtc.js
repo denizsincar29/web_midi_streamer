@@ -44,6 +44,7 @@ export class WebRTCManager {
         this.RECONNECT_BASE_DELAY_MS = 1000;
         this.RECONNECT_BACKOFF_MULTIPLIER = 2;
         this.RECONNECT_MAX_DELAY_MS = 5000;
+        this.CONNECTION_STABILIZATION_DELAY_MS = 1000; // Wait for connection to stabilize before ping
     }
     
     resetPingStats() {
@@ -306,7 +307,7 @@ export class WebRTCManager {
             // Automatically measure latency after connection is established
             setTimeout(() => {
                 this.sendPing();
-            }, 1000); // Wait 1 second for connection to stabilize
+            }, this.CONNECTION_STABILIZATION_DELAY_MS);
         };
         
         dc.onmessage = (event) => {
