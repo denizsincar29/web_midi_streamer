@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 export class UIManager {
     constructor(midiManager = null) {
         this.midiManager = midiManager;
@@ -102,7 +104,7 @@ export class UIManager {
             shareSection.className = 'share-url-section';
             
             const label = document.createElement('p');
-            label.textContent = 'Share this URL with the other peer:';
+            label.textContent = t('connection.shareUrl');
             shareSection.appendChild(label);
             
             const urlInput = document.createElement('input');
@@ -113,7 +115,7 @@ export class UIManager {
             shareSection.appendChild(urlInput);
             
             const copyBtn = document.createElement('button');
-            copyBtn.textContent = 'Copy URL';
+            copyBtn.textContent = t('connection.copyUrl');
             copyBtn.className = 'btn btn-secondary';
             copyBtn.onclick = () => {
                 if (onCopy) {

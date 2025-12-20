@@ -2,6 +2,7 @@ import { getRoomNameFromURL, copyToClipboard } from './utils.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
+import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 
 class MIDIStreamer {
     constructor() {
@@ -34,7 +35,7 @@ class MIDIStreamer {
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
             if (connected) {
-                this.ui.updateConnectionStatus('Connected to peer', 'connected');
+                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
             }
         };
         
@@ -42,6 +43,9 @@ class MIDIStreamer {
     }
 
     async init() {
+        // Initialize i18n
+        this.initI18n();
+        
         this.setupEventListeners();
         
         // Set initial checkbox states from settings
@@ -75,12 +79,74 @@ class MIDIStreamer {
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
         
         if (this.roomName) {
-            this.ui.updateRoomName(`Room: ${this.roomName}`);
+            this.ui.updateRoomName(`${t('connection.roomName').replace(':', '')} ${this.roomName}`);
             this.ui.addMessage(`Auto-connecting to room '${this.roomName}'...`, 'info');
             this.connect();
         } else {
-            this.ui.updateRoomName('Enter Room Name');
+            this.ui.updateRoomName(t('status.enterRoomName'));
             this.ui.addMessage('Enter a room name and click "Connect" to join', 'info');
+        }
+    }
+
+    initI18n() {
+        // Set up language selector
+        const languageSelect = document.getElementById('languageSelect');
+        languageSelect.value = getCurrentLanguage();
+        
+        languageSelect.addEventListener('change', (e) => {
+            setLanguage(e.target.value);
+            this.updatePageTranslations();
+            document.documentElement.lang = e.target.value;
+        });
+        
+        // Initial translation update
+        this.updatePageTranslations();
+    }
+
+    updatePageTranslations() {
+        // Update all elements with data-i18n attribute
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+            const key = element.getAttribute('data-i18n');
+            element.textContent = t(key);
+        });
+        
+        // Update placeholders
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+            const key = element.getAttribute('data-i18n-placeholder');
+            element.placeholder = t(key);
+        });
+        
+        // Update dynamic content
+        this.updateDynamicTranslations();
+    }
+
+    updateDynamicTranslations() {
+        // Update room name if not connected
+        if (!this.webrtc.isConnected() && !this.roomName) {
+            this.ui.updateRoomName(t('status.enterRoomName'));
+        }
+        
+        // Update connection status
+        const statusText = document.getElementById('connectionStatus').textContent;
+        if (statusText === 'Disconnected' || statusText === 'Отключено') {
+            this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+        } else if (statusText === 'Waiting for peer...' || statusText === 'Ожидание пира...') {
+            this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
+        } else if (statusText === 'Connected to peer' || statusText === 'Подключено к пиру') {
+            this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
+        }
+        
+        // Update share URL label if it exists
+        const shareSection = document.getElementById('shareUrlSection');
+        if (shareSection) {
+            const label = shareSection.querySelector('p');
+            if (label) {
+                label.textContent = t('connection.shareUrl');
+            }
+            const copyBtn = shareSection.querySelector('button');
+            if (copyBtn) {
+                copyBtn.textContent = t('connection.copyUrl');
+            }
         }
     }
 
