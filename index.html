@@ -28,12 +28,8 @@
                     <h1 data-i18n="app.title">Web MIDI Streamer</h1>
                     <p data-i18n="app.subtitle">Real-time MIDI streaming over WebRTC</p>
                 </div>
-                <div class="language-selector">
-                    <label for="languageSelect" data-i18n="language.select">Language</label>
-                    <select id="languageSelect" aria-label="Select language">
-                        <option value="en">English</option>
-                        <option value="ru">Русский</option>
-                    </select>
+                <div class="header-actions">
+                    <button id="helpBtn" class="btn btn-secondary" data-i18n="footer.help">Help</button>
                 </div>
             </div>
         </header>
@@ -84,11 +80,20 @@
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
             </section>
 
-            <!-- Advanced Tools -->
+            <!-- Settings (formerly Advanced) -->
             <details class="advanced">
-                <summary><h2 data-i18n="advanced.title">Advanced</h2></summary>
+                <summary><h2 data-i18n="settings.title">Settings</h2></summary>
                 <div class="advanced-content">
-                    <h3 data-i18n="advanced.settings">Settings</h3>
+                    <h3 data-i18n="settings.settings">Settings</h3>
+                    
+                    <!-- Language Selector -->
+                    <div class="setting-group">
+                        <label for="languageSelect" data-i18n="settings.language">Language</label>
+                        <select id="languageSelect" aria-label="Select language">
+                            <option value="en">English</option>
+                            <option value="ru">Русский</option>
+                        </select>
+                    </div>
                     
                     <div class="setting-group">
                         <label>
@@ -130,7 +135,7 @@
                         <p id="ipv6-desc" class="description" data-i18n="settings.ipv6Desc">Attempt IPv6 connections for peer-to-peer communication. If disabled, only IPv4 will be used.</p>
                     </div>
                     
-                    <h3 data-i18n="advanced.debugTools">Debug Tools</h3>
+                    <h3 data-i18n="settings.debugTools">Debug Tools</h3>
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled data-i18n="debug.testNote">Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled data-i18n="debug.ping">Send Ping</button>
                     <label>
@@ -139,7 +144,7 @@
                     </label>
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
                     
-                    <h3 data-i18n="advanced.messages">Messages</h3>
+                    <h3 data-i18n="settings.messages">Messages</h3>
                     <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
                 </div>
             </details>
@@ -148,8 +153,51 @@
             <div id="midiActivity" role="status" aria-atomic="true" class="sr-only" aria-live="off"></div>
         </main>
 
+        <!-- Help Modal -->
+        <div id="helpModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 data-i18n="help.title">How to Use Web MIDI Streamer</h2>
+                    <button id="closeHelpBtn" class="close-btn" aria-label="Close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="help-step">
+                        <h3 data-i18n="help.step1Title">1. Connect Your MIDI Keyboard First</h3>
+                        <p data-i18n="help.step1">IMPORTANT: Connect your MIDI keyboard or controller to your computer BEFORE opening this website or clicking any connection buttons. This prevents the need to refresh the page.</p>
+                    </div>
+                    <div class="help-step">
+                        <h3 data-i18n="help.step2Title">2. Open the Website</h3>
+                        <p data-i18n="help.step2">After connecting your MIDI device, open the website or reload if you already had it open.</p>
+                    </div>
+                    <div class="help-step">
+                        <h3 data-i18n="help.step3Title">3. Select MIDI Devices</h3>
+                        <p data-i18n="help.step3">Choose your MIDI input device (the keyboard you play) and output device (where you hear the remote peer's notes).</p>
+                    </div>
+                    <div class="help-step">
+                        <h3 data-i18n="help.step4Title">4. Create or Join a Room</h3>
+                        <p data-i18n="help.step4">Enter a room name and click "Connect to Room". You can save this URL with the room name to use the same room with the same people every time.</p>
+                    </div>
+                    <div class="help-step">
+                        <h3 data-i18n="help.step5Title">5. Share the URL</h3>
+                        <p data-i18n="help.step5">Copy and share the generated URL with your peer. They should open it to connect automatically.</p>
+                    </div>
+                    <div class="help-step">
+                        <h3 data-i18n="help.step6Title">6. Start Playing</h3>
+                        <p data-i18n="help.step6">Once connected, you can play your MIDI keyboard and hear each other in real-time!</p>
+                    </div>
+                    <div class="help-tip">
+                        <strong data-i18n="help.tipTitle">💡 Tip</strong>
+                        <p data-i18n="help.tip">You can bookmark the URL with your room name to quickly reconnect with the same people next time.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="closeHelpBtn2" class="btn btn-primary" data-i18n="help.close">Close</button>
+                </div>
+            </div>
+        </div>
+
         <footer>
-            <p data-i18n="footer.instructions">Instructions: Click "Connect to Room" to generate a shareable link for peer-to-peer connection</p>
+            <!-- Footer can be used for additional info if needed -->
         </footer>
     </div>
     

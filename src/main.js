@@ -199,6 +199,39 @@ class MIDIStreamer {
             this.ui.addMessage('MIDI devices refreshed', 'info');
         });
         
+        // Help modal event listeners
+        const helpModal = document.getElementById('helpModal');
+        const helpBtn = document.getElementById('helpBtn');
+        const closeHelpBtn = document.getElementById('closeHelpBtn');
+        const closeHelpBtn2 = document.getElementById('closeHelpBtn2');
+        
+        helpBtn.addEventListener('click', () => {
+            helpModal.style.display = 'flex';
+            // Update modal content with current language
+            this.updatePageTranslations();
+        });
+        
+        const closeModal = () => {
+            helpModal.style.display = 'none';
+        };
+        
+        closeHelpBtn.addEventListener('click', closeModal);
+        closeHelpBtn2.addEventListener('click', closeModal);
+        
+        // Close modal when clicking outside
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                closeModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && helpModal.style.display === 'flex') {
+                closeModal();
+            }
+        });
+        
         document.getElementById('connectBtn').addEventListener('click', () => this.connect());
         document.getElementById('disconnectBtn').addEventListener('click', () => this.disconnect());
         document.getElementById('sendTestNoteBtn').addEventListener('click', () => this.sendTestNote());
