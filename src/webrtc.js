@@ -158,8 +158,9 @@ export class WebRTCManager {
             if (event.candidate) {
                 const candidate = event.candidate;
                 
-                if (!candidate.candidate) {
-                    console.log('ICE Candidate event with empty candidate data (may indicate gathering issues)');
+                // Check if this is a valid candidate with data
+                if (!candidate.candidate || candidate.candidate.trim() === '') {
+                    console.log('ICE Candidate event with empty candidate string - skipping');
                     return;
                 }
                 
@@ -198,8 +199,20 @@ export class WebRTCManager {
                     }
                 });
             } else {
+                // Null candidate indicates end of candidate gathering
                 this.onStatusUpdate('✅ Finished discovering all connection paths', 'success');
-                console.log('ICE candidate gathering completed');
+                console.log('ICE candidate gathering completed (null candidate received)');
+                
+                // Send end-of-candidates signal to remote peer
+                // This helps the remote peer know that no more candidates will arrive
+                this.sendSignalingMessage({
+                    type: 'ice-candidate',
+                    data: {
+                        candidate: null,
+                        sdpMid: null,
+                        sdpMLineIndex: null
+                    }
+                });
             }
         };
         
@@ -405,6 +418,20 @@ export class WebRTCManager {
     }
     
     async addIceCandidate(candidateData) {
+        // Handle end-of-candidates signal (null candidate)
+        if (!candidateData.candidate) {
+            console.log('Received end-of-candidates signal from remote peer');
+            // Add null candidate to signal end of candidates to browser
+            // This is the proper way to handle end-of-candidates in modern WebRTC
+            try {
+                await this.peerConnection.addIceCandidate(null);
+            } catch (error) {
+                // Some browsers don't support null candidate, which is fine
+                console.log('Browser does not support null ICE candidate (this is normal for older browsers)');
+            }
+            return;
+        }
+        
         // Create a temporary candidate object to check if we should use it
         const tempCandidate = {
             candidate: candidateData.candidate,
