@@ -39,7 +39,6 @@ self.addEventListener('install', (event) => {
   // Force the waiting service worker to become the active service worker
   self.skipWaiting();
 });
-});
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
