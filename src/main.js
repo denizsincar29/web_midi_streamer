@@ -79,7 +79,7 @@ class MIDIStreamer {
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
         
         if (this.roomName) {
-            this.ui.updateRoomName(`${t('connection.roomName').replace(':', '')} ${this.roomName}`);
+            this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
             this.ui.addMessage(`Auto-connecting to room '${this.roomName}'...`, 'info');
             this.connect();
         } else {
@@ -126,14 +126,18 @@ class MIDIStreamer {
             this.ui.updateRoomName(t('status.enterRoomName'));
         }
         
-        // Update connection status
-        const statusText = document.getElementById('connectionStatus').textContent;
-        if (statusText === 'Disconnected' || statusText === 'Отключено') {
+        // Update connection status based on connection state
+        if (this.webrtc.peerConnection) {
+            const state = this.webrtc.peerConnection.connectionState;
+            if (state === 'connected') {
+                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
+            } else if (state === 'connecting') {
+                this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
+            } else {
+                this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+            }
+        } else {
             this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
-        } else if (statusText === 'Waiting for peer...' || statusText === 'Ожидание пира...') {
-            this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
-        } else if (statusText === 'Connected to peer' || statusText === 'Подключено к пиру') {
-            this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
         }
         
         // Update share URL label if it exists

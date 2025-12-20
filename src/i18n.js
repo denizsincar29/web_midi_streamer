@@ -137,7 +137,14 @@ let currentLanguage = localStorage.getItem('language') || getBrowserLanguage();
 
 // Get translation for a key
 export function t(key) {
-    return translations[currentLanguage]?.[key] || translations['en'][key] || key;
+    const translation = translations[currentLanguage]?.[key] || translations['en'][key];
+    
+    if (!translation) {
+        console.warn(`Missing translation for key: ${key}`);
+        return key;
+    }
+    
+    return translation;
 }
 
 // Set language and update localStorage
