@@ -650,3 +650,70 @@ footer {
         padding: 15px 20px;
     }
 }
+
+/* Help Page */
+.help-page main {
+    padding: 30px;
+}
+
+.help-navigation {
+    margin-bottom: 30px;
+}
+
+.help-navigation button {
+    min-width: 150px;
+}
+
+.help-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.help-content h2 {
+    color: #667eea;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+.help-content h3 {
+    color: #764ba2;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.help-content ul {
+    margin: 15px 0;
+    padding-left: 30px;
+}
+
+.help-content li {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.help-content p {
+    line-height: 1.8;
+    margin: 15px 0;
+}
+
+.help-content strong {
+    color: #667eea;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    background: #f5f5f5;
+    margin-top: 30px;
+}
+
+footer a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}

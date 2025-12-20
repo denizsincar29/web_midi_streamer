@@ -193,37 +193,18 @@ class MIDIStreamer {
             this.ui.addMessage('MIDI devices refreshed', 'info');
         });
         
-        // Help modal event listeners
-        const helpModal = document.getElementById('helpModal');
+        // Help button event listener - navigate to help page
         const helpBtn = document.getElementById('helpBtn');
-        const closeHelpBtn = document.getElementById('closeHelpBtn');
-        const closeHelpBtn2 = document.getElementById('closeHelpBtn2');
-        
         helpBtn.addEventListener('click', () => {
-            helpModal.style.display = 'flex';
-            // Update modal content with current language
-            this.updatePageTranslations();
-        });
-        
-        const closeModal = () => {
-            helpModal.style.display = 'none';
-        };
-        
-        closeHelpBtn.addEventListener('click', closeModal);
-        closeHelpBtn2.addEventListener('click', closeModal);
-        
-        // Close modal when clicking outside
-        helpModal.addEventListener('click', (e) => {
-            if (e.target === helpModal) {
-                closeModal();
-            }
-        });
-        
-        // Close modal with Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && helpModal.style.display === 'flex') {
-                closeModal();
-            }
+            // Determine which help page to load based on current language
+            const currentLang = getCurrentLanguage();
+            const helpPage = currentLang === 'ru' ? 'help-ru.html' : 'help-en.html';
+            
+            // Get current page URL for return link
+            const currentUrl = window.location.href;
+            
+            // Navigate to help page with return parameter
+            window.location.href = `${helpPage}?return=${encodeURIComponent(currentUrl)}`;
         });
         
         document.getElementById('connectBtn').addEventListener('click', () => this.connect());

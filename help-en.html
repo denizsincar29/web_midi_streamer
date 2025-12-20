@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help - Web MIDI Streamer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+</head>
+<body>
+    <div class="container help-page">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>How to Use Web MIDI Streamer</h1>
+                    <p>Step-by-step guide for streaming MIDI over WebRTC</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="help-navigation">
+                <button id="backBtn" class="btn btn-primary">← Back to App</button>
+            </div>
+
+            <article class="help-content">
+                <section class="help-step">
+                    <h2>1. Connect Your MIDI Keyboard First</h2>
+                    <p><strong>IMPORTANT:</strong> Connect your MIDI keyboard or controller to your computer <strong>BEFORE</strong> opening this website or clicking any connection buttons. This prevents the need to refresh the page.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>2. Open the Website</h2>
+                    <p>After connecting your MIDI device, open the website or reload if you already had it open. Firefox will automatically download the MIDI component when you grant permission.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>3. Select MIDI Devices</h2>
+                    <p>Choose your MIDI input device (the keyboard you play) and output device (where you hear the other participant's notes).</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>4. Create or Join a Room</h2>
+                    <p>Enter a room name and click "Connect to Room". You can save this URL with the room name to use the same room with the same people every time.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>5. Share the URL</h2>
+                    <p>Copy and share the generated URL with the other participant. They should open it to connect automatically.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>6. Start Playing</h2>
+                    <p>Once connected, you can play your MIDI keyboard and hear each other in real-time! The browser tab can be in the background while playing.</p>
+                </section>
+
+                <section class="help-tip">
+                    <strong>💡 Tip</strong>
+                    <p>You can bookmark the URL with your room name to quickly reconnect with the same people next time.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>Supported Browsers</h2>
+                    <ul>
+                        <li><strong>Google Chrome</strong> (Recommended)</li>
+                        <li><strong>Microsoft Edge</strong></li>
+                        <li><strong>Opera</strong></li>
+                        <li><strong>Firefox</strong> (Auto-downloads MIDI component on first use)</li>
+                    </ul>
+                </section>
+
+                <section class="help-step">
+                    <h2>Troubleshooting</h2>
+                    
+                    <h3>Connection Issues</h3>
+                    <ul>
+                        <li><strong>Long connection wait:</strong> WebRTC may take 5-10 seconds. Please be patient.</li>
+                        <li><strong>Cannot connect:</strong> Make sure both participants use the same room URL and check your internet connection.</li>
+                        <li><strong>Connection drops:</strong> Check your firewall settings and network stability.</li>
+                    </ul>
+
+                    <h3>MIDI Issues</h3>
+                    <ul>
+                        <li><strong>MIDI access denied:</strong> Make sure your MIDI device is connected BEFORE opening the website.</li>
+                        <li><strong>No sound:</strong> Check your MIDI output device selection and speaker/headphone connection.</li>
+                        <li><strong>Devices not showing:</strong> Click "Refresh Devices" or reconnect your MIDI device.</li>
+                        <li><strong>Firefox users:</strong> Allow the automatic MIDI component download when prompted.</li>
+                    </ul>
+                </section>
+
+                <section class="help-step">
+                    <h2>Tips for Best Experience</h2>
+                    <ul>
+                        <li>Connect MIDI keyboard first, then open the website</li>
+                        <li>Use a wired internet connection for lowest latency</li>
+                        <li>Close unnecessary applications to free up system resources</li>
+                        <li>Bookmark your room URL to quickly reconnect</li>
+                        <li>Browser tabs can work in the background</li>
+                    </ul>
+                </section>
+            </article>
+
+            <div class="help-navigation">
+                <button id="backBtn2" class="btn btn-primary">← Back to App</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>For issues or questions, visit: <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub Repository</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Handle back button clicks
+        document.getElementById('backBtn').addEventListener('click', goBack);
+        document.getElementById('backBtn2').addEventListener('click', goBack);
+
+        function goBack() {
+            // Get the return URL from query parameter or go to index
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return') || './index.html';
+            window.location.href = returnUrl;
+        }
+
+        // Focus the main content for screen readers
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainContent = document.querySelector('main');
+            if (mainContent) {
+                mainContent.setAttribute('tabindex', '-1');
+                mainContent.focus();
+            }
+        });
+    </script>
+</body>
+</html>
