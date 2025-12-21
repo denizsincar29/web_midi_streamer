@@ -213,6 +213,7 @@
         let selectedInput = null;
         let activeNotes = new Set(); // Set of active MIDI note numbers
         let lastChordName = ''; // Store last chord name for screen reader announcement
+        let notesWereActive = false; // Track if notes were previously active
         
         // MIDI note number to note name mapping
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -393,9 +394,9 @@
                 if (lastChordName) {
                     // Don't change the chord display - keep showing last chord
                     // Announce that all notes were released (only once when notes go from active to inactive)
-                    if (activeNotes.size === 0 && noteListEl.dataset.hadNotes === 'true') {
+                    if (notesWereActive) {
                         chordAnnouncementEl.textContent = `${t('chordDisplay.lastChord')} ${lastChordName}`;
-                        noteListEl.dataset.hadNotes = 'false';
+                        notesWereActive = false;
                     }
                 } else {
                     chordNameEl.innerHTML = `<span class="placeholder-text">${t('chordDisplay.playNotes')}</span>`;
@@ -405,7 +406,7 @@
             }
             
             // Mark that we have notes
-            noteListEl.dataset.hadNotes = 'true';
+            notesWereActive = true;
             
             // Convert MIDI notes to note names
             const noteNames = Array.from(activeNotes)

@@ -102,12 +102,16 @@
                 const key = element.getAttribute('data-i18n');
                 const translation = t(key);
                 
-                // Update text content or aria-label based on element type
-                if (element.hasAttribute('aria-label')) {
-                    const toolName = element.previousElementSibling?.previousElementSibling?.textContent || '';
-                    element.setAttribute('aria-label', `${t('tools.openTool')} ${toolName}`);
-                }
+                // Update text content
                 element.textContent = translation;
+                
+                // Update aria-label for buttons if needed
+                if (element.tagName === 'BUTTON' && element.closest('.tool-card')) {
+                    const toolTitle = element.closest('.tool-card').querySelector('h3');
+                    if (toolTitle) {
+                        element.setAttribute('aria-label', `${t('tools.openTool')} ${toolTitle.textContent}`);
+                    }
+                }
             });
             
             // Update lang attribute
