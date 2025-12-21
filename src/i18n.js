@@ -59,7 +59,7 @@ export const translations = {
         'chat.placeholder': 'Type a message...',
         'chat.send': 'Send',
         'chat.you': 'You',
-        'chat.peer': 'Peer',
+        'chat.peer': 'Partner',
         
         // Footer
         'footer.help': 'Help',
@@ -96,8 +96,8 @@ export const translations = {
         'status.notConnected': 'Не подключено',
         'status.enterRoomName': 'Введите название комнаты',
         'status.disconnected': 'Отключено',
-        'status.waitingForPeer': 'Ожидание другого участника...',
-        'status.connectedToPeer': 'Подключено к другому участнику',
+        'status.waitingForPeer': 'Ожидание партнёра...',
+        'status.connectedToPeer': 'Подключено к партнёру',
         
         // MIDI Devices
         'midi.title': 'MIDI-устройства',
@@ -134,10 +134,10 @@ export const translations = {
         'settings.language': 'Язык',
         
         // Debug Tools
-        'debug.testNote': 'Отправить тестовую ноту (C4)',
-        'debug.ping': 'Отправить пинг',
+        'debug.testNote': 'Отправить тестовую ноту (До первой октавы)',
+        'debug.ping': 'Пропинговать',
         'debug.midiEcho': 'MIDI-эхо (отправлять обратно все полученные MIDI-сообщения)',
-        'debug.description': 'Тестирование подключения канала данных WebRTC и MIDI-эхо',
+        'debug.description': 'Тестирование подключения канала данных WebRTC.',
         'debug.copyMessages': 'Копировать все сообщения',
         
         // Chat
