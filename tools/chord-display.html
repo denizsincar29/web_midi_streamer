@@ -12,6 +12,24 @@
             padding: 20px;
         }
         
+        .device-group {
+            margin-bottom: 20px;
+        }
+        
+        .device-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .device-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
         .chord-display {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -237,7 +255,7 @@
         
         function getPitchClass(noteName) {
             // Remove octave number (e.g., "C4" -> "C")
-            return noteName.replace(/[0-9-]/g, '');
+            return noteName.replace(/[0-9]/g, '');
         }
         
         function noteNameToSemitone(noteName) {
