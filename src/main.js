@@ -194,6 +194,12 @@ class MIDIStreamer {
             this.ui.addMessage('MIDI devices refreshed', 'info');
         });
         
+        // Tools button event listener - navigate to tools page
+        const toolsBtn = document.getElementById('toolsBtn');
+        toolsBtn.addEventListener('click', () => {
+            window.location.href = 'tools/index.html';
+        });
+        
         // Help button event listener - navigate to help page
         const helpBtn = document.getElementById('helpBtn');
         helpBtn.addEventListener('click', () => {

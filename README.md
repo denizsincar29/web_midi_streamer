@@ -1,6 +1,6 @@
 # Web MIDI Streamer
 
-**Version 1.0.0** - Real-time MIDI streaming over WebRTC
+**Version 1.1.0** - Real-time MIDI streaming over WebRTC
 
 A peer-to-peer MIDI streaming application that allows two users to stream MIDI data between their devices in real-time using WebRTC technology.
 
@@ -14,6 +14,7 @@ A peer-to-peer MIDI streaming application that allows two users to stream MIDI d
 - 🔧 **Debug tools** - Connection testing and message export
 - 📱 **PWA ready** - Install as an app, works offline
 - ♿ **Accessible** - Full keyboard navigation and screen reader support
+- 🎛️ **MIDI Tools** - Nord Effects Controller (BETA) and Chord Display for pianists
 
 ## 🚀 Quick Start
 
@@ -34,7 +35,7 @@ git clone https://github.com/denizsincar29/web_midi_streamer.git
 cd web_midi_streamer
 
 # Run setup script
-python3 setup.py
+uv run scripts/setup.py
 
 # Start development server
 php -S localhost:8080
@@ -54,7 +55,7 @@ php -S localhost:8080
 ### Automated Setup (Recommended)
 
 ```bash
-python3 setup.py
+uv run scripts/setup.py
 ```
 
 This creates:
@@ -73,10 +74,24 @@ mkdir -p signaling_data
 
 ## 📖 Documentation
 
-- **[Help Guide](help-en.html)** - Step-by-step usage instructions
-- **[Russian Guide](help-ru.html)** - Русская справка
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and development notes
+- **[Help Guide](help-en.html)** - Step-by-step usage instructions (includes version history)
+- **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
+- **[Tools Help](tools/help.html)** - Documentation for MIDI Tools (Nord Effects & Chord Display)
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
+
+## 🎛️ MIDI Tools
+
+Web MIDI Streamer now includes professional tools for pianists and keyboard players:
+
+### 🎚️ Nord Effects Controller (BETA)
+Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker, and more in real-time.
+
+**⚠️ EXPERIMENTAL**: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.
+
+### 🎼 Chord Display
+Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.
+
+Access tools via the "🎹 Tools" button in the main app header.
 
 ## 🏗️ Architecture
 
@@ -101,8 +116,10 @@ mkdir -p signaling_data
 - `src/webrtc.js` - WebRTC connection management
 - `src/midi.js` - MIDI device handling
 - `src/ui.js` - User interface updates
+- `src/i18n.js` - Internationalization translations
 - `signaling.php` - WebRTC signaling server
 - `service-worker.js` - PWA offline support
+- `tools/` - MIDI tools (Nord Effects Controller, Chord Display)
 
 ## 🌐 Deployment
 

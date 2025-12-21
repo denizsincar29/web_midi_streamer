@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Tools - Web MIDI Streamer</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1">
+    <link rel="manifest" href="../manifest.json">
+    
+    <style>
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .tool-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .tool-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .tool-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .tool-card p {
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .tool-card .btn {
+            margin-top: 15px;
+            width: 100%;
+        }
+        
+        .tool-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #856404;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .help-link {
+            margin-top: 10px;
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .help-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1 data-i18n="tools.title">🎹 MIDI Tools</h1>
+                    <p data-i18n="tools.subtitle">Professional tools for pianists and keyboard players</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToMidiStreamer">← Back to MIDI Streamer</button>
+                <a href="help.html" class="help-link" data-i18n="tools.help">📖 Help</a>
+            </div>
+
+            <div class="tools-grid">
+                <!-- Nord Effects Controller -->
+                <div class="tool-card" role="article" aria-labelledby="nord-title">
+                    <h3 id="nord-title">
+                        <span data-i18n="tools.nordEffects">🎚️ Nord Effects Controller</span> 
+                        <span data-i18n="tools.nordEffectsBeta">(BETA)</span>
+                    </h3>
+                    <p data-i18n="tools.nordEffectsDesc">Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.</p>
+                    <div class="tool-warning" data-i18n="tools.nordEffectsWarning">⚠️ EXPERIMENTAL: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models.</div>
+                    <button class="btn btn-primary" onclick="window.location.href='nord-effects.html'" data-i18n="tools.openTool" aria-label="Open Nord Effects Controller tool">Open Tool</button>
+                </div>
+
+                <!-- Chord Display -->
+                <div class="tool-card" role="article" aria-labelledby="chord-title">
+                    <h3 id="chord-title" data-i18n="tools.chordDisplay">🎼 Chord Display</h3>
+                    <p data-i18n="tools.chordDisplayDesc">See what chord you're playing in real-time. Detects and displays jazz chords with proper notation from your MIDI input.</p>
+                    <button class="btn btn-primary" onclick="window.location.href='chord-display.html'" data-i18n="tools.openTool" aria-label="Open Chord Display tool">Open Tool</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
+        // Update page translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const translation = t(key);
+                
+                // Update text content
+                element.textContent = translation;
+                
+                // Update aria-label for buttons if needed
+                if (element.tagName === 'BUTTON' && element.closest('.tool-card')) {
+                    const toolTitle = element.closest('.tool-card').querySelector('h3');
+                    if (toolTitle) {
+                        element.setAttribute('aria-label', `${t('tools.openTool')} ${toolTitle.textContent}`);
+                    }
+                }
+            });
+            
+            // Update lang attribute
+            document.documentElement.lang = getCurrentLanguage();
+        }
+        
+        // Initialize
+        updateTranslations();
+        
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = '../index.html';
+        });
+    </script>
+</body>
+</html>
