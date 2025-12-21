@@ -225,91 +225,8 @@
             return noteName + octave;
         }
         
-        // Chord detection algorithm
-        const CHORD_PATTERNS = {
-            // Major chords
-            '0,4,7': 'Major',
-            '0,4': 'Major',
-            '0,3,7': 'Minor',
-            '0,3': 'Minor',
-            '0,3,6': 'Diminished',
-            '0,4,8': 'Augmented',
-            
-            // Seventh chords
-            '0,4,7,11': 'Major 7',
-            '0,4,11': 'Major 7',
-            '0,4,7,10': '7',
-            '0,4,10': '7',
-            '0,3,7,10': 'Minor 7',
-            '0,3,10': 'Minor 7',
-            '0,3,6,10': 'Half-diminished 7',
-            '0,3,6,9': 'Diminished 7',
-            '0,3,7,11': 'Minor-Major 7',
-            
-            // Ninth chords (9th = 2 semitones when reduced to pitch class)
-            '0,2,4,7,10': '9',
-            '0,2,4,10': '9',
-            '0,2,4,7,11': 'Major 9',
-            '0,2,4,11': 'Major 9',
-            '0,2,3,7,10': 'Minor 9',
-            '0,2,3,10': 'Minor 9',
-            
-            // Altered ninth chords (b9=1, #9=3 when reduced)
-            '0,1,4,7,10': '7b9',
-            '0,1,4,10': '7b9',
-            '0,3,4,7,10': '7#9',
-            '0,3,4,10': '7#9',
-            '0,1,3,7,10': 'Minor 7b9',
-            '0,1,3,10': 'Minor 7b9',
-            
-            // Eleventh chords (11th = 5 semitones when reduced)
-            '0,2,4,5,7,10': '11',
-            '0,2,4,5,10': '11',
-            '0,2,3,5,7,10': 'Minor 11',
-            '0,2,3,5,10': 'Minor 11',
-            '0,2,4,5,7,11': 'Major 11',
-            
-            // Sharp eleventh (lydian) - #11 = 6 semitones when reduced
-            '0,2,4,6,7,10': '7#11',
-            '0,2,4,6,10': '7#11',
-            '0,2,4,6,7,11': 'Major 7#11',
-            '0,2,4,6,11': 'Major 7#11',
-            
-            // Thirteenth chords (13th = 9 semitones when reduced)
-            '0,2,4,7,9,10': '13',
-            '0,2,4,9,10': '13',
-            '0,2,4,5,7,9,10': '13',
-            '0,2,3,7,9,10': 'Minor 13',
-            '0,2,4,7,9,11': 'Major 13',
-            
-            // Flat thirteenth (b13 = 8 semitones when reduced)
-            '0,2,4,7,8,10': '7b13',
-            '0,2,4,8,10': '7b13',
-            
-            // Sus chords
-            '0,5,7': 'Sus4',
-            '0,2,7': 'Sus2',
-            '0,5,7,10': '7sus4',
-            '0,2,7,10': '7sus2',
-            
-            // Add chords
-            '0,4,7,9': '6',
-            '0,4,9': '6',
-            '0,2,4,7': 'Add9',
-            '0,3,7,9': 'Minor 6',
-            '0,3,9': 'Minor 6',
-            '0,2,3,7': 'Minor Add9',
-            
-            // Sixth-ninth chords
-            '0,2,4,7,9': '6/9',
-            '0,2,4,9': '6/9',
-            '0,2,3,7,9': 'Minor 6/9',
-        };
-        
-        function detectChordFromIntervals(intervals) {
-            const key = intervals.join(',');
-            return CHORD_PATTERNS[key];
-        }
+        // Chord detection algorithm - follows jazz theory structure
+        // Bass note is always the first (lowest) note, no inversion guessing
         
         function getPitchClass(noteName) {
             // Remove octave number (e.g., "C4" -> "C")
@@ -319,16 +236,16 @@
         function noteNameToSemitone(noteName) {
             const NOTE_VALUES = {
                 'C': 0, 
-                'C#': 1, 'Db': 1,  // C# and Db are enharmonic equivalents
+                'C#': 1, 'Db': 1,
                 'D': 2, 
-                'D#': 3, 'Eb': 3,  // D# and Eb are enharmonic equivalents
+                'D#': 3, 'Eb': 3,
                 'E': 4, 
                 'F': 5,
-                'F#': 6, 'Gb': 6,  // F# and Gb are enharmonic equivalents
+                'F#': 6, 'Gb': 6,
                 'G': 7, 
-                'G#': 8, 'Ab': 8,  // G# and Ab are enharmonic equivalents
+                'G#': 8, 'Ab': 8,
                 'A': 9, 
-                'A#': 10, 'Bb': 10, // A# and Bb are enharmonic equivalents
+                'A#': 10, 'Bb': 10,
                 'B': 11
             };
             return NOTE_VALUES[noteName] || 0;
@@ -349,26 +266,154 @@
                 return { root: uniquePitches[0], type: 'Single note' };
             }
             
-            // Try each note as potential root
-            for (let i = 0; i < uniquePitches.length; i++) {
-                const root = uniquePitches[i];
-                const rootValue = noteNameToSemitone(root);
-                
-                // Calculate intervals from this root
-                const intervals = uniquePitches.map(note => {
-                    const value = noteNameToSemitone(note);
-                    return (value - rootValue + 12) % 12;
-                }).sort((a, b) => a - b);
-                
-                // Check if this matches a known chord pattern
-                const chordType = detectChordFromIntervals(intervals);
-                if (chordType) {
-                    return { root, type: chordType };
+            // Bass note is always the first note (lowest)
+            const root = uniquePitches[0];
+            const rootValue = noteNameToSemitone(root);
+            
+            // Create interval set from root
+            const intervalSet = new Set();
+            uniquePitches.forEach(note => {
+                const value = noteNameToSemitone(note);
+                const interval = (value - rootValue + 12) % 12;
+                intervalSet.add(interval);
+            });
+            
+            // Helper function to check if interval exists
+            const has = (interval) => intervalSet.has(interval);
+            
+            // Step 1: Identify base chord quality
+            let baseChord = '';
+            let thirdType = null; // null, 'major' (4), or 'minor' (3)
+            let seventhType = null; // null, 'maj7' (11), 'dom7' (10)
+            
+            // Check for third
+            if (has(4)) {
+                thirdType = 'major';
+            } else if (has(3)) {
+                thirdType = 'minor';
+            }
+            
+            // Check for seventh
+            if (has(11)) {
+                seventhType = 'maj7';
+            } else if (has(10)) {
+                seventhType = 'dom7';
+            }
+            
+            // Determine base chord
+            if (thirdType === 'major' && seventhType === 'dom7') {
+                baseChord = '7';
+            } else if (thirdType === 'major' && seventhType === 'maj7') {
+                baseChord = 'maj7';
+            } else if (thirdType === 'minor' && seventhType === 'dom7') {
+                baseChord = 'm7';
+            } else if (thirdType === 'minor' && seventhType === 'maj7') {
+                baseChord = 'mM7'; // minor-major 7
+            } else if (thirdType === 'major' && !seventhType) {
+                baseChord = '';  // Major triad - no suffix
+            } else if (thirdType === 'minor' && !seventhType) {
+                baseChord = 'm';
+            } else if (has(3) && has(6) && has(10)) {
+                // Half-diminished: minor 3rd, diminished 5th, minor 7th
+                return { root, type: 'ø7' };
+            } else if (has(3) && has(6) && has(9)) {
+                // Diminished 7th
+                return { root, type: 'dim7' };
+            } else if (has(3) && has(6)) {
+                // Diminished triad
+                return { root, type: 'dim' };
+            } else if (has(4) && has(8)) {
+                // Augmented
+                return { root, type: 'aug' };
+            } else if (has(5) && has(7)) {
+                // Sus4 variations
+                if (has(10)) {
+                    baseChord = '7sus4';
+                    // Check for b9 in sus4
+                    if (has(1)) {
+                        return { root, type: '7sus4(b9)' };
+                    }
+                    return { root, type: baseChord };
+                }
+                return { root, type: 'sus4' };
+            } else if (has(2) && has(7) && !has(3) && !has(4)) {
+                // Sus2 (only if no third)
+                if (has(10)) {
+                    return { root, type: '7sus2' };
+                }
+                return { root, type: 'sus2' };
+            } else if (has(9) && !has(10) && !has(11)) {
+                // Sixth chord (no seventh)
+                if (thirdType === 'major') {
+                    if (has(2)) {
+                        return { root, type: '6/9' };
+                    }
+                    return { root, type: '6' };
+                } else if (thirdType === 'minor') {
+                    if (has(2)) {
+                        return { root, type: 'm6/9' };
+                    }
+                    return { root, type: 'm6' };
+                }
+            } else {
+                // Unknown chord structure
+                return { root, type: 'Custom', notes: uniquePitches };
+            }
+            
+            // Step 2: Check for alterations and extensions
+            const extensions = [];
+            
+            // Check for 9th alterations
+            if (has(1)) {
+                extensions.push('b9');
+            } else if (has(3) && thirdType === 'major') {
+                // #9 (only if we already have major 3rd, otherwise 3 is the third itself)
+                extensions.push('#9');
+            } else if (has(2) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7' || baseChord === 'mM7')) {
+                // Natural 9
+                if (!has(1) && !has(3)) { // Make sure it's not already counted as b9 or #9
+                    extensions.push('9');
                 }
             }
             
-            // No match found - return the notes as a custom voicing
-            return { root: uniquePitches[0], type: 'Custom', notes: uniquePitches };
+            // Check for #11
+            if (has(6)) {
+                extensions.push('#11');
+            }
+            
+            // Check for 13th
+            if (has(9) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7')) {
+                extensions.push('13');
+            } else if (has(8) && (baseChord === '7' || baseChord === 'maj7')) {
+                extensions.push('b13');
+            }
+            
+            // Build final chord name
+            let chordName = baseChord;
+            
+            // If we have a 9, and it's a dominant chord, we might want to call it "9" instead of "7(9)"
+            if (baseChord === '7' && extensions.includes('9') && !extensions.includes('b9') && !extensions.includes('#9')) {
+                // If only natural 9, call it "9" chord
+                if (extensions.length === 1 || (extensions.length === 2 && extensions.includes('13'))) {
+                    chordName = '9';
+                    extensions.shift(); // Remove the '9' from extensions
+                }
+            }
+            
+            // Similarly for 13
+            if (baseChord === '7' && extensions.includes('13')) {
+                // If we have 13, call it "13" chord
+                chordName = '13';
+                const idx = extensions.indexOf('13');
+                extensions.splice(idx, 1);
+            }
+            
+            // Add extensions to chord name
+            if (extensions.length > 0) {
+                chordName += '(' + extensions.join(',') + ')';
+            }
+            
+            return { root, type: chordName };
         }
 
         // Initialize MIDI
