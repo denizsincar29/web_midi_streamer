@@ -274,8 +274,18 @@
         
         function noteNameToSemitone(noteName) {
             const NOTE_VALUES = {
-                'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
-                'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+                'C': 0, 
+                'C#': 1, 'Db': 1,  // C# and Db are enharmonic equivalents
+                'D': 2, 
+                'D#': 3, 'Eb': 3,  // D# and Eb are enharmonic equivalents
+                'E': 4, 
+                'F': 5,
+                'F#': 6, 'Gb': 6,  // F# and Gb are enharmonic equivalents
+                'G': 7, 
+                'G#': 8, 'Ab': 8,  // G# and Ab are enharmonic equivalents
+                'A': 9, 
+                'A#': 10, 'Bb': 10, // A# and Bb are enharmonic equivalents
+                'B': 11
             };
             return NOTE_VALUES[noteName] || 0;
         }
