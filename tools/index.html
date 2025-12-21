@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI Tools - Web MIDI Streamer</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1">
+    <link rel="manifest" href="../manifest.json">
+    
+    <style>
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .tool-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .tool-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .tool-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .tool-card p {
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .tool-card .btn {
+            margin-top: 15px;
+            width: 100%;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>🎹 MIDI Tools</h1>
+                    <p>Professional tools for pianists and keyboard players</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary">← Back to MIDI Streamer</button>
+            </div>
+
+            <div class="tools-grid">
+                <!-- Nord Effects Controller -->
+                <div class="tool-card" onclick="window.location.href='nord-effects.html'">
+                    <h3>🎚️ Nord Effects Controller</h3>
+                    <p>Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.</p>
+                    <button class="btn btn-primary">Open Tool</button>
+                </div>
+
+                <!-- Chord Display -->
+                <div class="tool-card" onclick="window.location.href='chord-display.html'">
+                    <h3>🎼 Chord Display</h3>
+                    <p>See what chord you're playing in real-time. Detects and displays jazz chords with proper notation from your MIDI input.</p>
+                    <button class="btn btn-primary">Open Tool</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = '../index.html';
+        });
+    </script>
+</body>
+</html>

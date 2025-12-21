@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chord Display - MIDI Tools</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <style>
+        .chord-display-section {
+            padding: 20px;
+        }
+        
+        .chord-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .chord-name {
+            font-size: 4em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .chord-notes {
+            font-size: 1.5em;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        
+        .chord-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chord-info h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .note-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .note-badge {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .midi-status {
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            margin: 20px;
+        }
+        
+        .midi-status.connected {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .settings-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .settings-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .setting-item {
+            margin-bottom: 10px;
+        }
+        
+        .setting-item label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .placeholder-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>🎼 Chord Display</h1>
+                    <p>Real-time jazz chord detection from MIDI input</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary">← Back to Tools</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">
+                <strong>MIDI Status:</strong> <span id="statusText">Initializing...</span>
+            </div>
+
+            <div class="chord-display-section">
+                <section class="device-group">
+                    <label for="midiInput">MIDI Input Device:</label>
+                    <select id="midiInput">
+                        <option value="">No device selected</option>
+                    </select>
+                </section>
+
+                <div class="chord-display">
+                    <div class="chord-name" id="chordName">
+                        <span class="placeholder-text">Play some notes...</span>
+                    </div>
+                    <div class="chord-notes" id="chordNotes"></div>
+                </div>
+
+                <div class="chord-info">
+                    <h3>Current Notes:</h3>
+                    <div class="note-list" id="noteList">
+                        <span style="color: #999;">No notes being played</span>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Settings</h3>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="showAllChords" checked>
+                            <span>Show all possible chord interpretations</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label>
+                            <input type="checkbox" id="simplifyChords">
+                            <span>Simplify chord names (prefer basic chords)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | Powered by <a href="https://github.com/tonaljs/tonal" target="_blank">Tonal.js</a></p>
+        </footer>
+    </div>
+
+    <!-- Load Tonal.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/core@4.10.0/browser/tonal.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/chord-detect@4.8.0/browser/chord-detect.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/note@4.10.0/browser/note.min.js"></script>
+
+    <script type="module">
+        let midiAccess = null;
+        let selectedInput = null;
+        let activeNotes = new Set(); // Set of active MIDI note numbers
+        
+        // MIDI note number to note name mapping
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        
+        function midiNoteToName(midiNote) {
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteName = NOTE_NAMES[midiNote % 12];
+            return noteName + octave;
+        }
+
+        // Initialize MIDI
+        async function initMIDI() {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                updateMIDIStatus('MIDI Access Granted', true);
+                populateInputDevices();
+                midiAccess.onstatechange = populateInputDevices;
+            } catch (error) {
+                updateMIDIStatus('MIDI Access Denied: ' + error.message, false);
+            }
+        }
+
+        function updateMIDIStatus(message, connected) {
+            const statusEl = document.getElementById('midiStatus');
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+            statusEl.className = connected ? 'midi-status connected' : 'midi-status';
+        }
+
+        function populateInputDevices() {
+            const select = document.getElementById('midiInput');
+            select.innerHTML = '<option value="">No device selected</option>';
+            
+            const inputs = Array.from(midiAccess.inputs.values());
+            inputs.forEach((input, index) => {
+                const option = document.createElement('option');
+                option.value = input.id;
+                option.textContent = input.name;
+                if (index === 0) option.selected = true;
+                select.appendChild(option);
+            });
+
+            // Auto-select first device
+            if (inputs.length > 0) {
+                selectInput(inputs[0].id);
+            }
+        }
+
+        function selectInput(deviceId) {
+            // Disconnect previous input
+            if (selectedInput) {
+                selectedInput.onmidimessage = null;
+            }
+            
+            if (deviceId && midiAccess) {
+                selectedInput = midiAccess.inputs.get(deviceId);
+                selectedInput.onmidimessage = handleMIDIMessage;
+                updateMIDIStatus('Connected to: ' + selectedInput.name, true);
+            } else {
+                selectedInput = null;
+                updateMIDIStatus('No input device selected', false);
+            }
+        }
+
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xF0;
+            
+            // Note On
+            if (command === 0x90 && velocity > 0) {
+                activeNotes.add(note);
+                updateDisplay();
+            }
+            // Note Off
+            else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                activeNotes.delete(note);
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            const noteListEl = document.getElementById('noteList');
+            const chordNameEl = document.getElementById('chordName');
+            const chordNotesEl = document.getElementById('chordNotes');
+            
+            if (activeNotes.size === 0) {
+                noteListEl.innerHTML = '<span style="color: #999;">No notes being played</span>';
+                chordNameEl.innerHTML = '<span class="placeholder-text">Play some notes...</span>';
+                chordNotesEl.textContent = '';
+                return;
+            }
+            
+            // Convert MIDI notes to note names
+            const noteNames = Array.from(activeNotes)
+                .sort((a, b) => a - b)
+                .map(midiNoteToName);
+            
+            // Display active notes
+            noteListEl.innerHTML = noteNames
+                .map(note => `<span class="note-badge">${note}</span>`)
+                .join('');
+            
+            // Detect chords
+            detectAndDisplayChord(noteNames);
+        }
+
+        function detectAndDisplayChord(noteNames) {
+            const chordNameEl = document.getElementById('chordName');
+            const chordNotesEl = document.getElementById('chordNotes');
+            
+            if (noteNames.length < 2) {
+                // Single note
+                chordNameEl.textContent = noteNames[0];
+                chordNotesEl.textContent = 'Single note';
+                return;
+            }
+            
+            // Use Tonal.js to detect chords
+            // Remove octave numbers for chord detection
+            const pitchClasses = noteNames.map(name => {
+                // Get pitch class without octave
+                return Tonal.Note.pitchClass(name);
+            });
+            
+            // Detect all possible chords
+            let chords = Tonal.ChordDetect.detect(pitchClasses);
+            
+            const showAllChords = document.getElementById('showAllChords').checked;
+            const simplifyChords = document.getElementById('simplifyChords').checked;
+            
+            if (simplifyChords && chords.length > 0) {
+                // Prefer simpler chord names
+                chords = chords.filter(chord => {
+                    // Prefer chords without complex extensions
+                    return !chord.includes('13') && !chord.includes('11');
+                });
+            }
+            
+            if (chords.length === 0) {
+                // No standard chord detected
+                chordNameEl.textContent = pitchClasses.join(' ');
+                chordNotesEl.textContent = 'Custom voicing';
+            } else if (showAllChords && chords.length > 1) {
+                // Show all interpretations
+                chordNameEl.style.fontSize = '2.5em';
+                chordNameEl.textContent = chords.slice(0, 3).join(' / ');
+                chordNotesEl.textContent = pitchClasses.join(' - ');
+            } else {
+                // Show best match
+                chordNameEl.style.fontSize = '4em';
+                chordNameEl.textContent = chords[0];
+                chordNotesEl.textContent = pitchClasses.join(' - ');
+            }
+        }
+
+        // Setup device selection
+        document.getElementById('midiInput').addEventListener('change', (e) => {
+            selectInput(e.target.value);
+        });
+
+        // Setup settings
+        document.getElementById('showAllChords').addEventListener('change', updateDisplay);
+        document.getElementById('simplifyChords').addEventListener('change', updateDisplay);
+
+        // Back button
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if Tonal is loaded
+            if (typeof Tonal === 'undefined') {
+                updateMIDIStatus('Error: Tonal.js library failed to load', false);
+            } else {
+                initMIDI();
+            }
+        });
+    </script>
+</body>
+</html>
