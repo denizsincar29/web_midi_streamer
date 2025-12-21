@@ -214,9 +214,10 @@
         let activeNotes = new Set(); // Set of active MIDI note numbers
         let lastChordName = ''; // Store last chord name for screen reader announcement
         let notesWereActive = false; // Track if notes were previously active
+        let chordDebounceTimer = null; // Timer for debouncing chord announcements
         
-        // MIDI note number to note name mapping
-        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        // MIDI note number to note name mapping (using flats by default for jazz notation)
+        const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
         
         function midiNoteToName(midiNote) {
             const octave = Math.floor(midiNote / 12) - 1;
@@ -228,20 +229,26 @@
         const CHORD_PATTERNS = {
             // Major chords
             '0,4,7': 'Major',
+            '0,4': 'Major (no 5th)',
             '0,3,7': 'Minor',
+            '0,3': 'Minor (no 5th)',
             '0,3,6': 'Diminished',
             '0,4,8': 'Augmented',
             
-            // Seventh chords
+            // Seventh chords (with and without fifth)
             '0,4,7,11': 'Major 7',
+            '0,4,11': 'Major 7 (no 5th)',
             '0,4,7,10': 'Dominant 7',
+            '0,4,10': '7 (no 5th)',
             '0,3,7,10': 'Minor 7',
+            '0,3,10': 'Minor 7 (no 5th)',
             '0,3,6,10': 'Half-diminished 7',
             '0,3,6,9': 'Diminished 7',
             '0,3,7,11': 'Minor-Major 7',
             
             // Extended chords
             '0,4,7,10,14': '9',
+            '0,4,10,14': '9 (no 5th)',
             '0,4,7,11,14': 'Major 9',
             '0,3,7,10,14': 'Minor 9',
             
@@ -418,7 +425,7 @@
                 .map(note => `<span class="note-badge">${note}</span>`)
                 .join('');
             
-            // Detect chords
+            // Detect chords with debouncing for screen reader
             detectAndDisplayChord(noteNames);
         }
 
@@ -433,6 +440,11 @@
                 return;
             }
             
+            // Clear any existing debounce timer
+            if (chordDebounceTimer) {
+                clearTimeout(chordDebounceTimer);
+            }
+            
             if (noteNames.length === 1) {
                 // Single note
                 const pitchClass = getPitchClass(noteNames[0]);
@@ -440,7 +452,10 @@
                 chordNameEl.textContent = singleNoteText;
                 chordNotesEl.textContent = t('chordDisplay.singleNote');
                 lastChordName = singleNoteText;
-                chordAnnouncementEl.textContent = singleNoteText;
+                // Debounce announcement for single notes too
+                chordDebounceTimer = setTimeout(() => {
+                    chordAnnouncementEl.textContent = singleNoteText;
+                }, 300);
                 return;
             }
             
@@ -452,7 +467,10 @@
                 chordNameEl.textContent = notesText;
                 chordNotesEl.textContent = t('chordDisplay.customVoicing');
                 lastChordName = notesText;
-                chordAnnouncementEl.textContent = notesText;
+                // Debounce announcement
+                chordDebounceTimer = setTimeout(() => {
+                    chordAnnouncementEl.textContent = notesText;
+                }, 300);
                 return;
             }
             
@@ -462,7 +480,10 @@
                 chordNameEl.textContent = customText;
                 chordNotesEl.textContent = t('chordDisplay.customVoicing');
                 lastChordName = customText;
-                chordAnnouncementEl.textContent = customText;
+                // Debounce announcement
+                chordDebounceTimer = setTimeout(() => {
+                    chordAnnouncementEl.textContent = customText;
+                }, 300);
             } else {
                 chordNameEl.style.fontSize = '4em';
                 const chordFullName = `${chordInfo.root} ${chordInfo.type}`;
@@ -471,7 +492,10 @@
                 const uniquePitches = [...new Set(pitchClasses)];
                 chordNotesEl.textContent = uniquePitches.join(' - ');
                 lastChordName = chordFullName;
-                chordAnnouncementEl.textContent = chordFullName;
+                // Debounce announcement - only announce after 300ms of no new notes
+                chordDebounceTimer = setTimeout(() => {
+                    chordAnnouncementEl.textContent = chordFullName;
+                }, 300);
             }
         }
         
