@@ -1,6 +1,6 @@
 # Web MIDI Streamer
 
-**Version 1.0.0** - Real-time MIDI streaming over WebRTC
+**Version 1.1.0** - Real-time MIDI streaming over WebRTC
 
 A peer-to-peer MIDI streaming application that allows two users to stream MIDI data between their devices in real-time using WebRTC technology.
 
@@ -35,7 +35,7 @@ git clone https://github.com/denizsincar29/web_midi_streamer.git
 cd web_midi_streamer
 
 # Run setup script
-python3 setup.py
+uv run scripts/setup.py
 
 # Start development server
 php -S localhost:8080
@@ -55,7 +55,7 @@ php -S localhost:8080
 ### Automated Setup (Recommended)
 
 ```bash
-python3 setup.py
+uv run scripts/setup.py
 ```
 
 This creates:
@@ -74,10 +74,9 @@ mkdir -p signaling_data
 
 ## 📖 Documentation
 
-- **[Help Guide](help-en.html)** - Step-by-step usage instructions
-- **[Russian Guide](help-ru.html)** - Русская справка
+- **[Help Guide](help-en.html)** - Step-by-step usage instructions (includes version history)
+- **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
 - **[Tools Help](tools/help.html)** - Documentation for MIDI Tools (Nord Effects & Chord Display)
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and development notes
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
 
 ## 🎛️ MIDI Tools

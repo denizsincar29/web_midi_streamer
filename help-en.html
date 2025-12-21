@@ -115,8 +115,36 @@
 
                 <section class="help-step">
                     <h2>Version Information</h2>
-                    <p><strong>Version 1.0.0</strong> - December 2025</p>
-                    <p>This is the first stable release of Web MIDI Streamer!</p>
+                    <p><strong>Version 1.1.0</strong> - December 2025</p>
+                    <p>Latest release with MIDI tools for pianists and keyboard players!</p>
+                    
+                    <h3>Version 1.1.0 - December 2025</h3>
+                    <h3>🎛️ MIDI Tools Added</h3>
+                    <ul>
+                        <li><strong>Nord Effects Controller (BETA):</strong> Control Nord keyboard effects via MIDI CC messages
+                            <ul>
+                                <li>Rotary speaker speed, reverb, delay, effects, and piano string resonance controls</li>
+                                <li>Four quick presets: Clean Piano, Jazz Combo, Ambient Pad, Rock Organ</li>
+                                <li>⚠️ <strong>EXPERIMENTAL:</strong> Beta feature, may be unstable with some Nord models</li>
+                            </ul>
+                        </li>
+                        <li><strong>Chord Display:</strong> Real-time jazz chord detection from MIDI input
+                            <ul>
+                                <li>Custom structured algorithm recognizing 70+ chord types</li>
+                                <li>Extended and altered voicings (9ths, 11ths, 13ths, alterations)</li>
+                                <li>Jazz-standard flat notation (Bb, Eb, Ab)</li>
+                                <li>Screen reader accessible with debounced announcements</li>
+                                <li>No inversion guessing - bass note is always root</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    
+                    <h3>🌐 Internationalization &amp; Documentation</h3>
+                    <ul>
+                        <li>Full i18n integration with main app (English/Russian)</li>
+                        <li>Dedicated tools help page with comprehensive documentation</li>
+                        <li>Tools cached by service worker for offline use</li>
+                    </ul>
                     
                     <h3>What's New in v1.0</h3>
                     <ul>
@@ -138,8 +166,6 @@
                         <li>Full accessibility features</li>
                         <li><strong>MIDI Tools:</strong> Nord Effects Controller (BETA) and Chord Display</li>
                     </ul>
-                    
-                    <p>For detailed changelog and development history, see <a href="https://github.com/denizsincar29/web_midi_streamer/blob/main/CHANGELOG.md" target="_blank">CHANGELOG.md</a></p>
                 </section>
             </article>
 

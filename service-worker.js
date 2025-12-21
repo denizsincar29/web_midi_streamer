@@ -1,5 +1,5 @@
 // Service Worker for Web MIDI Streamer PWA
-const CACHE_NAME = 'midi-streamer-v1.0.2';
+const CACHE_NAME = 'midi-streamer-v1.1.0';
 
 // Get the base path from the service worker's own URL
 const getBasePath = () => {
