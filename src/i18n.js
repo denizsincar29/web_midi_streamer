@@ -52,6 +52,14 @@ export const translations = {
         'debug.ping': 'Send Ping',
         'debug.midiEcho': 'MIDI Echo (send back all received MIDI)',
         'debug.description': 'Test WebRTC data channel connectivity and MIDI echo',
+        'debug.copyMessages': 'Copy All Messages',
+        
+        // Chat
+        'chat.title': 'Chat',
+        'chat.placeholder': 'Type a message...',
+        'chat.send': 'Send',
+        'chat.you': 'You',
+        'chat.peer': 'Peer',
         
         // Footer
         'footer.help': 'Help',
@@ -130,6 +138,14 @@ export const translations = {
         'debug.ping': 'Отправить пинг',
         'debug.midiEcho': 'MIDI-эхо (отправлять обратно все полученные MIDI-сообщения)',
         'debug.description': 'Тестирование подключения канала данных WebRTC и MIDI-эхо',
+        'debug.copyMessages': 'Копировать все сообщения',
+        
+        // Chat
+        'chat.title': 'Чат',
+        'chat.placeholder': 'Введите сообщение...',
+        'chat.send': 'Отправить',
+        'chat.you': 'Вы',
+        'chat.peer': 'Собеседник',
         
         // Footer
         'footer.help': 'Справка',
