@@ -141,55 +141,58 @@
         <header>
             <div class="header-content">
                 <div class="header-text">
-                    <h1>🎼 Chord Display</h1>
-                    <p>Real-time jazz chord detection from MIDI input</p>
+                    <h1 data-i18n="chordDisplay.title">🎼 Chord Display</h1>
+                    <p data-i18n="chordDisplay.subtitle">Real-time jazz chord detection from MIDI input</p>
                 </div>
             </div>
         </header>
 
         <main>
             <div class="back-navigation">
-                <button id="backBtn" class="btn btn-secondary">← Back to Tools</button>
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToTools">← Back to Tools</button>
             </div>
 
             <div class="midi-status" id="midiStatus">
-                <strong>MIDI Status:</strong> <span id="statusText">Initializing...</span>
+                <strong data-i18n="chordDisplay.midiStatus">MIDI Status:</strong> <span id="statusText" data-i18n="chordDisplay.initializing">Initializing...</span>
             </div>
 
             <div class="chord-display-section">
                 <section class="device-group">
-                    <label for="midiInput">MIDI Input Device:</label>
-                    <select id="midiInput">
-                        <option value="">No device selected</option>
+                    <label for="midiInput" data-i18n="chordDisplay.inputDevice">MIDI Input Device:</label>
+                    <select id="midiInput" aria-label="Select MIDI input device">
+                        <option value="" data-i18n="chordDisplay.noDeviceSelected">No device selected</option>
                     </select>
                 </section>
 
-                <div class="chord-display">
-                    <div class="chord-name" id="chordName">
-                        <span class="placeholder-text">Play some notes...</span>
+                <div class="chord-display" role="region" aria-live="polite" aria-atomic="true">
+                    <div class="chord-name" id="chordName" aria-label="Detected chord name">
+                        <span class="placeholder-text" data-i18n="chordDisplay.playNotes">Play some notes...</span>
                     </div>
-                    <div class="chord-notes" id="chordNotes"></div>
+                    <div class="chord-notes" id="chordNotes" aria-label="Chord notes"></div>
                 </div>
 
                 <div class="chord-info">
-                    <h3>Current Notes:</h3>
-                    <div class="note-list" id="noteList">
-                        <span style="color: #999;">No notes being played</span>
+                    <h3 id="currentNotesHeading" data-i18n="chordDisplay.currentNotes">Current Notes:</h3>
+                    <div class="note-list" id="noteList" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="currentNotesHeading">
+                        <span style="color: #999;" data-i18n="chordDisplay.noNotesPlaying">No notes being played</span>
                     </div>
                 </div>
+                
+                <!-- Last chord display for screen readers -->
+                <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="chordAnnouncement"></div>
 
                 <div class="settings-section">
-                    <h3>Settings</h3>
+                    <h3 data-i18n="chordDisplay.settings">Settings</h3>
                     <div class="setting-item">
                         <label>
                             <input type="checkbox" id="showAllChords" checked>
-                            <span>Show all possible chord interpretations</span>
+                            <span data-i18n="chordDisplay.showAllChords">Show all possible chord interpretations</span>
                         </label>
                     </div>
                     <div class="setting-item">
                         <label>
                             <input type="checkbox" id="simplifyChords">
-                            <span>Simplify chord names (prefer basic chords)</span>
+                            <span data-i18n="chordDisplay.simplifyChords">Simplify chord names (prefer basic chords)</span>
                         </label>
                     </div>
                 </div>
@@ -204,9 +207,12 @@
     <!-- No external dependencies needed - using built-in chord detection -->
 
     <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
         let midiAccess = null;
         let selectedInput = null;
         let activeNotes = new Set(); // Set of active MIDI note numbers
+        let lastChordName = ''; // Store last chord name for screen reader announcement
         
         // MIDI note number to note name mapping
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -307,11 +313,11 @@
         async function initMIDI() {
             try {
                 midiAccess = await navigator.requestMIDIAccess();
-                updateMIDIStatus('MIDI Access Granted', true);
+                updateMIDIStatus(t('chordDisplay.accessGranted'), true);
                 populateInputDevices();
                 midiAccess.onstatechange = populateInputDevices;
             } catch (error) {
-                updateMIDIStatus('MIDI Access Denied: ' + error.message, false);
+                updateMIDIStatus(t('chordDisplay.accessDenied') + ' ' + error.message, false);
             }
         }
 
@@ -324,7 +330,7 @@
 
         function populateInputDevices() {
             const select = document.getElementById('midiInput');
-            select.innerHTML = '<option value="">No device selected</option>';
+            select.innerHTML = `<option value="">${t('chordDisplay.noDeviceSelected')}</option>`;
             
             const inputs = Array.from(midiAccess.inputs.values());
             inputs.forEach((input, index) => {
@@ -350,10 +356,10 @@
             if (deviceId && midiAccess) {
                 selectedInput = midiAccess.inputs.get(deviceId);
                 selectedInput.onmidimessage = handleMIDIMessage;
-                updateMIDIStatus('Connected to: ' + selectedInput.name, true);
+                updateMIDIStatus(t('chordDisplay.connectedTo') + ' ' + selectedInput.name, true);
             } else {
                 selectedInput = null;
-                updateMIDIStatus('No input device selected', false);
+                updateMIDIStatus(t('chordDisplay.noDevice'), false);
             }
         }
 
@@ -377,13 +383,29 @@
             const noteListEl = document.getElementById('noteList');
             const chordNameEl = document.getElementById('chordName');
             const chordNotesEl = document.getElementById('chordNotes');
+            const chordAnnouncementEl = document.getElementById('chordAnnouncement');
             
             if (activeNotes.size === 0) {
-                noteListEl.innerHTML = '<span style="color: #999;">No notes being played</span>';
-                chordNameEl.innerHTML = '<span class="placeholder-text">Play some notes...</span>';
-                chordNotesEl.textContent = '';
+                // When no notes are being played, show the last chord but indicate notes have been released
+                noteListEl.innerHTML = `<span style="color: #999;">${t('chordDisplay.noNotesPlaying')}</span>`;
+                
+                // Keep showing the last chord name if we have one
+                if (lastChordName) {
+                    // Don't change the chord display - keep showing last chord
+                    // Announce that all notes were released (only once when notes go from active to inactive)
+                    if (activeNotes.size === 0 && noteListEl.dataset.hadNotes === 'true') {
+                        chordAnnouncementEl.textContent = `${t('chordDisplay.lastChord')} ${lastChordName}`;
+                        noteListEl.dataset.hadNotes = 'false';
+                    }
+                } else {
+                    chordNameEl.innerHTML = `<span class="placeholder-text">${t('chordDisplay.playNotes')}</span>`;
+                    chordNotesEl.textContent = '';
+                }
                 return;
             }
+            
+            // Mark that we have notes
+            noteListEl.dataset.hadNotes = 'true';
             
             // Convert MIDI notes to note names
             const noteNames = Array.from(activeNotes)
@@ -402,9 +424,10 @@
         function detectAndDisplayChord(noteNames) {
             const chordNameEl = document.getElementById('chordName');
             const chordNotesEl = document.getElementById('chordNotes');
+            const chordAnnouncementEl = document.getElementById('chordAnnouncement');
             
             if (noteNames.length < 1) {
-                chordNameEl.innerHTML = '<span class="placeholder-text">Play some notes...</span>';
+                chordNameEl.innerHTML = `<span class="placeholder-text">${t('chordDisplay.playNotes')}</span>`;
                 chordNotesEl.textContent = '';
                 return;
             }
@@ -412,8 +435,11 @@
             if (noteNames.length === 1) {
                 // Single note
                 const pitchClass = getPitchClass(noteNames[0]);
-                chordNameEl.textContent = pitchClass;
-                chordNotesEl.textContent = 'Single note';
+                const singleNoteText = `${pitchClass}`;
+                chordNameEl.textContent = singleNoteText;
+                chordNotesEl.textContent = t('chordDisplay.singleNote');
+                lastChordName = singleNoteText;
+                chordAnnouncementEl.textContent = singleNoteText;
                 return;
             }
             
@@ -421,22 +447,48 @@
             const chordInfo = detectChord(noteNames);
             
             if (!chordInfo) {
-                chordNameEl.textContent = noteNames.map(getPitchClass).join(' ');
-                chordNotesEl.textContent = 'Notes';
+                const notesText = noteNames.map(getPitchClass).join(' ');
+                chordNameEl.textContent = notesText;
+                chordNotesEl.textContent = t('chordDisplay.customVoicing');
+                lastChordName = notesText;
+                chordAnnouncementEl.textContent = notesText;
                 return;
             }
             
             if (chordInfo.type === 'Custom') {
                 chordNameEl.style.fontSize = '3em';
-                chordNameEl.textContent = chordInfo.notes.join(' ');
-                chordNotesEl.textContent = 'Custom voicing';
+                const customText = chordInfo.notes.join(' ');
+                chordNameEl.textContent = customText;
+                chordNotesEl.textContent = t('chordDisplay.customVoicing');
+                lastChordName = customText;
+                chordAnnouncementEl.textContent = customText;
             } else {
                 chordNameEl.style.fontSize = '4em';
-                chordNameEl.textContent = `${chordInfo.root} ${chordInfo.type}`;
+                const chordFullName = `${chordInfo.root} ${chordInfo.type}`;
+                chordNameEl.textContent = chordFullName;
                 const pitchClasses = noteNames.map(getPitchClass);
                 const uniquePitches = [...new Set(pitchClasses)];
                 chordNotesEl.textContent = uniquePitches.join(' - ');
+                lastChordName = chordFullName;
+                chordAnnouncementEl.textContent = chordFullName;
             }
+        }
+        
+        // Update page translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+            
+            // Update select option
+            const selectOption = document.querySelector('#midiInput option[value=""]');
+            if (selectOption) {
+                selectOption.textContent = t('chordDisplay.noDeviceSelected');
+            }
+            
+            // Update lang attribute
+            document.documentElement.lang = getCurrentLanguage();
         }
 
         // Setup device selection
@@ -455,6 +507,7 @@
 
         // Initialize on load
         window.addEventListener('DOMContentLoaded', () => {
+            updateTranslations();
             initMIDI();
         });
     </script>

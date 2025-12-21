@@ -159,35 +159,35 @@
         <header>
             <div class="header-content">
                 <div class="header-text">
-                    <h1>🎚️ Nord Effects Controller</h1>
-                    <p>Control your Nord keyboard effects via MIDI CC</p>
+                    <h1 data-i18n="nordEffects.title">🎚️ Nord Effects Controller</h1>
+                    <p data-i18n="nordEffects.subtitle">Control your Nord keyboard effects via MIDI CC</p>
                 </div>
             </div>
         </header>
 
         <main>
             <div class="back-navigation">
-                <button id="backBtn" class="btn btn-secondary">← Back to Tools</button>
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToTools">← Back to Tools</button>
             </div>
 
             <div class="midi-status" id="midiStatus">
-                <strong>MIDI Status:</strong> <span id="statusText">Initializing...</span>
+                <strong data-i18n="nordEffects.midiStatus">MIDI Status:</strong> <span id="statusText" data-i18n="nordEffects.initializing">Initializing...</span>
             </div>
 
             <div class="controls-section">
                 <section class="device-group">
-                    <label for="midiOutput">MIDI Output Device:</label>
-                    <select id="midiOutput">
-                        <option value="">No device selected</option>
+                    <label for="midiOutput" data-i18n="nordEffects.outputDevice">MIDI Output Device:</label>
+                    <select id="midiOutput" aria-label="Select MIDI output device">
+                        <option value="" data-i18n="nordEffects.noDeviceSelected">No device selected</option>
                     </select>
                 </section>
 
                 <!-- Rotary Speaker -->
                 <div class="effect-group">
-                    <h3>🔄 Rotary Speaker</h3>
+                    <h3 data-i18n="nordEffects.rotarySpeaker">🔄 Rotary Speaker</h3>
                     <div class="control-row">
-                        <label>Speed:</label>
-                        <button class="toggle-button" id="rotarySpeed" data-cc="3" data-off="32" data-on="96">
+                        <label data-i18n="nordEffects.speed">Speed:</label>
+                        <button class="toggle-button" id="rotarySpeed" data-cc="3" data-off="32" data-on="96" aria-label="Rotary speaker speed control">
                             Slow
                         </button>
                     </div>
@@ -195,15 +195,15 @@
 
                 <!-- Reverb -->
                 <div class="effect-group">
-                    <h3>✨ Reverb</h3>
+                    <h3 data-i18n="nordEffects.reverb">✨ Reverb</h3>
                     <div class="control-row">
-                        <label>On/Off:</label>
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
                         <button class="toggle-button" id="reverbToggle" data-cc="105" data-off="0" data-on="127">
                             Off
                         </button>
                     </div>
                     <div class="control-row">
-                        <label>Amount:</label>
+                        <label data-i18n="nordEffects.amount">Amount:</label>
                         <input type="range" id="reverbAmount" min="0" max="127" value="64" data-cc="85">
                         <span class="value-display" id="reverbValue">64</span>
                     </div>
@@ -211,15 +211,15 @@
 
                 <!-- Delay -->
                 <div class="effect-group">
-                    <h3>🔁 Delay</h3>
+                    <h3 data-i18n="nordEffects.delay">🔁 Delay</h3>
                     <div class="control-row">
-                        <label>On/Off:</label>
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
                         <button class="toggle-button" id="delayToggle" data-cc="104" data-off="0" data-on="127">
                             Off
                         </button>
                     </div>
                     <div class="control-row">
-                        <label>Amount:</label>
+                        <label data-i18n="nordEffects.amount">Amount:</label>
                         <input type="range" id="delayAmount" min="0" max="127" value="64" data-cc="19">
                         <span class="value-display" id="delayValue">64</span>
                     </div>
@@ -227,15 +227,15 @@
 
                 <!-- Effect 1 (Tremolo/Pan) -->
                 <div class="effect-group">
-                    <h3>🌊 Effect 1 (Tremolo/Pan)</h3>
+                    <h3 data-i18n="nordEffects.effect1">🌊 Effect 1 (Tremolo/Pan)</h3>
                     <div class="control-row">
-                        <label>On/Off:</label>
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
                         <button class="toggle-button" id="effect1Toggle" data-cc="102" data-off="0" data-on="127">
                             Off
                         </button>
                     </div>
                     <div class="control-row">
-                        <label>Depth:</label>
+                        <label data-i18n="nordEffects.depth">Depth:</label>
                         <input type="range" id="effect1Amount" min="0" max="127" value="64" data-cc="17">
                         <span class="value-display" id="effect1Value">64</span>
                     </div>
@@ -243,15 +243,15 @@
 
                 <!-- Effect 2 (Phaser/Flanger/Chorus) -->
                 <div class="effect-group">
-                    <h3>〰️ Effect 2 (Phaser/Flanger/Chorus)</h3>
+                    <h3 data-i18n="nordEffects.effect2">〰️ Effect 2 (Phaser/Flanger/Chorus)</h3>
                     <div class="control-row">
-                        <label>On/Off:</label>
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
                         <button class="toggle-button" id="effect2Toggle" data-cc="103" data-off="0" data-on="127">
                             Off
                         </button>
                     </div>
                     <div class="control-row">
-                        <label>Depth:</label>
+                        <label data-i18n="nordEffects.depth">Depth:</label>
                         <input type="range" id="effect2Amount" min="0" max="127" value="64" data-cc="18">
                         <span class="value-display" id="effect2Value">64</span>
                     </div>
@@ -259,9 +259,9 @@
 
                 <!-- Piano String Resonance -->
                 <div class="effect-group">
-                    <h3>🎹 Piano String Resonance</h3>
+                    <h3 data-i18n="nordEffects.resonance">🎹 Piano String Resonance</h3>
                     <div class="control-row">
-                        <label>Amount:</label>
+                        <label data-i18n="nordEffects.amount">Amount:</label>
                         <input type="range" id="resonanceAmount" min="0" max="127" value="64" data-cc="86">
                         <span class="value-display" id="resonanceValue">64</span>
                     </div>
@@ -269,12 +269,12 @@
 
                 <!-- Presets -->
                 <div class="effect-group">
-                    <h3>💾 Quick Presets</h3>
+                    <h3 data-i18n="nordEffects.presets">💾 Quick Presets</h3>
                     <div class="preset-buttons">
-                        <button class="preset-btn" data-preset="clean">Clean Piano</button>
-                        <button class="preset-btn" data-preset="jazz">Jazz Combo</button>
-                        <button class="preset-btn" data-preset="ambient">Ambient Pad</button>
-                        <button class="preset-btn" data-preset="rock">Rock Organ</button>
+                        <button class="preset-btn" data-preset="clean">data-i18n-text="nordEffects.cleanPiano">Clean Piano</button>
+                        <button class="preset-btn" data-preset="jazz">data-i18n-text="nordEffects.jazzCombo">Jazz Combo</button>
+                        <button class="preset-btn" data-preset="ambient">data-i18n-text="nordEffects.ambientPad">Ambient Pad</button>
+                        <button class="preset-btn" data-preset="rock">data-i18n-text="nordEffects.rockOrgan">Rock Organ</button>
                     </div>
                 </div>
             </div>
@@ -286,6 +286,8 @@
     </div>
 
     <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
         let midiAccess = null;
         let selectedOutput = null;
 
@@ -293,11 +295,11 @@
         async function initMIDI() {
             try {
                 midiAccess = await navigator.requestMIDIAccess();
-                updateMIDIStatus('MIDI Access Granted', true);
+                updateMIDIStatus(t('nordEffects.accessGranted'), true);
                 populateOutputDevices();
                 midiAccess.onstatechange = populateOutputDevices;
             } catch (error) {
-                updateMIDIStatus('MIDI Access Denied: ' + error.message, false);
+                updateMIDIStatus(t('nordEffects.accessDenied') + ' ' + error.message, false);
             }
         }
 
@@ -310,7 +312,7 @@
 
         function populateOutputDevices() {
             const select = document.getElementById('midiOutput');
-            select.innerHTML = '<option value="">No device selected</option>';
+            select.innerHTML = `<option value="">${t('nordEffects.noDeviceSelected')}</option>`;
             
             const outputs = Array.from(midiAccess.outputs.values());
             outputs.forEach((output, index) => {
@@ -330,10 +332,10 @@
         function selectOutput(deviceId) {
             if (deviceId && midiAccess) {
                 selectedOutput = midiAccess.outputs.get(deviceId);
-                updateMIDIStatus('Connected to: ' + selectedOutput.name, true);
+                updateMIDIStatus(t('nordEffects.connectedTo') + ' ' + selectedOutput.name, true);
             } else {
                 selectedOutput = null;
-                updateMIDIStatus('No output device selected', false);
+                updateMIDIStatus(t('nordEffects.noDevice'), false);
             }
         }
 
@@ -355,11 +357,11 @@
                 
                 if (isActive) {
                     button.classList.remove('active');
-                    button.textContent = button.id === 'rotarySpeed' ? 'Slow' : 'Off';
+                    button.textContent = button.id === 'rotarySpeed' ? t('nordEffects.slow') : t('nordEffects.off');
                     sendCC(cc, offValue);
                 } else {
                     button.classList.add('active');
-                    button.textContent = button.id === 'rotarySpeed' ? 'Fast' : 'On';
+                    button.textContent = button.id === 'rotarySpeed' ? t('nordEffects.fast') : t('nordEffects.on');
                     sendCC(cc, onValue);
                 }
             });
@@ -484,6 +486,36 @@
             sendCC(86, preset.resonance);
         }
 
+        // Update page translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+            
+            // Update button text that uses data-i18n-text
+            document.querySelectorAll('[data-i18n-text]').forEach(element => {
+                const key = element.getAttribute('data-i18n-text');
+                element.textContent = t(key);
+            });
+            
+            // Update toggle button initial state
+            document.querySelectorAll('.toggle-button').forEach(button => {
+                if (!button.classList.contains('active')) {
+                    button.textContent = button.id === 'rotarySpeed' ? t('nordEffects.slow') : t('nordEffects.off');
+                }
+            });
+            
+            // Update select option
+            const selectOption = document.querySelector('#midiOutput option[value=""]');
+            if (selectOption) {
+                selectOption.textContent = t('nordEffects.noDeviceSelected');
+            }
+            
+            // Update lang attribute
+            document.documentElement.lang = getCurrentLanguage();
+        }
+
         // Setup preset buttons
         document.querySelectorAll('.preset-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -503,6 +535,7 @@
         });
 
         // Initialize on load
+        updateTranslations();
         initMIDI();
     </script>
 </body>

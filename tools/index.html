@@ -60,30 +60,30 @@
         <header>
             <div class="header-content">
                 <div class="header-text">
-                    <h1>🎹 MIDI Tools</h1>
-                    <p>Professional tools for pianists and keyboard players</p>
+                    <h1 data-i18n="tools.title">🎹 MIDI Tools</h1>
+                    <p data-i18n="tools.subtitle">Professional tools for pianists and keyboard players</p>
                 </div>
             </div>
         </header>
 
         <main>
             <div class="back-navigation">
-                <button id="backBtn" class="btn btn-secondary">← Back to MIDI Streamer</button>
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToApp">← Back to MIDI Streamer</button>
             </div>
 
             <div class="tools-grid">
                 <!-- Nord Effects Controller -->
-                <div class="tool-card" onclick="window.location.href='nord-effects.html'">
-                    <h3>🎚️ Nord Effects Controller</h3>
-                    <p>Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.</p>
-                    <button class="btn btn-primary">Open Tool</button>
+                <div class="tool-card" role="article" aria-labelledby="nord-title">
+                    <h3 id="nord-title" data-i18n="nordEffects.title">🎚️ Nord Effects Controller</h3>
+                    <p data-i18n="nordEffects.description">Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.</p>
+                    <button class="btn btn-primary" onclick="window.location.href='nord-effects.html'" data-i18n="tools.openTool" aria-label="Open Nord Effects Controller tool">Open Tool</button>
                 </div>
 
                 <!-- Chord Display -->
-                <div class="tool-card" onclick="window.location.href='chord-display.html'">
-                    <h3>🎼 Chord Display</h3>
-                    <p>See what chord you're playing in real-time. Detects and displays jazz chords with proper notation from your MIDI input.</p>
-                    <button class="btn btn-primary">Open Tool</button>
+                <div class="tool-card" role="article" aria-labelledby="chord-title">
+                    <h3 id="chord-title" data-i18n="chordDisplay.title">🎼 Chord Display</h3>
+                    <p data-i18n="chordDisplay.description">See what chord you're playing in real-time. Detects and displays jazz chords with proper notation from your MIDI input.</p>
+                    <button class="btn btn-primary" onclick="window.location.href='chord-display.html'" data-i18n="tools.openTool" aria-label="Open Chord Display tool">Open Tool</button>
                 </div>
             </div>
         </main>
@@ -93,7 +93,30 @@
         </footer>
     </div>
 
-    <script>
+    <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
+        // Update page translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const translation = t(key);
+                
+                // Update text content or aria-label based on element type
+                if (element.hasAttribute('aria-label')) {
+                    const toolName = element.previousElementSibling?.previousElementSibling?.textContent || '';
+                    element.setAttribute('aria-label', `${t('tools.openTool')} ${toolName}`);
+                }
+                element.textContent = translation;
+            });
+            
+            // Update lang attribute
+            document.documentElement.lang = getCurrentLanguage();
+        }
+        
+        // Initialize
+        updateTranslations();
+        
         document.getElementById('backBtn').addEventListener('click', () => {
             window.location.href = '../index.html';
         });
