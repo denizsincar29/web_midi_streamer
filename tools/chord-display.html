@@ -164,21 +164,21 @@
                     </select>
                 </section>
 
-                <div class="chord-display" role="region" aria-live="polite" aria-atomic="true">
-                    <div class="chord-name" id="chordName" aria-label="Detected chord name">
+                <div class="chord-display" role="region" aria-atomic="true">
+                    <div class="chord-name" id="chordName">
                         <span class="placeholder-text" data-i18n="chordDisplay.playNotes">Play some notes...</span>
                     </div>
-                    <div class="chord-notes" id="chordNotes" aria-label="Chord notes"></div>
+                    <div class="chord-notes" id="chordNotes"></div>
                 </div>
 
                 <div class="chord-info">
                     <h3 id="currentNotesHeading" data-i18n="chordDisplay.currentNotes">Current Notes:</h3>
-                    <div class="note-list" id="noteList" role="status" aria-live="polite" aria-atomic="true" aria-labelledby="currentNotesHeading">
+                    <div class="note-list" id="noteList" aria-labelledby="currentNotesHeading">
                         <span style="color: #999;" data-i18n="chordDisplay.noNotesPlaying">No notes being played</span>
                     </div>
                 </div>
                 
-                <!-- Last chord display for screen readers -->
+                <!-- Hidden div exclusively for screen reader chord announcements -->
                 <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="chordAnnouncement"></div>
 
                 <div class="settings-section">
@@ -400,9 +400,9 @@
                 // Keep showing the last chord name if we have one
                 if (lastChordName) {
                     // Don't change the chord display - keep showing last chord
-                    // Announce that all notes were released (only once when notes go from active to inactive)
+                    // Announce the chord name one final time when all notes are released
                     if (notesWereActive) {
-                        chordAnnouncementEl.textContent = `${t('chordDisplay.lastChord')} ${lastChordName}`;
+                        chordAnnouncementEl.textContent = lastChordName;
                         notesWereActive = false;
                     }
                 } else {
