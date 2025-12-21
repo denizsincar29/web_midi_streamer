@@ -24,7 +24,8 @@ const urlsToCache = [
   basePath + 'manifest.json',
   basePath + 'tools/index.html',
   basePath + 'tools/nord-effects.html',
-  basePath + 'tools/chord-display.html'
+  basePath + 'tools/chord-display.html',
+  basePath + 'tools/help.html'
 ];
 
 // Install event - cache resources

@@ -4,6 +4,7 @@ export const translations = {
         // Header
         'app.title': 'Web MIDI Streamer',
         'app.subtitle': 'Real-time MIDI streaming over WebRTC',
+        'header.tools': '🎹 Tools',
         
         // Status
         'status.title': 'Status:',
@@ -87,8 +88,15 @@ export const translations = {
         
         // Tools
         'tools.title': 'MIDI Tools',
+        'tools.backToMidiStreamer': '← Back to MIDI Streamer',
+        'tools.nordEffects': 'Nord Effects Controller',
+        'tools.nordEffectsBeta': '(BETA)',
+        'tools.nordEffectsDesc': 'Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.',
+        'tools.nordEffectsWarning': '⚠️ EXPERIMENTAL: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models.',
+        'tools.chordDisplay': 'Chord Display',
+        'tools.chordDisplayDesc': 'See what chord you\'re playing in real-time. Detects and displays jazz chords with proper notation from your MIDI input.',
+        'tools.help': 'Help',
         'tools.subtitle': 'Professional tools for pianists and keyboard players',
-        'tools.backToApp': 'Back to MIDI Streamer',
         'tools.backToTools': 'Back to Tools',
         'tools.openTool': 'Open Tool',
         
@@ -235,9 +243,17 @@ export const translations = {
         // Tools
         'tools.title': 'MIDI Инструменты',
         'tools.subtitle': 'Профессиональные инструменты для пианистов и клавишников',
-        'tools.backToApp': 'Назад к MIDI Стримеру',
+        'tools.backToMidiStreamer': '← Назад к MIDI Стримеру',
         'tools.backToTools': 'Назад к инструментам',
         'tools.openTool': 'Открыть инструмент',
+        'tools.nordEffects': 'Контроллер Эффектов Nord',
+        'tools.nordEffectsBeta': '(BETA)',
+        'tools.nordEffectsDesc': 'Управление эффектами клавиатуры Nord через MIDI CC сообщения. Регулируйте реверберацию, задержку, скорость ротора и многое другое в реальном времени.',
+        'tools.nordEffectsWarning': '⚠️ ЭКСПЕРИМЕНТАЛЬНО: Этот инструмент находится в бета-версии и может быть нестабильным. Привязки CC могут не работать со всеми моделями клавиатур Nord.',
+        'tools.chordDisplay': 'Отображение Аккордов',
+        'tools.chordDisplayDesc': 'Смотрите, какой аккорд вы играете в реальном времени. Определяет и отображает джазовые аккорды с правильной нотацией из вашего MIDI входа.',
+        'tools.help': 'Справка',
+        'header.tools': '🎹 Инструменты',
         
         // Nord Effects Controller
         'nordEffects.title': 'Контроллер эффектов Nord',

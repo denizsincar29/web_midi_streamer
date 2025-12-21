@@ -14,6 +14,7 @@ A peer-to-peer MIDI streaming application that allows two users to stream MIDI d
 - 🔧 **Debug tools** - Connection testing and message export
 - 📱 **PWA ready** - Install as an app, works offline
 - ♿ **Accessible** - Full keyboard navigation and screen reader support
+- 🎛️ **MIDI Tools** - Nord Effects Controller (BETA) and Chord Display for pianists
 
 ## 🚀 Quick Start
 
@@ -75,8 +76,23 @@ mkdir -p signaling_data
 
 - **[Help Guide](help-en.html)** - Step-by-step usage instructions
 - **[Russian Guide](help-ru.html)** - Русская справка
+- **[Tools Help](tools/help.html)** - Documentation for MIDI Tools (Nord Effects & Chord Display)
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and development notes
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
+
+## 🎛️ MIDI Tools
+
+Web MIDI Streamer now includes professional tools for pianists and keyboard players:
+
+### 🎚️ Nord Effects Controller (BETA)
+Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker, and more in real-time.
+
+**⚠️ EXPERIMENTAL**: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.
+
+### 🎼 Chord Display
+Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.
+
+Access tools via the "🎹 Tools" button in the main app header.
 
 ## 🏗️ Architecture
 
@@ -101,8 +117,10 @@ mkdir -p signaling_data
 - `src/webrtc.js` - WebRTC connection management
 - `src/midi.js` - MIDI device handling
 - `src/ui.js` - User interface updates
+- `src/i18n.js` - Internationalization translations
 - `signaling.php` - WebRTC signaling server
 - `service-worker.js` - PWA offline support
+- `tools/` - MIDI tools (Nord Effects Controller, Chord Display)
 
 ## 🌐 Deployment
 

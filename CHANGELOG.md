@@ -2,6 +2,42 @@
 
 All notable changes to Web MIDI Streamer will be documented in this file.
 
+## [Unreleased]
+
+### 🎛️ MIDI Tools Added
+
+- **Nord Effects Controller (BETA)**: Control Nord keyboard effects via MIDI CC messages
+  - Rotary speaker speed control (CC 3)
+  - Reverb on/off and amount (CC 105, CC 85)
+  - Delay on/off and amount (CC 104, CC 19)
+  - Effect 1/2 toggles and depth (CC 102/103, CC 17/18)
+  - Piano string resonance (CC 86)
+  - Four quick presets: Clean Piano, Jazz Combo, Ambient Pad, Rock Organ
+  - ⚠️ **EXPERIMENTAL**: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models.
+
+- **Chord Display**: Real-time jazz chord detection from MIDI input
+  - Custom structured jazz theory algorithm
+  - Supports 70+ chord types including extended and altered voicings
+  - Flat notation by default (Bb, Eb, Ab, etc.)
+  - Screen reader accessible with debounced announcements
+  - Flexible voicings (recognizes chords with or without fifth)
+  - No inversion guessing (bass note is always root)
+
+### 🌐 Internationalization
+- Tools fully integrated with i18n system (English and Russian)
+- Added "Tools" button translation to main app
+- Comprehensive translations for all tool UI elements
+
+### 📚 Documentation
+- Added dedicated help file for tools (`tools/help.html`)
+- Updated README with tools information
+- Added usage instructions and troubleshooting guide
+
+### 🔧 Technical Improvements
+- Tools cached by service worker for offline use
+- Consistent design language across all tool pages
+- PWA-compatible tool pages
+
 ## [1.0.0] - 2025-12-21
 
 ### 🎉 First Stable Release
