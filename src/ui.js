@@ -13,8 +13,120 @@ export class UIManager {
             connectBtn: document.getElementById('connectBtn'),
             disconnectBtn: document.getElementById('disconnectBtn'),
             sendTestNoteBtn: document.getElementById('sendTestNoteBtn'),
-            sendPingBtn: document.getElementById('sendPingBtn')
+            sendPingBtn: document.getElementById('sendPingBtn'),
+            copyMessagesBtn: document.getElementById('copyMessagesBtn'),
+            chatLog: document.getElementById('chatLog'),
+            chatInput: document.getElementById('chatInput'),
+            sendChatBtn: document.getElementById('sendChatBtn')
         };
+        this.onSendChat = null;
+        this.setupChatListeners();
+        this.setupCopyMessagesListener();
+    }
+
+    setupChatListeners() {
+        if (this.elements.sendChatBtn) {
+            this.elements.sendChatBtn.addEventListener('click', () => {
+                this.sendChatMessage();
+            });
+        }
+        
+        if (this.elements.chatInput) {
+            this.elements.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendChatMessage();
+                }
+            });
+        }
+    }
+
+    setupCopyMessagesListener() {
+        if (this.elements.copyMessagesBtn) {
+            this.elements.copyMessagesBtn.addEventListener('click', () => {
+                this.copyAllMessages();
+            });
+        }
+    }
+
+    sendChatMessage() {
+        const message = this.elements.chatInput.value.trim();
+        if (message && this.onSendChat) {
+            this.onSendChat(message);
+            this.elements.chatInput.value = '';
+        }
+    }
+
+    addChatMessage(message, sender = 'peer') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${sender === 'you' ? 'sent' : 'received'}`;
+        
+        const senderSpan = document.createElement('div');
+        senderSpan.className = 'chat-message-sender';
+        senderSpan.textContent = sender === 'you' ? t('chat.you') : t('chat.peer');
+        
+        const textSpan = document.createElement('div');
+        textSpan.className = 'chat-message-text';
+        textSpan.textContent = message;
+        
+        const timeSpan = document.createElement('div');
+        timeSpan.className = 'chat-message-time';
+        timeSpan.textContent = new Date().toLocaleTimeString();
+        
+        messageDiv.appendChild(senderSpan);
+        messageDiv.appendChild(textSpan);
+        messageDiv.appendChild(timeSpan);
+        
+        this.elements.chatLog.appendChild(messageDiv);
+        this.elements.chatLog.scrollTop = this.elements.chatLog.scrollHeight;
+    }
+
+    copyAllMessages() {
+        const messages = this.elements.messageLog.querySelectorAll('.message');
+        let text = 'Web MIDI Streamer - Debug Messages\n';
+        text += '=' .repeat(50) + '\n\n';
+        
+        messages.forEach(msg => {
+            const timestamp = msg.querySelector('.message-timestamp')?.textContent || '';
+            const messageText = msg.querySelector('.message-text')?.textContent || '';
+            text += `${timestamp}${messageText}\n`;
+        });
+        
+        text += '\n' + '='.repeat(50);
+        text += '\nCopied at: ' + new Date().toLocaleString();
+        
+        // Copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.addMessage('✓ All messages copied to clipboard', 'success');
+            }).catch((err) => {
+                this.addMessage('Failed to copy messages: ' + err.message, 'error');
+            });
+        } else {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                this.addMessage('✓ All messages copied to clipboard', 'success');
+            } catch (err) {
+                this.addMessage('Failed to copy messages: ' + err.message, 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+
+    enableChat(enabled) {
+        if (this.elements.chatInput) {
+            this.elements.chatInput.disabled = !enabled;
+        }
+        if (this.elements.sendChatBtn) {
+            this.elements.sendChatBtn.disabled = !enabled;
+        }
     }
 
     setMIDIManager(midiManager) {

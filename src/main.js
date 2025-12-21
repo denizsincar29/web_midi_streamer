@@ -33,6 +33,7 @@ class MIDIStreamer {
         
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
+            this.ui.enableChat(connected);
             if (connected) {
                 this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
             }
@@ -225,6 +226,16 @@ class MIDIStreamer {
                 this.webrtc.ipv6Enabled = e.target.checked;
             }
         });
+        
+        // Set up chat handler
+        this.ui.onSendChat = (message) => {
+            if (this.webrtc.isConnected()) {
+                this.webrtc.send({ type: 'chat', data: message });
+                this.ui.addChatMessage(message, 'you');
+            } else {
+                this.ui.addMessage('Not connected - cannot send chat message', 'error');
+            }
+        };
     }
 
     async connect() {
@@ -271,6 +282,7 @@ class MIDIStreamer {
         this.ui.addMessage('Disconnected', 'info');
         this.ui.updateConnectionStatus('Disconnected', 'disconnected');
         this.ui.updateButtonStates(false, false);
+        this.ui.enableChat(false);
         // Re-enable automatic reconnection for future connections
         this.webrtc.manualDisconnect = false;
     }
@@ -338,6 +350,8 @@ class MIDIStreamer {
                     : { data };
                 this.webrtc.send(echoMessage);
             }
+        } else if (msg.type === 'chat') {
+            this.ui.addChatMessage(msg.data, 'peer');
         }
     }
 

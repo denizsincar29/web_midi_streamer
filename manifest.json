@@ -1,6 +1,7 @@
 {
   "name": "Web MIDI Streamer",
   "short_name": "MIDI Stream",
+  "version": "1.0.0",
   "description": "Real-time MIDI streaming over WebRTC",
   "start_url": "./",
   "display": "standalone",

@@ -619,6 +619,8 @@ export class WebRTCManager {
             this.onMessage({ type: 'test_note', data: message.data });
         } else if (message.type === 'settings_sync') {
             this.onMessage({ type: 'settings_sync', data: message.data });
+        } else if (message.type === 'chat') {
+            this.onMessage({ type: 'chat', data: message.data });
         } else {
             this.onMessage({ type: 'midi', data: message });
         }

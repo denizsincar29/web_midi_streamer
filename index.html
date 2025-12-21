@@ -137,7 +137,20 @@
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
                     
                     <h3 data-i18n="settings.messages">Messages</h3>
+                    <button id="copyMessagesBtn" class="btn btn-secondary" data-i18n="debug.copyMessages">Copy All Messages</button>
                     <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
+                </div>
+            </details>
+
+            <!-- Chat -->
+            <details class="chat-section">
+                <summary><h2 data-i18n="chat.title">Chat</h2></summary>
+                <div class="chat-content">
+                    <div id="chatLog" class="chat-log" role="log" aria-live="polite" aria-atomic="false"></div>
+                    <div class="chat-input-group">
+                        <input type="text" id="chatInput" data-i18n-placeholder="chat.placeholder" placeholder="Type a message..." disabled>
+                        <button id="sendChatBtn" class="btn btn-primary" disabled data-i18n="chat.send">Send</button>
+                    </div>
                 </div>
             </details>
 
