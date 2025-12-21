@@ -179,14 +179,11 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 Web MIDI Streamer | Powered by <a href="https://github.com/tonaljs/tonal" target="_blank">Tonal.js</a></p>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
 
-    <!-- Load Tonal.js from CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/core@4.10.0/browser/tonal.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/chord-detect@4.8.0/browser/chord-detect.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/note@4.10.0/browser/note.min.js"></script>
+    <!-- No external dependencies needed - using built-in chord detection -->
 
     <script type="module">
         let midiAccess = null;
@@ -200,6 +197,92 @@
             const octave = Math.floor(midiNote / 12) - 1;
             const noteName = NOTE_NAMES[midiNote % 12];
             return noteName + octave;
+        }
+        
+        // Chord detection algorithm
+        const CHORD_PATTERNS = {
+            // Major chords
+            '0,4,7': 'Major',
+            '0,3,7': 'Minor',
+            '0,3,6': 'Diminished',
+            '0,4,8': 'Augmented',
+            
+            // Seventh chords
+            '0,4,7,11': 'Major 7',
+            '0,4,7,10': 'Dominant 7',
+            '0,3,7,10': 'Minor 7',
+            '0,3,6,10': 'Half-diminished 7',
+            '0,3,6,9': 'Diminished 7',
+            '0,3,7,11': 'Minor-Major 7',
+            
+            // Extended chords
+            '0,4,7,10,14': '9',
+            '0,4,7,11,14': 'Major 9',
+            '0,3,7,10,14': 'Minor 9',
+            
+            // Sus chords
+            '0,5,7': 'Sus4',
+            '0,2,7': 'Sus2',
+            
+            // Add chords
+            '0,4,7,9': 'Add6',
+            '0,4,7,14': 'Add9',
+            '0,3,7,9': 'Minor Add6',
+        };
+        
+        function detectChordFromIntervals(intervals) {
+            const key = intervals.join(',');
+            return CHORD_PATTERNS[key];
+        }
+        
+        function getPitchClass(noteName) {
+            // Remove octave number (e.g., "C4" -> "C")
+            return noteName.replace(/[0-9-]/g, '');
+        }
+        
+        function noteNameToSemitone(noteName) {
+            const NOTE_VALUES = {
+                'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+                'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+            };
+            return NOTE_VALUES[noteName] || 0;
+        }
+        
+        function detectChord(noteNames) {
+            if (noteNames.length < 2) {
+                return null;
+            }
+            
+            // Get pitch classes (notes without octaves)
+            const pitchClasses = noteNames.map(getPitchClass);
+            
+            // Remove duplicates
+            const uniquePitches = [...new Set(pitchClasses)];
+            
+            if (uniquePitches.length < 2) {
+                return { root: uniquePitches[0], type: 'Single note' };
+            }
+            
+            // Try each note as potential root
+            for (let i = 0; i < uniquePitches.length; i++) {
+                const root = uniquePitches[i];
+                const rootValue = noteNameToSemitone(root);
+                
+                // Calculate intervals from this root
+                const intervals = uniquePitches.map(note => {
+                    const value = noteNameToSemitone(note);
+                    return (value - rootValue + 12) % 12;
+                }).sort((a, b) => a - b);
+                
+                // Check if this matches a known chord pattern
+                const chordType = detectChordFromIntervals(intervals);
+                if (chordType) {
+                    return { root, type: chordType };
+                }
+            }
+            
+            // No match found - return the notes as a custom voicing
+            return { root: uniquePitches[0], type: 'Custom', notes: uniquePitches };
         }
 
         // Initialize MIDI
@@ -302,48 +385,39 @@
             const chordNameEl = document.getElementById('chordName');
             const chordNotesEl = document.getElementById('chordNotes');
             
-            if (noteNames.length < 2) {
+            if (noteNames.length < 1) {
+                chordNameEl.innerHTML = '<span class="placeholder-text">Play some notes...</span>';
+                chordNotesEl.textContent = '';
+                return;
+            }
+            
+            if (noteNames.length === 1) {
                 // Single note
-                chordNameEl.textContent = noteNames[0];
+                const pitchClass = getPitchClass(noteNames[0]);
+                chordNameEl.textContent = pitchClass;
                 chordNotesEl.textContent = 'Single note';
                 return;
             }
             
-            // Use Tonal.js to detect chords
-            // Remove octave numbers for chord detection
-            const pitchClasses = noteNames.map(name => {
-                // Get pitch class without octave
-                return Tonal.Note.pitchClass(name);
-            });
+            // Detect chord
+            const chordInfo = detectChord(noteNames);
             
-            // Detect all possible chords
-            let chords = Tonal.ChordDetect.detect(pitchClasses);
-            
-            const showAllChords = document.getElementById('showAllChords').checked;
-            const simplifyChords = document.getElementById('simplifyChords').checked;
-            
-            if (simplifyChords && chords.length > 0) {
-                // Prefer simpler chord names
-                chords = chords.filter(chord => {
-                    // Prefer chords without complex extensions
-                    return !chord.includes('13') && !chord.includes('11');
-                });
+            if (!chordInfo) {
+                chordNameEl.textContent = noteNames.map(getPitchClass).join(' ');
+                chordNotesEl.textContent = 'Notes';
+                return;
             }
             
-            if (chords.length === 0) {
-                // No standard chord detected
-                chordNameEl.textContent = pitchClasses.join(' ');
+            if (chordInfo.type === 'Custom') {
+                chordNameEl.style.fontSize = '3em';
+                chordNameEl.textContent = chordInfo.notes.join(' ');
                 chordNotesEl.textContent = 'Custom voicing';
-            } else if (showAllChords && chords.length > 1) {
-                // Show all interpretations
-                chordNameEl.style.fontSize = '2.5em';
-                chordNameEl.textContent = chords.slice(0, 3).join(' / ');
-                chordNotesEl.textContent = pitchClasses.join(' - ');
             } else {
-                // Show best match
                 chordNameEl.style.fontSize = '4em';
-                chordNameEl.textContent = chords[0];
-                chordNotesEl.textContent = pitchClasses.join(' - ');
+                chordNameEl.textContent = `${chordInfo.root} ${chordInfo.type}`;
+                const pitchClasses = noteNames.map(getPitchClass);
+                const uniquePitches = [...new Set(pitchClasses)];
+                chordNotesEl.textContent = uniquePitches.join(' - ');
             }
         }
 
@@ -363,12 +437,7 @@
 
         // Initialize on load
         window.addEventListener('DOMContentLoaded', () => {
-            // Check if Tonal is loaded
-            if (typeof Tonal === 'undefined') {
-                updateMIDIStatus('Error: Tonal.js library failed to load', false);
-            } else {
-                initMIDI();
-            }
+            initMIDI();
         });
     </script>
 </body>
