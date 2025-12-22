@@ -2011,8 +2011,12 @@
             const chordText = chordInfo.type ? `${chordInfo.root}${chordInfo.type}` : chordInfo.root;
             const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
             
-            // Only record if chord has changed from the last recorded chord
-            if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
+            // Only record if chord has changed OR if the position (measure/beat) is different
+            const positionChanged = !lastRecordedChord || 
+                lastRecordedChord.measure !== chordMeasurePosition || 
+                lastRecordedChord.beat !== chordBeatPosition;
+            
+            if ((chordText !== lastChordText || positionChanged) && chordBeatPosition !== null && chordMeasurePosition !== null) {
                 // Automatically assign section based on defined sections
                 const sectionInfo = getSectionForMeasure(chordMeasurePosition);
                 
@@ -3119,25 +3123,34 @@
             } else {
                 // Start playback
                 isPlayingBack = true;
+                initAudio(); // Ensure audio context is initialized
                 announceChange('Playback started');
                 
                 // Start from selected chord or beginning
                 playbackChordIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
-                const cells = document.querySelectorAll('.chord-cell');
                 const bpm = parseInt(document.getElementById('bpm')?.value || 120);
                 const { numerator } = getTimeSignatureInfo();
                 const beatDuration = 60000 / bpm; // milliseconds per beat
                 
+                // Track beat for metronome
+                let playbackBeat = 1;
+                
                 // Play first chord immediately
                 playNextChord();
                 
-                // Continue playing based on beat timing
-                let lastMeasure = null;
-                let lastBeat = null;
-                
+                // Continue playing based on beat timing with metronome
                 playbackInterval = setInterval(() => {
-                    playNextChord();
-                }, beatDuration * numerator); // Play each measure
+                    // Play metronome click
+                    const isAccent = playbackBeat === 1;
+                    playClick(isAccent);
+                    
+                    playbackBeat++;
+                    if (playbackBeat > numerator) {
+                        playbackBeat = 1;
+                        // Play next chord on beat 1 of each measure
+                        playNextChord();
+                    }
+                }, beatDuration);
             }
         }
         
@@ -3156,7 +3169,13 @@
                 return;
             }
             
+            // Select the chord visually (but don't announce it during playback)
+            const prevAnnouncements = document.getElementById('announcements').textContent;
             selectChord(playbackChordIndex);
+            // Suppress the announcement during playback
+            if (isPlayingBack) {
+                document.getElementById('announcements').textContent = '';
+            }
             
             // Get chord at current index
             const cell = cells[playbackChordIndex];
