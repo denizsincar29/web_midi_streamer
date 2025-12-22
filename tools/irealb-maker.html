@@ -1080,21 +1080,24 @@
                 
                 // Auto-restore focus to previously selected chord or first chord
                 // This prevents focus loss after operations like delete, add volta, etc.
-                if (selectedChordIndex >= 0) {
-                    const cells = document.querySelectorAll('.chord-cell');
-                    // If selected index is beyond the updated list, select last chord
-                    const targetIndex = Math.min(selectedChordIndex, cells.length - 1);
-                    if (targetIndex >= 0 && targetIndex < cells.length) {
-                        // Use setTimeout to ensure DOM is fully updated
+                // Skip auto-focus during recording to avoid announcing focused chord instead of newly recorded one
+                if (!isRecording) {
+                    if (selectedChordIndex >= 0) {
+                        const cells = document.querySelectorAll('.chord-cell');
+                        // If selected index is beyond the updated list, select last chord
+                        const targetIndex = Math.min(selectedChordIndex, cells.length - 1);
+                        if (targetIndex >= 0 && targetIndex < cells.length) {
+                            // Use setTimeout to ensure DOM is fully updated
+                            setTimeout(() => {
+                                selectChord(targetIndex);
+                            }, 0);
+                        }
+                    } else if (recordedChords.length > 0) {
+                        // If no selection but chords exist, select first chord
                         setTimeout(() => {
-                            selectChord(targetIndex);
+                            selectChord(0);
                         }, 0);
                     }
-                } else if (recordedChords.length > 0) {
-                    // If no selection but chords exist, select first chord
-                    setTimeout(() => {
-                        selectChord(0);
-                    }, 0);
                 }
                 
             } else {
@@ -1151,23 +1154,23 @@
             
             // Handle half-diminished symbol
             if (result.includes('ø7')) {
-                result = result.replace('ø7', translations['ø7'] || 'ø7');
+                result = result.replace('ø7', ' ' + (translations['ø7'] || 'ø7'));
             } else if (result.includes('ø')) {
-                result = result.replace('ø', translations['ø'] || 'ø');
+                result = result.replace('ø', ' ' + (translations['ø'] || 'ø'));
             }
             
             // Handle diminished
             if (result.includes('dim7')) {
-                result = result.replace('dim7', translations['dim7'] || 'dim7');
+                result = result.replace('dim7', ' ' + (translations['dim7'] || 'dim7'));
             } else if (result.includes('dim')) {
-                result = result.replace('dim', translations['dim'] || 'dim');
+                result = result.replace('dim', ' ' + (translations['dim'] || 'dim'));
             }
             
             // Handle augmented
             if (result.includes('aug')) {
-                result = result.replace('aug', translations['aug'] || 'aug');
+                result = result.replace('aug', ' ' + (translations['aug'] || 'aug'));
             } else if (result.includes('+')) {
-                result = result.replace('+', translations['+'] || '+');
+                result = result.replace('+', ' ' + (translations['+'] || '+'));
             }
             
             // Handle suspended chords (keep sus in English)
@@ -1175,7 +1178,7 @@
             
             // Handle maj7
             if (result.includes('maj7')) {
-                result = result.replace('maj7', translations['maj7'] || 'maj7');
+                result = result.replace('maj7', ' ' + (translations['maj7'] || 'maj7'));
             }
             
             // Handle minor (must come after maj7 to avoid conflicts)
@@ -2706,7 +2709,7 @@
                 const songName = songs[index].name || 'Untitled';
                 if (confirm(`Delete "${songName}" from local storage?`)) {
                     songs.splice(index, 1);
-                    localStorage.setItem('irealbMaker_songs', JSON.stringify(songs));
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
                     announceChange(`Song "${songName}" deleted`);
                     
                     // Refresh the modal display
@@ -3767,6 +3770,7 @@
         window.markSection = markSection;
         window.deleteMarkerAtCurrentPosition = deleteMarkerAtCurrentPosition;
         window.loadSongFromStorage = loadSongFromStorage;
+        window.deleteSongFromStorage = deleteSongFromStorage;
         
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
