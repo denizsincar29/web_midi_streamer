@@ -430,6 +430,11 @@
 
                 <!-- Hidden div for screen reader announcements -->
                 <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="announcements"></div>
+                
+                <!-- Input Help Mode Indicator -->
+                <div id="inputHelpIndicator" style="display: none; background: #ff9800; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: bold;">
+                    <span data-i18n="inputHelp.active">Input help mode active. Press any key to hear its function, or press H or Escape to exit.</span>
+                </div>
 
                 <!-- Controls -->
                 <div class="controls">
@@ -458,9 +463,10 @@
 
                 <!-- Keyboard Shortcuts Help -->
                 <div class="keyboard-shortcuts" id="keyboardShortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts <span style="font-size: 0.8em; opacity: 0.8;">(Press H for help)</span></h3>
+                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts <span style="font-size: 0.8em; opacity: 0.8;">(Press Shift+H to toggle)</span></h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
-                        <div><strong>H</strong>: Show/hide help</div>
+                        <div><strong>H</strong>: Input help mode</div>
+                        <div><strong>Shift+H</strong>: Show/hide shortcuts</div>
                         <div><strong>N</strong>: Focus workspace</div>
                         <div><strong>T</strong>: Tempo settings</div>
                         <div><strong>M</strong>: MIDI devices</div>
@@ -484,6 +490,7 @@
                         <div><strong>Shift+W</strong>: Close with save</div>
                         <div><strong>←/→</strong>: Navigate chords</div>
                         <div><strong>Ctrl+←/→</strong>: Jump measures</div>
+                        <div><strong>Alt+←/→</strong>: Move chord beat</div>
                         <div><strong>[</strong>: Set start marker</div>
                         <div><strong>]</strong>: Set end marker</div>
                         <div><strong>Esc</strong>: Cancel</div>
@@ -504,21 +511,21 @@
             <div id="setupWizardModal" class="modal-overlay">
                 <div class="modal-dialog">
                     <div class="modal-header">
-                        <h2>Song Setup</h2>
+                        <h2 data-i18n="modal.songSetup">Song Setup</h2>
                     </div>
                     <div class="modal-body">
                         <div id="wizardContent">
                             <!-- Song Information -->
                             <div class="form-group">
-                                <label for="wizard-songName">Song Name:</label>
+                                <label for="wizard-songName" data-i18n="modal.songName">Song Name:</label>
                                 <input type="text" id="wizard-songName" placeholder="Enter song name" required>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-authorName">Author/Composer:</label>
+                                <label for="wizard-authorName" data-i18n="modal.authorComposer">Author/Composer:</label>
                                 <input type="text" id="wizard-authorName" placeholder="Enter author name">
                             </div>
                             <div class="form-group">
-                                <label for="wizard-timeSignature">Time Signature:</label>
+                                <label for="wizard-timeSignature" data-i18n="modal.timeSignature">Time Signature:</label>
                                 <select id="wizard-timeSignature">
                                     <option value="44">4/4 (Common Time)</option>
                                     <option value="34">3/4 (Waltz)</option>
@@ -530,7 +537,7 @@
                                 <div class="time-signature-help">Count-in will be announced for the first 2 measures</div>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-musicStyle">Music Style:</label>
+                                <label for="wizard-musicStyle" data-i18n="modal.musicStyle">Music Style:</label>
                                 <select id="wizard-musicStyle">
                                     <option value="Medium Swing">Medium Swing</option>
                                     <option value="Up Tempo Swing">Up Tempo Swing</option>
@@ -556,7 +563,7 @@
                                 <div class="time-signature-help">Select the music style for your song</div>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-keySignature">Key Signature:</label>
+                                <label for="wizard-keySignature" data-i18n="modal.keySignature">Key Signature:</label>
                                 <select id="wizard-keySignature">
                                     <option value="C">C Major</option>
                                     <option value="Db">Db Major</option>
@@ -588,7 +595,7 @@
                             
                             <!-- Song Length -->
                             <div class="form-group">
-                                <label for="wizard-totalMeasures">Total Measures in Song:</label>
+                                <label for="wizard-totalMeasures" data-i18n="modal.totalMeasures">Total Measures in Song:</label>
                                 <input type="number" id="wizard-totalMeasures" value="32" min="1" max="999" step="1">
                                 <div class="time-signature-help">Set the total length of your song</div>
                             </div>
@@ -599,8 +606,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="wizardCancelBtn" class="btn btn-secondary">Cancel</button>
-                        <button id="wizardDoneBtn" class="btn btn-primary">Start Editing</button>
+                        <button id="wizardCancelBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancel</button>
+                        <button id="wizardDoneBtn" class="btn btn-primary" data-i18n="modal.startEditing">Start Editing</button>
                     </div>
                 </div>
             </div>
@@ -609,17 +616,17 @@
             <div id="tempoModal" class="modal-overlay">
                 <div class="modal-dialog" style="max-width: 400px;">
                     <div class="modal-header">
-                        <h2>Tempo Settings</h2>
+                        <h2 data-i18n="modal.tempoSettings">Tempo Settings</h2>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="modalBpm">BPM (Tempo):</label>
+                            <label for="modalBpm" data-i18n="modal.bpm">BPM (Tempo):</label>
                             <input type="number" id="modalBpm" min="40" max="240" value="120" aria-label="Beats per minute">
                             <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="tempoCloseBtn" class="btn btn-primary">Done</button>
+                        <button id="tempoCloseBtn" class="btn btn-primary" data-i18n="modal.done">Done</button>
                     </div>
                 </div>
             </div>
@@ -628,18 +635,24 @@
             <div id="midiDeviceModal" class="modal-overlay">
                 <div class="modal-dialog" style="max-width: 400px;">
                     <div class="modal-header">
-                        <h2>MIDI Devices</h2>
+                        <h2 data-i18n="modal.midiDevices">MIDI Devices</h2>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="modalMidiInput">MIDI Input Device:</label>
+                            <label for="modalMidiInput" data-i18n="modal.midiInputDevice">MIDI Input Device:</label>
                             <select id="modalMidiInput" aria-label="Select MIDI input device">
+                                <option value="">No device selected</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="modalMidiOutput" data-i18n="modal.midiOutputDevice">MIDI Output Device (for playback):</label>
+                            <select id="modalMidiOutput" aria-label="Select MIDI output device for chord playback">
                                 <option value="">No device selected</option>
                             </select>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="midiDeviceCloseBtn" class="btn btn-primary">Done</button>
+                        <button id="midiDeviceCloseBtn" class="btn btn-primary" data-i18n="modal.done">Done</button>
                     </div>
                 </div>
             </div>
@@ -648,7 +661,7 @@
 
     <script type="module">
         import { t, getCurrentLanguage } from '../src/i18n.js';
-        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord } from '../src/chord-utils.js';
+        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord, chordToMIDINotes } from '../src/chord-utils.js';
         
         let midiAccess = null;
         let selectedInput = null;
@@ -667,6 +680,57 @@
         let chordNotesPressed = new Set(); // Notes that were pressed for current chord
         let chordBeatPosition = null; // Beat when first note of chord was pressed
         let chordMeasurePosition = null; // Measure when first note of chord was pressed
+        let noteOnTimestamp = null; // Timestamp when first note was pressed (for quantization)
+        let lastBeatTimestamp = null; // Timestamp of the last beat click (for quantization)
+        let nextBeatTimestamp = null; // Timestamp when next beat will occur (for quantization)
+        
+        // Quantization settings
+        let quantizationEnabled = true; // Enable quantization by default
+        let quantizationTolerance = 0.25; // 25% of beat duration before/after each beat (creates 50% total window)
+        
+        // Quantize beat position based on timing
+        function quantizeBeat(timestamp, currentBeatPos, currentMeasurePos) {
+            // Skip quantization if disabled or if timing data isn't available
+            if (!quantizationEnabled || !lastBeatTimestamp || !nextBeatTimestamp || !isRecording) {
+                return { beat: currentBeatPos, measure: currentMeasurePos };
+            }
+            
+            const { numerator } = getTimeSignatureInfo();
+            const bpm = parseInt(document.getElementById('bpm').value) || 120;
+            const beatDuration = 60000 / bpm;
+            
+            // Calculate time difference from last beat and to next beat
+            const timeSinceLastBeat = timestamp - lastBeatTimestamp;
+            const timeToNextBeat = nextBeatTimestamp - timestamp;
+            
+            // Calculate quantization thresholds
+            const quantizeThreshold = beatDuration * quantizationTolerance;
+            
+            let quantizedBeat = currentBeatPos;
+            let quantizedMeasure = currentMeasurePos;
+            
+            // If very close to previous beat (within tolerance), snap to previous beat
+            if (timeSinceLastBeat < quantizeThreshold && timeSinceLastBeat >= 0) {
+                // Snap to the beat that just happened
+                quantizedBeat = currentBeatPos === 0 ? numerator : currentBeatPos;
+                // If we're at beat 0 (just rolled over), need to adjust measure
+                if (currentBeatPos === 0) {
+                    quantizedMeasure = currentMeasurePos - 1;
+                }
+            }
+            // If very close to next beat (within tolerance), snap to next beat
+            else if (timeToNextBeat < quantizeThreshold && timeToNextBeat >= 0) {
+                // Snap to the next beat
+                quantizedBeat = currentBeatPos + 1;
+                // Handle measure rollover
+                if (quantizedBeat > numerator) {
+                    quantizedBeat = 1;
+                    quantizedMeasure = currentMeasurePos + 1;
+                }
+            }
+            
+            return { beat: quantizedBeat, measure: quantizedMeasure };
+        }
         
         // Volta (repeat endings) tracking - stores endings like {measure: 8, type: 1} or {measure: 16, type: 2}
         let voltaEndings = [];
@@ -727,6 +791,11 @@
             currentMeasure = 0; // Count-in always starts at 0
             isCountingIn = true;
             
+            // Initialize beat timestamps for quantization
+            const now = Date.now();
+            lastBeatTimestamp = now;
+            nextBeatTimestamp = now + beatDuration;
+            
             // Store the actual start measure for later
             window.actualStartMeasure = startMeasureNum;
             
@@ -734,6 +803,10 @@
                 currentBeat++;
                 const isAccent = currentBeat === 1;
                 playClick(isAccent);
+                
+                // Update beat timestamps for quantization
+                lastBeatTimestamp = Date.now();
+                nextBeatTimestamp = lastBeatTimestamp + beatDuration;
                 
                 // Announce counts during count-in
                 if (isCountingIn) {
@@ -1013,7 +1086,13 @@
             
             switch(e.key) {
                 case 'ArrowRight':
-                    if (e.ctrlKey) {
+                    if (e.altKey) {
+                        // Alt+Right: Move chord to next beat
+                        const dataIndexRight = cells[currentIndex].getAttribute('data-index');
+                        if (dataIndexRight !== null) {
+                            moveChord(parseInt(dataIndexRight), 'right');
+                        }
+                    } else if (e.ctrlKey) {
                         // Ctrl+Right: Next measure with chord
                         const nextChordIndex = cells.findIndex((cell, idx) => 
                             idx > currentIndex && !cell.classList.contains('empty-measure')
@@ -1030,7 +1109,13 @@
                     break;
                     
                 case 'ArrowLeft':
-                    if (e.ctrlKey) {
+                    if (e.altKey) {
+                        // Alt+Left: Move chord to previous beat
+                        const dataIndexLeft = cells[currentIndex].getAttribute('data-index');
+                        if (dataIndexLeft !== null) {
+                            moveChord(parseInt(dataIndexLeft), 'left');
+                        }
+                    } else if (e.ctrlKey) {
                         // Ctrl+Left: Previous measure with chord
                         const prevChordIndex = cells.slice(0, currentIndex).reverse().findIndex(
                             cell => !cell.classList.contains('empty-measure')
@@ -1270,6 +1355,96 @@
                 updateChordList();
                 announceChange(`Chord at measure ${item.measure} deleted`);
             }
+        }
+        
+        // Move chord to a different beat or measure
+        function moveChord(index, direction) {
+            if (index < 0 || index >= recordedChords.length) {
+                announceChange('No chord selected to move');
+                return;
+            }
+            
+            const { numerator } = getTimeSignatureInfo();
+            const chord = recordedChords[index];
+            const currentBeat = chord.beat || numerator;
+            const currentMeasure = chord.measure;
+            
+            let newBeat = currentBeat;
+            let newMeasure = currentMeasure;
+            
+            if (direction === 'left') {
+                // Move to previous beat
+                newBeat = currentBeat - 1;
+                if (newBeat < 1) {
+                    // Move to previous measure, last beat
+                    newMeasure = currentMeasure - 1;
+                    newBeat = numerator;
+                    
+                    if (newMeasure < 1) {
+                        announceChange('Cannot move chord before measure 1');
+                        return;
+                    }
+                }
+            } else if (direction === 'right') {
+                // Move to next beat
+                newBeat = currentBeat + 1;
+                if (newBeat > numerator) {
+                    // Move to next measure, first beat
+                    newMeasure = currentMeasure + 1;
+                    newBeat = 1;
+                    
+                    const totalMeasures = parseInt(document.getElementById('totalMeasures').value) || 32;
+                    if (newMeasure > totalMeasures) {
+                        announceChange(`Cannot move chord beyond measure ${totalMeasures}`);
+                        return;
+                    }
+                }
+            }
+            
+            // Check if target position already has a chord
+            const existingChord = recordedChords.find(c => 
+                c.measure === newMeasure && (c.beat || numerator) === newBeat && c !== chord
+            );
+            
+            if (existingChord) {
+                if (!confirm(`Measure ${newMeasure}, beat ${newBeat} already has a chord. Replace it?`)) {
+                    return;
+                }
+                // Remove the existing chord
+                const existingIndex = recordedChords.indexOf(existingChord);
+                recordedChords.splice(existingIndex, 1);
+                // Adjust index if needed
+                if (existingIndex < index) {
+                    index--;
+                }
+            }
+            
+            // Update the chord's position
+            recordedChords[index].beat = newBeat;
+            recordedChords[index].measure = newMeasure;
+            
+            // Re-sort chords
+            recordedChords.sort((a, b) => {
+                if (a.measure !== b.measure) return a.measure - b.measure;
+                return (a.beat || numerator) - (b.beat || numerator);
+            });
+            
+            updateChordList();
+            
+            // Find new index after sorting
+            const newIndex = recordedChords.findIndex(c => c === chord);
+            if (newIndex !== -1) {
+                // Re-select the moved chord
+                const cells = document.querySelectorAll('.chord-cell');
+                const cellIndex = Array.from(cells).findIndex(cell => 
+                    parseInt(cell.getAttribute('data-index')) === newIndex
+                );
+                if (cellIndex !== -1) {
+                    selectChord(cellIndex);
+                }
+            }
+            
+            announceChange(`Chord moved to measure ${newMeasure}, beat ${newBeat}`);
         }
         
         // Announce changes for screen reader
@@ -1717,7 +1892,11 @@
         
         function populateInputDevices() {
             const select = document.getElementById('midiInput');
-            select.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            const modalSelect = document.getElementById('modalMidiInput');
+            const noDeviceOption = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            
+            select.innerHTML = noDeviceOption;
+            modalSelect.innerHTML = noDeviceOption;
             
             const inputs = Array.from(midiAccess.inputs.values());
             inputs.forEach((input, index) => {
@@ -1726,6 +1905,29 @@
                 option.textContent = input.name;
                 if (index === 0) option.selected = true;
                 select.appendChild(option);
+                
+                // Create a separate option for modal (don't clone to avoid property issues)
+                const modalOption = document.createElement('option');
+                modalOption.value = input.id;
+                modalOption.textContent = input.name;
+                if (index === 0) modalOption.selected = true;
+                modalSelect.appendChild(modalOption);
+            });
+            
+            // Populate MIDI output devices
+            const outputSelect = document.getElementById('modalMidiOutput');
+            outputSelect.innerHTML = noDeviceOption;
+            
+            const outputs = Array.from(midiAccess.outputs.values());
+            outputs.forEach((output, index) => {
+                const option = document.createElement('option');
+                option.value = output.id;
+                option.textContent = output.name;
+                if (index === 0) {
+                    option.selected = true;
+                    playbackMIDIOutput = output;
+                }
+                outputSelect.appendChild(option);
             });
             
             if (inputs.length > 0) {
@@ -1761,10 +1963,16 @@
             
             if (command === 0x90 && velocity > 0) {
                 // Note ON
-                // If this is the first note pressed, capture the beat position
+                // If this is the first note pressed, capture the beat position and timestamp
                 if (activeNotes.size === 0 && isRecording && !isCountingIn) {
-                    chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
-                    chordMeasurePosition = window.actualStartMeasure + (currentMeasure - 2);
+                    const rawBeat = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
+                    const rawMeasure = window.actualStartMeasure + (currentMeasure - 2);
+                    noteOnTimestamp = Date.now();
+                    
+                    // Apply quantization
+                    const quantized = quantizeBeat(noteOnTimestamp, rawBeat, rawMeasure);
+                    chordBeatPosition = quantized.beat;
+                    chordMeasurePosition = quantized.measure;
                     chordNotesPressed.clear(); // Start fresh for new chord
                 }
                 
@@ -1778,9 +1986,18 @@
                 // When all notes are released, analyze and record the chord
                 if (activeNotes.size === 0 && chordNotesPressed.size > 0) {
                     analyzeAndRecordChord();
-                    chordNotesPressed.clear();
-                    chordBeatPosition = null;
-                    chordMeasurePosition = null;
+                    
+                    // Clear chord state after a short delay to handle rapid chord changes
+                    // Only clear if no new notes have been pressed
+                    const currentNoteCount = chordNotesPressed.size;
+                    setTimeout(() => {
+                        // Only clear if still no active notes and no new chord started
+                        if (activeNotes.size === 0 && chordNotesPressed.size === currentNoteCount) {
+                            chordNotesPressed.clear();
+                            chordBeatPosition = null;
+                            chordMeasurePosition = null;
+                        }
+                    }, 50); // 50ms grace period
                 } else {
                     updateChordDisplay();
                 }
@@ -1803,8 +2020,12 @@
             const chordText = chordInfo.type ? `${chordInfo.root}${chordInfo.type}` : chordInfo.root;
             const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
             
-            // Only record if chord has changed from the last recorded chord
-            if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
+            // Only record if chord has changed OR if the position (measure/beat) is different
+            const positionChanged = !lastRecordedChord || 
+                lastRecordedChord.measure !== chordMeasurePosition || 
+                lastRecordedChord.beat !== chordBeatPosition;
+            
+            if ((chordText !== lastChordText || positionChanged) && chordBeatPosition !== null && chordMeasurePosition !== null) {
                 // Automatically assign section based on defined sections
                 const sectionInfo = getSectionForMeasure(chordMeasurePosition);
                 
@@ -2138,6 +2359,82 @@
         // Section input mode
         let sectionInputMode = false;
         
+        // Input help mode (H key - announces key functions without executing them)
+        let isInputHelpMode = false;
+        
+        // Get help text for a key in input help mode
+        function getInputHelpText(e) {
+            const key = e.key.toLowerCase();
+            const isShift = e.shiftKey;
+            const isCtrl = e.ctrlKey;
+            const isAlt = e.altKey;
+            
+            // Build the i18n key based on modifiers and key
+            let i18nKey = 'inputHelp.';
+            
+            if (isCtrl && isShift) {
+                // No Ctrl+Shift combinations currently
+                return null;
+            } else if (isAlt) {
+                if (key === 'arrowleft') i18nKey += 'altArrowLeft';
+                else if (key === 'arrowright') i18nKey += 'altArrowRight';
+                else return null;
+            } else if (isCtrl) {
+                if (key === ',') i18nKey += 'ctrlComma';
+                else if (key === 'x') i18nKey += 'ctrlX';
+                else if (key === 'c') i18nKey += 'ctrlC';
+                else if (key === 'v') i18nKey += 'ctrlV';
+                else if (key === 'arrowleft') i18nKey += 'ctrlArrowLeft';
+                else if (key === 'arrowright') i18nKey += 'ctrlArrowRight';
+                else return null;
+            } else if (isShift) {
+                if (key === 'H') i18nKey += 'shiftH';
+                else if (key === 'E') i18nKey += 'shiftE';
+                else if (key === 'BACKSPACE') i18nKey += 'shiftBackspace';
+                else if (key === 'S') i18nKey += 'shiftS';
+                else if (key === 'O') i18nKey += 'shiftO';
+                else if (key === 'D') i18nKey += 'shiftD';
+                else if (key === 'J') i18nKey += 'shiftJ';
+                else if (key === 'W') i18nKey += 'shiftW';
+                else return null;
+            } else {
+                // Regular keys
+                if (key === 'h') i18nKey += 'h';
+                else if (key === 'n') i18nKey += 'n';
+                else if (key === 't') i18nKey += 't';
+                else if (key === 'm') i18nKey += 'm';
+                else if (key === ' ') i18nKey += 'space';
+                else if (key === 'r') i18nKey += 'r';
+                else if (key === 'e') i18nKey += 'e';
+                else if (key === 's') i18nKey += 's';
+                else if (key === 'v') i18nKey += 'v';
+                else if (key === 'backspace') i18nKey += 'backspace';
+                else if (key === 'delete') i18nKey += 'delete';
+                else if (key === 'arrowleft') i18nKey += 'arrowLeft';
+                else if (key === 'arrowright') i18nKey += 'arrowRight';
+                else if (key === '[') i18nKey += 'bracketLeft';
+                else if (key === ']') i18nKey += 'bracketRight';
+                else if (key === 'escape') i18nKey += 'escape';
+                else return null;
+            }
+            
+            return t(i18nKey);
+        }
+        
+        // Toggle input help mode
+        function toggleInputHelpMode() {
+            isInputHelpMode = !isInputHelpMode;
+            const indicator = document.getElementById('inputHelpIndicator');
+            
+            if (isInputHelpMode) {
+                indicator.style.display = 'block';
+                announceChange(t('inputHelp.active'));
+            } else {
+                indicator.style.display = 'none';
+                announceChange(t('inputHelp.deactivated'));
+            }
+        }
+        
         function addSectionViaKey(sectionType) {
             const sectionMap = {
                 'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D',
@@ -2391,8 +2688,28 @@
                 return;
             }
             
+            // Input help mode - intercept all keys and announce their function
+            if (isInputHelpMode) {
+                const helpText = getInputHelpText(e);
+                if (helpText) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    announceChange(helpText);
+                }
+                
+                // Allow H and Escape to exit help mode
+                if (e.key.toLowerCase() === 'h' && !e.shiftKey && !e.ctrlKey) {
+                    // Will be handled by the regular handler below
+                } else if (e.key === 'Escape') {
+                    // Will be handled by the regular handler below
+                } else {
+                    // Block all other keys from executing
+                    return;
+                }
+            }
+            
             // Handle section input mode
-            if (sectionInputMode) {
+            if (sectionInputMode && !isInputHelpMode) {
                 const key = e.key.toLowerCase();
                 if (['a', 'b', 'c', 'd', 'q', 'i', 'o', 'v', 'h', 'r'].includes(key)) {
                     e.preventDefault();
@@ -2444,6 +2761,21 @@
             // Shift key combinations (without Ctrl)
             if (e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toUpperCase()) {
+                    case 'H':
+                        // Shift+H: Toggle keyboard shortcuts visibility
+                        e.preventDefault();
+                        const helpSection = document.getElementById('keyboardShortcuts');
+                        if (helpSection) {
+                            if (helpSection.style.display === 'none') {
+                                helpSection.style.display = 'block';
+                                announceChange('Keyboard shortcuts help shown');
+                            } else {
+                                helpSection.style.display = 'none';
+                                announceChange('Keyboard shortcuts help hidden');
+                            }
+                        }
+                        break;
+                    
                     case 'E':
                         // Shift+E: Edit chord via keyboard
                         e.preventDefault();
@@ -2515,18 +2847,9 @@
             if (!e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toLowerCase()) {
                     case 'h':
-                        // H key - Toggle help visibility
+                        // H key - Toggle input help mode
                         e.preventDefault();
-                        const helpSection = document.getElementById('keyboardShortcuts');
-                        if (helpSection) {
-                            if (helpSection.style.display === 'none') {
-                                helpSection.style.display = 'block';
-                                announceChange('Keyboard shortcuts help shown');
-                            } else {
-                                helpSection.style.display = 'none';
-                                announceChange('Keyboard shortcuts help hidden');
-                            }
-                        }
+                        toggleInputHelpMode();
                         break;
                     
                     case 'r':
@@ -2602,7 +2925,9 @@
                     case 'escape':
                         // Escape - Cancel various modes
                         e.preventDefault();
-                        if (editingChordIndex !== -1) {
+                        if (isInputHelpMode) {
+                            toggleInputHelpMode();
+                        } else if (editingChordIndex !== -1) {
                             editingChordIndex = -1;
                             editingChordNotes.clear();
                             allEditNotes.clear();
@@ -2627,6 +2952,9 @@
         let isEditingMode = false;
         let isPlayingBack = false;
         let playbackInterval = null;
+        let playbackChordIndex = 0;
+        let playbackMIDIOutput = null; // MIDI output for playback
+        let activePlaybackNotes = []; // Currently playing notes for cleanup
         
         function openSetupWizard() {
             const modal = document.getElementById('setupWizardModal');
@@ -2720,19 +3048,75 @@
             const modal = document.getElementById('midiDeviceModal');
             const modalSelect = document.getElementById('modalMidiInput');
             const currentSelect = document.getElementById('midiInput');
+            const outputSelect = document.getElementById('modalMidiOutput');
             
             currentSelect.value = modalSelect.value;
             // Trigger change event to update MIDI input
             const event = new Event('change');
             currentSelect.dispatchEvent(event);
             
+            // Update MIDI output for playback
+            const outputId = outputSelect.value;
+            if (outputId && midiAccess) {
+                playbackMIDIOutput = midiAccess.outputs.get(outputId);
+                announceChange(`MIDI output set to ${playbackMIDIOutput.name}`);
+            } else {
+                playbackMIDIOutput = null;
+            }
+            
             modal.classList.remove('active');
             announceChange('MIDI device selection closed');
+        }
+        
+        // Play MIDI notes for a chord
+        function playChordMIDI(chord, inversion = null, duration = 500) {
+            if (!playbackMIDIOutput) {
+                return;
+            }
+            
+            // Stop any currently playing notes
+            stopPlaybackNotes();
+            
+            // Get MIDI notes for this chord
+            const notes = chordToMIDINotes(chord, inversion);
+            
+            if (notes.length === 0) {
+                return;
+            }
+            
+            // Send note-on messages
+            notes.forEach(note => {
+                playbackMIDIOutput.send([0x90, note, 80]); // Note on, velocity 80
+                activePlaybackNotes.push(note);
+            });
+            
+            // Schedule note-off messages
+            setTimeout(() => {
+                stopPlaybackNotes();
+            }, duration);
+        }
+        
+        // Stop all currently playing playback notes
+        function stopPlaybackNotes() {
+            if (!playbackMIDIOutput || activePlaybackNotes.length === 0) {
+                return;
+            }
+            
+            activePlaybackNotes.forEach(note => {
+                playbackMIDIOutput.send([0x80, note, 0]); // Note off
+            });
+            
+            activePlaybackNotes = [];
         }
         
         function togglePlayback() {
             if (recordedChords.length === 0) {
                 announceChange('No chords to play back');
+                return;
+            }
+            
+            if (!playbackMIDIOutput) {
+                announceChange('No MIDI output device selected. Press M to select a device.');
                 return;
             }
             
@@ -2743,33 +3127,88 @@
                     clearInterval(playbackInterval);
                     playbackInterval = null;
                 }
+                stopPlaybackNotes();
                 announceChange('Playback stopped');
             } else {
                 // Start playback
                 isPlayingBack = true;
+                initAudio(); // Ensure audio context is initialized
                 announceChange('Playback started');
                 
-                let currentIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
-                const cells = document.querySelectorAll('.chord-cell');
+                // Start from selected chord or beginning
+                playbackChordIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
                 const bpm = parseInt(document.getElementById('bpm')?.value || 120);
+                const { numerator } = getTimeSignatureInfo();
                 const beatDuration = 60000 / bpm; // milliseconds per beat
                 
+                // Track beat for metronome
+                let playbackBeat = 1;
+                
+                // Play first beat click immediately (beat 1)
+                playClick(true); // Accent on beat 1
+                
+                // Play first chord immediately after click
+                playNextChord();
+                
+                // Continue playing based on beat timing with metronome
                 playbackInterval = setInterval(() => {
-                    if (currentIndex >= cells.length) {
-                        // Reached end, stop playback
-                        isPlayingBack = false;
-                        if (playbackInterval) {
-                            clearInterval(playbackInterval);
-                            playbackInterval = null;
-                        }
-                        announceChange('Playback completed');
-                        return;
+                    playbackBeat++;
+                    if (playbackBeat > numerator) {
+                        playbackBeat = 1;
                     }
                     
-                    selectChord(currentIndex);
-                    currentIndex++;
+                    // Play metronome click for this beat
+                    const isAccent = playbackBeat === 1;
+                    playClick(isAccent);
+                    
+                    // Play next chord on beat 1 of each measure
+                    if (playbackBeat === 1) {
+                        playNextChord();
+                    }
                 }, beatDuration);
             }
+        }
+        
+        function playNextChord() {
+            const cells = document.querySelectorAll('.chord-cell');
+            
+            if (playbackChordIndex >= cells.length) {
+                // Reached end, stop playback
+                isPlayingBack = false;
+                if (playbackInterval) {
+                    clearInterval(playbackInterval);
+                    playbackInterval = null;
+                }
+                stopPlaybackNotes();
+                announceChange('Playback completed');
+                return;
+            }
+            
+            // Select the chord visually (but don't announce it during playback)
+            selectChord(playbackChordIndex);
+            // Suppress the announcement during playback
+            if (isPlayingBack) {
+                document.getElementById('announcements').textContent = '';
+            }
+            
+            // Get chord at current index
+            const cell = cells[playbackChordIndex];
+            const dataIndex = cell.getAttribute('data-index');
+            
+            if (dataIndex !== null) {
+                const chordData = recordedChords[parseInt(dataIndex)];
+                if (chordData && chordData.chord) {
+                    // Play the chord via MIDI
+                    const bpm = parseInt(document.getElementById('bpm')?.value || 120);
+                    const { numerator } = getTimeSignatureInfo();
+                    const beatDuration = 60000 / bpm;
+                    const chordDuration = beatDuration * numerator * 0.9; // 90% of measure duration
+                    
+                    playChordMIDI(chordData.chord, chordData.inversion, chordDuration);
+                }
+            }
+            
+            playbackChordIndex++;
         }
         
         // Expose functions to global scope for inline onclick handlers

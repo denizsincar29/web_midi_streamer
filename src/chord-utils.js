@@ -104,6 +104,23 @@ export function detectChord(noteNames) {
         seventhType = 'dom7';
     }
     
+    // Check for sixth chord early (before base chord determination)
+    // Sixth chords have interval 9 (major 6th) and no seventh
+    if (has(9) && !has(10) && !has(11)) {
+        // Sixth chord (no seventh)
+        if (thirdType === 'major') {
+            if (has(2)) {
+                return { root, type: '6/9' };
+            }
+            return { root, type: '6' };
+        } else if (thirdType === 'minor') {
+            if (has(2)) {
+                return { root, type: 'm6/9' };
+            }
+            return { root, type: 'm6' };
+        }
+    }
+    
     // Determine base chord
     if (thirdType === 'major' && seventhType === 'dom7') {
         baseChord = '7';
@@ -146,19 +163,6 @@ export function detectChord(noteNames) {
             return { root, type: '7sus2' };
         }
         return { root, type: 'sus2' };
-    } else if (has(9) && !has(10) && !has(11)) {
-        // Sixth chord (no seventh)
-        if (thirdType === 'major') {
-            if (has(2)) {
-                return { root, type: '6/9' };
-            }
-            return { root, type: '6' };
-        } else if (thirdType === 'minor') {
-            if (has(2)) {
-                return { root, type: 'm6/9' };
-            }
-            return { root, type: 'm6' };
-        }
     } else {
         // Unknown chord structure
         return { root, type: 'Custom', notes: uniquePitches };
@@ -219,4 +223,180 @@ export function detectChord(noteNames) {
     }
     
     return { root, type: chordName };
+}
+
+/**
+ * Convert chord symbol to MIDI note numbers for playback
+ * Uses jazz voicing conventions:
+ * - Root in 2nd octave (C2-B2, MIDI 36-47)
+ * - Third and seventh in 3rd-4th octave (G3-A4, MIDI 55-69)
+ * - Extensions above the basic structure
+ * - Order: Root, (3rd or sus), 7th, extensions (9, 11, 13)
+ * - Fifth is omitted on dominant 7th chords, included on minor 7th
+ * 
+ * @param {object} chord - Chord object with root and type
+ * @param {string} inversion - Optional bass note for slash chords
+ * @returns {number[]} Array of MIDI note numbers
+ */
+export function chordToMIDINotes(chord, inversion = null) {
+    if (!chord || !chord.root) {
+        return [];
+    }
+    
+    const rootNote = chord.root;
+    const chordType = chord.type || '';
+    
+    // Base octave for root note (C2 = MIDI 36)
+    const rootOctave = 2;
+    const rootMIDI = noteNameToSemitone(rootNote) + (rootOctave + 1) * 12;
+    
+    const notes = [rootMIDI]; // Always start with root
+    
+    // Helper to add note above root with specific octave placement
+    const addInterval = (semitones, octaveOffset = 0) => {
+        const note = rootMIDI + semitones + (octaveOffset * 12);
+        notes.push(note);
+    };
+    
+    // Parse chord type to determine intervals
+    let hasThird = true;
+    let hasFifth = true;
+    let hasSeventh = false;
+    let thirdInterval = 4; // Major third by default
+    let fifthInterval = 7; // Perfect fifth by default
+    let seventhInterval = null;
+    
+    // Determine basic chord structure
+    if (chordType === '' || chordType === 'maj' || chordType.startsWith('maj7') || chordType === '6' || chordType === '6/9') {
+        // Major chord
+        thirdInterval = 4;
+        if (chordType.includes('maj7')) {
+            hasSeventh = true;
+            seventhInterval = 11;
+        } else if (chordType === '6' || chordType === '6/9') {
+            // Use 6th instead of 7th
+            hasSeventh = true;
+            seventhInterval = 9;
+        }
+    } else if (chordType.startsWith('m') && !chordType.startsWith('maj')) {
+        // Minor chord
+        thirdInterval = 3;
+        if (chordType.includes('7') || chordType.includes('9') || chordType.includes('11') || chordType.includes('13')) {
+            hasSeventh = true;
+            seventhInterval = chordType.includes('M7') || chordType.includes('maj7') ? 11 : 10;
+        }
+        if (chordType === 'm6' || chordType === 'm6/9') {
+            hasSeventh = true;
+            seventhInterval = 9;
+        }
+    } else if (chordType === '7' || chordType === '9' || chordType === '13') {
+        // Dominant 7th - omit the fifth
+        thirdInterval = 4;
+        hasSeventh = true;
+        seventhInterval = 10;
+        hasFifth = false; // Omit fifth on dominant 7th
+    } else if (chordType.includes('dim')) {
+        // Diminished
+        thirdInterval = 3;
+        fifthInterval = 6;
+        if (chordType === 'dim7') {
+            hasSeventh = true;
+            seventhInterval = 9; // Diminished 7th
+        }
+    } else if (chordType.includes('ø') || chordType === 'ø7') {
+        // Half-diminished
+        thirdInterval = 3;
+        fifthInterval = 6;
+        hasSeventh = true;
+        seventhInterval = 10;
+    } else if (chordType.includes('aug') || chordType === '+') {
+        // Augmented
+        thirdInterval = 4;
+        fifthInterval = 8;
+    } else if (chordType.includes('sus4')) {
+        // Sus4 - no third, use 4th instead
+        hasThird = false;
+        // Note: Don't add fourth here, we'll add it along with the fifth
+        if (chordType.includes('7')) {
+            hasSeventh = true;
+            seventhInterval = 10;
+        }
+    } else if (chordType.includes('sus2')) {
+        // Sus2 - no third, use 2nd instead
+        hasThird = false;
+        // Note: Don't add second here, we'll add it along with the fifth
+        if (chordType.includes('7')) {
+            hasSeventh = true;
+            seventhInterval = 10;
+        }
+    }
+    
+    // Voice the chord with proper octave placement
+    // 3rd and 7th should be in the G3-A4 range (MIDI 55-69)
+    // This means we need to add at least one octave to get into the right range
+    
+    // Add third (if present) OR suspended interval for sus chords
+    // Place in upper octave (G3-A4 range)
+    if (hasThird) {
+        // Add octave to get into G3-A4 range
+        const octaveAdjust = Math.floor((55 - (rootMIDI + thirdInterval)) / 12) + 1;
+        addInterval(thirdInterval, octaveAdjust);
+    } else if (chordType.includes('sus4')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + 5)) / 12) + 1;
+        addInterval(5, octaveAdjust); // Perfect 4th (5 semitones) for sus4
+    } else if (chordType.includes('sus2')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + 2)) / 12) + 1;
+        addInterval(2, octaveAdjust); // Major 2nd (2 semitones) for sus2
+    }
+    
+    // Add seventh (if present) - also in G3-A4 range
+    if (hasSeventh && seventhInterval !== null) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + seventhInterval)) / 12) + 1;
+        addInterval(seventhInterval, octaveAdjust);
+    }
+    
+    // Add fifth (if present) - place between 3rd and 7th
+    // Note: Fifth is omitted on dominant 7th chords, included on minor 7th
+    if (hasFifth) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + fifthInterval)) / 12) + 1;
+        addInterval(fifthInterval, octaveAdjust);
+    }
+    
+    // Add extensions - place above 7th
+    if (chordType.includes('9') || chordType === '6/9' || chordType === 'm6/9') {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + 2)) / 12) + 2; // Higher octave for extensions
+        addInterval(2, octaveAdjust); // 9th = one octave above 2nd
+    }
+    
+    if (chordType.includes('b9')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + 1)) / 12) + 2;
+        addInterval(1, octaveAdjust); // Flat 9
+    }
+    
+    if (chordType.includes('#9')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + 3)) / 12) + 2;
+        addInterval(3, octaveAdjust); // Sharp 9
+    }
+    
+    if (chordType.includes('11') || chordType.includes('#11')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + (chordType.includes('#11') ? 6 : 5))) / 12) + 2;
+        addInterval(chordType.includes('#11') ? 6 : 5, octaveAdjust); // 11th or #11
+    }
+    
+    if (chordType.includes('13')) {
+        const octaveAdjust = Math.floor((55 - (rootMIDI + (chordType.includes('b13') ? 8 : 9))) / 12) + 2;
+        addInterval(chordType.includes('b13') ? 8 : 9, octaveAdjust); // 13th or b13
+    }
+    
+    // Handle inversion (bass note)
+    if (inversion) {
+        const bassNote = noteNameToSemitone(inversion) + (rootOctave) * 12; // One octave lower
+        notes.unshift(bassNote);
+    }
+    
+    // Ensure notes are unique and sorted
+    const uniqueNotes = [...new Set(notes)].sort((a, b) => a - b);
+    
+    // Limit to reasonable range (MIDI 24-96, C1-C7)
+    return uniqueNotes.filter(n => n >= 24 && n <= 96);
 }
