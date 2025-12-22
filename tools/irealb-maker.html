@@ -2630,17 +2630,20 @@
                 const date = new Date(song.timestamp).toLocaleDateString();
                 const time = new Date(song.timestamp).toLocaleTimeString();
                 html += `
-                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;" 
-                         tabindex="0"
-                         role="button"
-                         aria-label="Load ${song.name || 'Untitled'} from ${date}">
-                        <div style="flex: 1;" onclick="loadSongFromStorage(${index})" onkeydown="if(event.key==='Enter' && event.target.tagName !== 'BUTTON') loadSongFromStorage(${index})">
+                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;" 
+                         role="group"
+                         aria-label="${song.name || 'Untitled'} saved on ${date}">
+                        <button style="flex: 1; text-align: left; background: transparent; border: none; cursor: pointer; padding: 0;" 
+                                onclick="loadSongFromStorage(${index})"
+                                tabindex="0"
+                                aria-label="Load ${song.name || 'Untitled'} from ${date}">
                             <div style="font-weight: bold; font-size: 1.1em;">${song.name || 'Untitled'}</div>
                             <div style="color: #666; font-size: 0.9em;">Saved: ${date} ${time}</div>
                             <div style="color: #999; font-size: 0.85em;">${song.recordedChords?.length || 0} chords</div>
-                        </div>
-                        <button onclick="event.stopPropagation(); deleteSongFromStorage(${index})" 
+                        </button>
+                        <button onclick="deleteSongFromStorage(${index})" 
                                 class="btn btn-danger" 
+                                tabindex="0"
                                 style="margin-left: 10px; padding: 5px 10px;"
                                 aria-label="Delete ${song.name || 'Untitled'}">
                             🗑️ Delete
@@ -2653,11 +2656,11 @@
             songList.innerHTML = html;
             modal.style.display = 'flex';
             
-            // Focus the first song item after modal is displayed
+            // Focus the first load button after modal is displayed
             setTimeout(() => {
-                const firstItem = songList.querySelector('.song-item');
-                if (firstItem) {
-                    firstItem.focus();
+                const firstButton = songList.querySelector('button[aria-label^="Load"]');
+                if (firstButton) {
+                    firstButton.focus();
                 }
             }, 100);
             
@@ -3397,6 +3400,10 @@
                     
                     case ' ':
                         // Spacebar - Play/pause chord playback
+                        // Don't intercept if focus is on a button (let button handle it)
+                        if (e.target.tagName === 'BUTTON') {
+                            return;
+                        }
                         e.preventDefault();
                         togglePlayback();
                         break;
