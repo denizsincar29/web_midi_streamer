@@ -591,17 +591,18 @@
                     }
                 }
                 
-                // Record chord on each beat during recording (not just at measure end)
+                // Record chord on beat if chord has changed during recording
                 if (isRecording && !isCountingIn && currentChord) {
                     const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                     const chordText = currentChord.type ? `${currentChord.root}${currentChord.type}` : currentChord.root;
                     const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
                     
-                    // Only record if chord has changed or it's a new beat
-                    if (chordText !== lastChordText || (lastRecordedChord && lastRecordedChord.beat !== currentBeat)) {
+                    // Only record if chord has changed from the last recorded chord
+                    if (chordText !== lastChordText) {
+                        const beatNum = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
                         const chordEntry = {
                             measure: actualMeasure,
-                            beat: currentBeat || getTimeSignatureInfo().numerator, // Beat 0 means last beat of measure
+                            beat: beatNum,
                             chord: currentChord,
                             inversion: ''
                         };
@@ -643,7 +644,7 @@
                     const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
                     const inversionText = item.inversion ? `/${item.inversion}` : '';
                     const beatInfo = item.beat ? `:${item.beat}` : '';
-                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat || 'end'}">
+                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat}">
                         <span class="measure-num">M${item.measure}${beatInfo}:</span>
                         <span class="chord-text">${chordText}${inversionText}</span>
                         <div class="chord-item-actions">
