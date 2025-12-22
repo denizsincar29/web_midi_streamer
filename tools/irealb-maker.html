@@ -485,8 +485,14 @@
                         }
                     } else if (currentMeasure === 1) {
                         // Second measure: announce all beats
-                        const beatNames = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
-                        announceCount(beatNames[currentBeat] || currentBeat.toString());
+                        if (numerator === 4) {
+                            // For 4/4, use beat names
+                            const beatNames = ['', 'one', 'two', 'three', 'four'];
+                            announceCount(beatNames[currentBeat] || currentBeat.toString());
+                        } else {
+                            // For other time signatures, use numbers
+                            announceCount(currentBeat.toString());
+                        }
                     }
                 }
                 

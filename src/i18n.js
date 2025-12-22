@@ -281,7 +281,6 @@ export const translations = {
         'tools.irealbMaker': 'Создатель iRealPro',
         'tools.irealbMakerDesc': 'Создавайте аккордовые схемы iRealPro, записывая ваши аккордовые прогрессии с метрономом.',
         'tools.help': 'Справка',
-        'tools.help': 'Справка',
         'header.tools': '🎹 Инструменты',
         
         // Nord Effects Controller
