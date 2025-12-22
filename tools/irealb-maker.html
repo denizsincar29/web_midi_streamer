@@ -534,6 +534,13 @@
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
                         <div><strong>S</strong>: Add section</div>
+                        <div><strong>Backspace</strong>: Delete current chord</div>
+                        <div><strong>Delete</strong>: Delete marker range</div>
+                        <div><strong>Shift+Backspace</strong>: Delete section</div>
+                        <div><strong>Ctrl+X</strong>: Cut (marker range)</div>
+                        <div><strong>Ctrl+C</strong>: Copy (marker range)</div>
+                        <div><strong>Ctrl+V</strong>: Paste at cursor</div>
+                        <div><strong>Ctrl+Shift+E</strong>: Focus workspace</div>
                         <div><strong>Shift+S</strong>: Save to storage</div>
                         <div><strong>Shift+O</strong>: Open from storage</div>
                         <div><strong>Shift+D</strong>: Download iReal</div>
@@ -543,7 +550,6 @@
                         <div><strong>Ctrl+←/→</strong>: Jump measures</div>
                         <div><strong>[</strong>: Set start marker</div>
                         <div><strong>]</strong>: Set end marker</div>
-                        <div><strong>Delete</strong>: Delete chord</div>
                         <div><strong>Esc</strong>: Cancel</div>
                     </div>
                 </div>
@@ -555,10 +561,6 @@
                 </div>
             </div>
         </main>
-
-        <footer>
-            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
-        </footer>
     </div>
 
     <script type="module">
@@ -587,6 +589,9 @@
         let chordNotesPressed = new Set(); // Notes that were pressed for current chord
         let chordBeatPosition = null; // Beat when first note of chord was pressed
         let chordMeasurePosition = null; // Measure when first note of chord was pressed
+        
+        // Clipboard for cut/copy/paste operations
+        let clipboardChords = [];
         
         // Chord detection algorithm is now imported from chord-utils.js
         
@@ -923,14 +928,16 @@
                     }
                     break;
                     
-                case 'Delete':
                 case 'Backspace':
-                    // Delete chord
-                    e.preventDefault();
-                    const deleteIndex = cells[currentIndex].getAttribute('data-index');
-                    if (deleteIndex !== null) {
-                        deleteChord(parseInt(deleteIndex));
+                    // Backspace: Delete current chord only
+                    if (!e.shiftKey) {
+                        e.preventDefault();
+                        const deleteIndex = cells[currentIndex].getAttribute('data-index');
+                        if (deleteIndex !== null) {
+                            deleteChord(parseInt(deleteIndex));
+                        }
                     }
+                    // Shift+Backspace handled in global handler
                     break;
                     
                 default:
@@ -2083,6 +2090,131 @@
             sectionInputMode = false;
         }
         
+        // Clipboard operations (cut, copy, paste)
+        function getMarkerRange() {
+            const startMeasure = parseInt(document.getElementById('startMeasure').value) || 1;
+            const endMeasure = parseInt(document.getElementById('endMeasure').value) || parseInt(document.getElementById('totalMeasures').value) || 32;
+            return { start: startMeasure, end: endMeasure };
+        }
+        
+        function copyChords() {
+            const range = getMarkerRange();
+            clipboardChords = recordedChords.filter(chord => 
+                chord.measure >= range.start && chord.measure <= range.end
+            ).map(chord => ({...chord})); // Deep copy
+            
+            announceChange(`Copied ${clipboardChords.length} chord(s) from measures ${range.start} to ${range.end}`);
+        }
+        
+        function cutChords() {
+            const range = getMarkerRange();
+            clipboardChords = recordedChords.filter(chord => 
+                chord.measure >= range.start && chord.measure <= range.end
+            ).map(chord => ({...chord})); // Deep copy
+            
+            // Remove chords in range
+            recordedChords = recordedChords.filter(chord => 
+                chord.measure < range.start || chord.measure > range.end
+            );
+            
+            updateChordList();
+            announceChange(`Cut ${clipboardChords.length} chord(s) from measures ${range.start} to ${range.end}`);
+        }
+        
+        function pasteChords() {
+            if (clipboardChords.length === 0) {
+                announceChange('Clipboard is empty');
+                return;
+            }
+            
+            // Get the selected measure or use start marker
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            const targetMeasure = selectedCell ? 
+                parseInt(selectedCell.getAttribute('data-measure')) : 
+                parseInt(document.getElementById('startMeasure').value) || 1;
+            
+            // Calculate offset
+            const firstMeasure = Math.min(...clipboardChords.map(c => c.measure));
+            const offset = targetMeasure - firstMeasure;
+            
+            // Paste chords with offset
+            const pastedChords = clipboardChords.map(chord => ({
+                ...chord,
+                measure: chord.measure + offset
+            }));
+            
+            // Add to recorded chords
+            recordedChords.push(...pastedChords);
+            recordedChords.sort((a, b) => {
+                if (a.measure !== b.measure) return a.measure - b.measure;
+                return (a.beat || 1) - (b.beat || 1);
+            });
+            
+            updateChordList();
+            announceChange(`Pasted ${pastedChords.length} chord(s) at measure ${targetMeasure}`);
+        }
+        
+        function deleteMarkerRange() {
+            const range = getMarkerRange();
+            const beforeCount = recordedChords.length;
+            
+            recordedChords = recordedChords.filter(chord => 
+                chord.measure < range.start || chord.measure > range.end
+            );
+            
+            const deleted = beforeCount - recordedChords.length;
+            updateChordList();
+            announceChange(`Deleted ${deleted} chord(s) from measures ${range.start} to ${range.end}`);
+        }
+        
+        function deleteCurrentSection() {
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            
+            if (!selectedCell) {
+                announceChange('No chord selected');
+                return;
+            }
+            
+            const measure = parseInt(selectedCell.getAttribute('data-measure'));
+            const sectionInfo = getSectionForMeasure(measure);
+            
+            if (!sectionInfo) {
+                announceChange('No section found at current position');
+                return;
+            }
+            
+            // Get section range
+            const sectionRange = getSectionRangeByIndex(sectionInfo.index);
+            if (!sectionRange) {
+                announceChange('Could not determine section range');
+                return;
+            }
+            
+            // Delete all chords in this section
+            const beforeCount = recordedChords.length;
+            recordedChords = recordedChords.filter(chord => 
+                chord.measure < sectionRange.start || chord.measure > sectionRange.end
+            );
+            
+            // Delete the section definition
+            definedSections.splice(sectionInfo.index, 1);
+            
+            const deleted = beforeCount - recordedChords.length;
+            updateChordList();
+            updateSectionList();
+            announceChange(`Deleted section ${sectionInfo.type} and ${deleted} chord(s) from measures ${sectionRange.start} to ${sectionRange.end}`);
+        }
+        
+        function focusWorkspace() {
+            const workspace = document.getElementById('chordSequenceSection');
+            if (workspace) {
+                workspace.focus();
+                announceChange('Workspace focused. Use keyboard shortcuts to navigate and edit chords.');
+            }
+        }
+        
         // Update translations
         function updateTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(element => {
@@ -2113,8 +2245,42 @@
                 return;
             }
             
-            // Shift key combinations
-            if (e.shiftKey) {
+            // Ctrl+Shift combinations (must check before Shift or Ctrl alone)
+            if (e.ctrlKey && e.shiftKey) {
+                if (e.key.toUpperCase() === 'E') {
+                    // Ctrl+Shift+E: Focus workspace
+                    e.preventDefault();
+                    focusWorkspace();
+                    return;
+                }
+            }
+            
+            // Ctrl key combinations (without Shift)
+            if (e.ctrlKey && !e.shiftKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'x':
+                        // Ctrl+X: Cut
+                        e.preventDefault();
+                        cutChords();
+                        break;
+                        
+                    case 'c':
+                        // Ctrl+C: Copy
+                        e.preventDefault();
+                        copyChords();
+                        break;
+                        
+                    case 'v':
+                        // Ctrl+V: Paste
+                        e.preventDefault();
+                        pasteChords();
+                        break;
+                }
+                return;
+            }
+            
+            // Shift key combinations (without Ctrl)
+            if (e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toUpperCase()) {
                     case 'E':
                         // Shift+E: Edit chord via keyboard
@@ -2129,6 +2295,12 @@
                         } else {
                             announceChange('No chord selected. Use arrow keys to select a chord first.');
                         }
+                        break;
+                    
+                    case 'BACKSPACE':
+                        // Shift+Backspace: Delete current section
+                        e.preventDefault();
+                        deleteCurrentSection();
                         break;
                         
                     case 'S':
@@ -2177,62 +2349,70 @@
                 return;
             }
             
-            // Regular key shortcuts (no shift)
-            switch(e.key.toLowerCase()) {
-                case 'r':
-                    // R key - Record/Stop
-                    e.preventDefault();
-                    if (isRecording || isCountingIn) {
-                        document.getElementById('stopBtn').click();
-                        announceChange('Recording stopped');
-                    } else {
-                        document.getElementById('startBtn').click();
-                        announceChange('Recording started');
-                    }
-                    break;
-                    
-                case 's':
-                    // S key - Add section (next key determines type)
-                    e.preventDefault();
-                    sectionInputMode = true;
-                    announceChange('Section input mode: Press A for section A, B, C, D, Q for Coda, I for Intro, etc.');
-                    break;
-                    
-                case 'e':
-                    // E key - Edit chord via MIDI
-                    e.preventDefault();
-                    const cells = document.querySelectorAll('.chord-cell');
-                    const selectedCell = document.querySelector('.chord-cell.selected');
-                    if (selectedCell) {
-                        const dataIndex = selectedCell.getAttribute('data-index');
-                        if (dataIndex !== null) {
-                            editChord(parseInt(dataIndex), false);
+            // Regular key shortcuts (no shift, no ctrl)
+            if (!e.shiftKey && !e.ctrlKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'r':
+                        // R key - Record/Stop
+                        e.preventDefault();
+                        if (isRecording || isCountingIn) {
+                            document.getElementById('stopBtn').click();
+                            announceChange('Recording stopped');
+                        } else {
+                            document.getElementById('startBtn').click();
+                            announceChange('Recording started');
                         }
-                    } else {
-                        announceChange('No chord selected. Use arrow keys to select a chord first.');
-                    }
-                    break;
-                    
-                case 'escape':
-                    // Escape - Cancel various modes
-                    e.preventDefault();
-                    if (editingChordIndex !== -1) {
-                        editingChordIndex = -1;
-                        editingChordNotes.clear();
-                        allEditNotes.clear();
-                        announceChange('Edit mode cancelled');
+                        break;
                         
-                        // Remove visual feedback
+                    case 's':
+                        // S key - Add section (next key determines type)
+                        e.preventDefault();
+                        sectionInputMode = true;
+                        announceChange('Section input mode: Press A for section A, B, C, D, Q for Coda, I for Intro, etc.');
+                        break;
+                        
+                    case 'e':
+                        // E key - Edit chord via MIDI
+                        e.preventDefault();
                         const cells = document.querySelectorAll('.chord-cell');
-                        cells.forEach(cell => {
-                            cell.style.background = '';
-                            cell.style.animation = '';
-                        });
-                    } else if (sectionInputMode) {
-                        sectionInputMode = false;
-                        announceChange('Section input cancelled');
-                    }
-                    break;
+                        const selectedCell = document.querySelector('.chord-cell.selected');
+                        if (selectedCell) {
+                            const dataIndex = selectedCell.getAttribute('data-index');
+                            if (dataIndex !== null) {
+                                editChord(parseInt(dataIndex), false);
+                            }
+                        } else {
+                            announceChange('No chord selected. Use arrow keys to select a chord first.');
+                        }
+                        break;
+                    
+                    case 'delete':
+                        // Delete key - Delete entire marker range
+                        e.preventDefault();
+                        deleteMarkerRange();
+                        break;
+                        
+                    case 'escape':
+                        // Escape - Cancel various modes
+                        e.preventDefault();
+                        if (editingChordIndex !== -1) {
+                            editingChordIndex = -1;
+                            editingChordNotes.clear();
+                            allEditNotes.clear();
+                            announceChange('Edit mode cancelled');
+                            
+                            // Remove visual feedback
+                            const cells = document.querySelectorAll('.chord-cell');
+                            cells.forEach(cell => {
+                                cell.style.background = '';
+                                cell.style.animation = '';
+                            });
+                        } else if (sectionInputMode) {
+                            sectionInputMode = false;
+                            announceChange('Section input cancelled');
+                        }
+                        break;
+                }
             }
         });
         
