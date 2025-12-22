@@ -363,6 +363,7 @@
         let currentMeasure = 0;
         let audioContext = null;
         let metronomeInterval = null;
+        let lastRecordedChord = null; // Track last chord to avoid duplicates
         
         // MIDI note number to note name mapping
         const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -586,16 +587,26 @@
                         isRecording = true;
                         updateStatusMessage('Recording...', true);
                         announceCount('Recording started');
+                        lastRecordedChord = null; // Reset on recording start
                     }
+                }
+                
+                // Record chord on each beat during recording (not just at measure end)
+                if (isRecording && !isCountingIn && currentChord) {
+                    const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
+                    const chordText = currentChord.type ? `${currentChord.root}${currentChord.type}` : currentChord.root;
+                    const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
                     
-                    // Record chord at the end of each measure during recording
-                    if (isRecording && !isCountingIn && currentChord) {
-                        const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
-                        recordedChords.push({
+                    // Only record if chord has changed or it's a new beat
+                    if (chordText !== lastChordText || (lastRecordedChord && lastRecordedChord.beat !== currentBeat)) {
+                        const chordEntry = {
                             measure: actualMeasure,
+                            beat: currentBeat || getTimeSignatureInfo().numerator, // Beat 0 means last beat of measure
                             chord: currentChord,
                             inversion: ''
-                        });
+                        };
+                        recordedChords.push(chordEntry);
+                        lastRecordedChord = chordEntry;
                         updateChordList();
                     }
                 }
@@ -631,8 +642,9 @@
                 chordList.innerHTML = recordedChords.map((item, index) => {
                     const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
                     const inversionText = item.inversion ? `/${item.inversion}` : '';
-                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure}">
-                        <span class="measure-num">M${item.measure}:</span>
+                    const beatInfo = item.beat ? `:${item.beat}` : '';
+                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat || 'end'}">
+                        <span class="measure-num">M${item.measure}${beatInfo}:</span>
                         <span class="chord-text">${chordText}${inversionText}</span>
                         <div class="chord-item-actions">
                             <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
@@ -784,17 +796,38 @@
             const author = document.getElementById('authorName').value || '';
             const { numerator, denominator } = getTimeSignatureInfo();
             
-            // Build chord string
-            let chordString = '';
-            for (let i = 0; i < recordedChords.length; i++) {
-                chordString += chordToIRealb(recordedChords[i]);
-                // Add measure separator
-                if ((i + 1) % 4 === 0) {
-                    chordString += '|';
-                } else {
-                    chordString += ' ';
+            // Group chords by measure
+            const chordsByMeasure = {};
+            recordedChords.forEach(item => {
+                if (!chordsByMeasure[item.measure]) {
+                    chordsByMeasure[item.measure] = [];
                 }
-            }
+                chordsByMeasure[item.measure].push(item);
+            });
+            
+            // Build chord string with multiple chords per measure
+            let chordString = '';
+            const measures = Object.keys(chordsByMeasure).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            measures.forEach((measureNum, measureIndex) => {
+                const chordsInMeasure = chordsByMeasure[measureNum];
+                
+                // Sort chords by beat within the measure
+                chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
+                
+                // Add chords with spacing based on beats
+                chordsInMeasure.forEach((item, chordIndex) => {
+                    chordString += chordToIRealb(item);
+                    
+                    // Add space between chords in the same measure
+                    if (chordIndex < chordsInMeasure.length - 1) {
+                        chordString += ' ';
+                    }
+                });
+                
+                // Add measure separator (every measure gets a bar)
+                chordString += '|';
+            });
             
             // iRealb format: irealb://SongName=Author=Style=Key=TimeSignature=ChordData
             const irealbUrl = `irealb://${encodeURIComponent(songName)}=${encodeURIComponent(author)}=Medium Swing=${encodeURIComponent('C')}=${numerator}${denominator}=${encodeURIComponent(chordString)}`;
@@ -863,11 +896,27 @@
             <p><strong>Time Signature:</strong> ${getTimeSignatureInfo().numerator}/${getTimeSignatureInfo().denominator}</p>
         </div>
         <div class="chords">
-            ${recordedChords.map(item => {
-                const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
-                const inversionText = item.inversion ? `/${item.inversion}` : '';
-                return `<div class="chord-cell">${chordText}${inversionText}</div>`;
-            }).join('')}
+            ${(() => {
+                // Group chords by measure for display
+                const chordsByMeasure = {};
+                recordedChords.forEach(item => {
+                    if (!chordsByMeasure[item.measure]) {
+                        chordsByMeasure[item.measure] = [];
+                    }
+                    chordsByMeasure[item.measure].push(item);
+                });
+                
+                const measures = Object.keys(chordsByMeasure).sort((a, b) => parseInt(a) - parseInt(b));
+                return measures.map(measureNum => {
+                    const chordsInMeasure = chordsByMeasure[measureNum];
+                    const chordTexts = chordsInMeasure.map(item => {
+                        const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                        const inversionText = item.inversion ? `/${item.inversion}` : '';
+                        return `${chordText}${inversionText}`;
+                    }).join(' ');
+                    return `<div class="chord-cell">${chordTexts}</div>`;
+                }).join('');
+            })()}
         </div>
         <div class="irealb-link">
             <p><strong>iRealPro Link:</strong></p>
@@ -985,6 +1034,7 @@
             
             initAudio();
             recordedChords = [];
+            lastRecordedChord = null;
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -1016,6 +1066,7 @@
             isCountingIn = false;
             recordedChords = [];
             currentChord = null;
+            lastRecordedChord = null;
             updateChordList();
             updateStatusMessage('', false);
             document.getElementById('chordName').innerHTML = `<span class="placeholder-text">${t('irealbMaker.readyToRecord')}</span>`;
