@@ -586,16 +586,6 @@
                                 <div class="time-signature-help">Select the key signature for your song</div>
                             </div>
                             
-                            <!-- Tempo Settings -->
-                            <div class="form-group">
-                                <label for="wizard-bpm">BPM (Tempo):</label>
-                                <input type="number" id="wizard-bpm" value="120" min="40" max="240" step="1">
-                                <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
-                                <div class="time-signature-help" style="font-weight: bold; color: #667eea;">
-                                    ⚠️ Note: BPM is for metronome during recording only, not saved to iReal Pro file
-                                </div>
-                            </div>
-                            
                             <!-- Song Length -->
                             <div class="form-group">
                                 <label for="wizard-totalMeasures">Total Measures in Song:</label>
@@ -604,7 +594,7 @@
                             </div>
                             
                             <div class="time-signature-help" style="margin-top: 20px; padding: 10px; background: #f0f4ff; border-radius: 6px;">
-                                <strong>Note:</strong> Use [ and ] keys during editing to set start/end recording markers on specific measures.
+                                <strong>Note:</strong> Use [ and ] keys during editing to set start/end recording markers on specific measures. Press T to set tempo (BPM) for metronome.
                             </div>
                         </div>
                     </div>
@@ -964,6 +954,15 @@
                 const isEmptyMeasure = cells[index].classList.contains('empty-measure');
                 const voltaEnding = voltaEndings.find(v => v.measure === parseInt(measure));
                 
+                // Find the section this measure belongs to
+                let sectionInfo = null;
+                for (let i = definedSections.length - 1; i >= 0; i--) {
+                    if (definedSections[i].measure <= parseInt(measure)) {
+                        sectionInfo = definedSections[i];
+                        break;
+                    }
+                }
+                
                 let announcement = '';
                 if (isEmptyMeasure || chordName === '—') {
                     // Empty measure announcement
@@ -978,6 +977,11 @@
                     if (beatAttr && beatAttr !== '') {
                         announcement += `, ${t('irealbMaker.beat')} ${beatAttr}`;
                     }
+                }
+                
+                // Add section information
+                if (sectionInfo) {
+                    announcement += `, section ${sectionInfo.type}`;
                 }
                 
                 // Add volta ending information
@@ -2808,7 +2812,7 @@
                     document.getElementById('timeSignature').value = document.getElementById('wizard-timeSignature')?.value || '44';
                     document.getElementById('musicStyle').value = document.getElementById('wizard-musicStyle')?.value || 'Medium Swing';
                     document.getElementById('keySignature').value = document.getElementById('wizard-keySignature')?.value || 'C';
-                    document.getElementById('bpm').value = document.getElementById('wizard-bpm')?.value || '120';
+                    document.getElementById('bpm').value = '120'; // Default BPM, can be changed with T key
                     document.getElementById('totalMeasures').value = document.getElementById('wizard-totalMeasures')?.value || '32';
                     // Note: startMeasure and endMeasure are set via [ and ] keyboard markers during editing, not in wizard
                 }
