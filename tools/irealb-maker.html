@@ -2663,16 +2663,18 @@
             
             // Copy form content into wizard if not already done
             if (wizardContent.children.length === 0) {
-                // Clone the song information section
-                const songInfoSection = document.querySelector('.chord-sequence:first-of-type');
-                const metronomeSection = document.querySelector('.chord-sequence:nth-of-type(2)');
-                const songLengthSection = document.querySelector('.chord-sequence:nth-of-type(3)');
+                // Clone the song information section - use ID for more reliable selection
+                const songInfoSection = document.querySelector('#songName')?.closest('.chord-sequence');
+                const metronomeSection = document.querySelector('#bpm')?.closest('.chord-sequence');
+                const songLengthSection = document.querySelector('#totalMeasures')?.closest('.chord-sequence');
                 
                 if (songInfoSection) {
                     const clone = songInfoSection.cloneNode(true);
                     // Update IDs to avoid conflicts
                     clone.querySelectorAll('[id]').forEach(el => {
-                        el.id = 'wizard-' + el.id;
+                        if (!el.id.startsWith('wizard-')) {
+                            el.id = 'wizard-' + el.id;
+                        }
                     });
                     wizardContent.appendChild(clone);
                 }
@@ -2680,7 +2682,9 @@
                 if (metronomeSection) {
                     const clone = metronomeSection.cloneNode(true);
                     clone.querySelectorAll('[id]').forEach(el => {
-                        el.id = 'wizard-' + el.id;
+                        if (!el.id.startsWith('wizard-')) {
+                            el.id = 'wizard-' + el.id;
+                        }
                     });
                     wizardContent.appendChild(clone);
                 }
@@ -2688,10 +2692,12 @@
                 if (songLengthSection) {
                     const clone = songLengthSection.cloneNode(true);
                     clone.querySelectorAll('[id]').forEach(el => {
-                        el.id = 'wizard-' + el.id;
+                        if (!el.id.startsWith('wizard-')) {
+                            el.id = 'wizard-' + el.id;
+                        }
                     });
                     // Hide the "Add Section" button in wizard - we'll use S key instead
-                    const addSectionBtn = clone.querySelector('#wizard-addSectionBtn');
+                    const addSectionBtn = clone.querySelector('[id*="addSectionBtn"]');
                     if (addSectionBtn) {
                         addSectionBtn.style.display = 'none';
                     }
@@ -2713,11 +2719,17 @@
             document.body.classList.add('editing-mode');
             closeSetupWizard();
             
-            // Hide all setup sections
-            document.querySelectorAll('.chord-sequence:not(.workspace), .device-group').forEach(el => {
-                if (el.id !== 'chordSequenceSection') {
+            // Hide setup sections - specifically target non-workspace sections
+            const sectionsToHide = document.querySelectorAll('.irealb-maker-section > .chord-sequence');
+            sectionsToHide.forEach(el => {
+                if (el.id !== 'chordSequenceSection' && !el.classList.contains('workspace')) {
                     el.style.display = 'none';
                 }
+            });
+            
+            // Hide device group
+            document.querySelectorAll('.device-group').forEach(el => {
+                el.style.display = 'none';
             });
             
             // Show workspace
@@ -2813,7 +2825,12 @@
                 playbackInterval = setInterval(() => {
                     if (currentIndex >= cells.length) {
                         // Reached end, stop playback
-                        togglePlayback();
+                        isPlayingBack = false;
+                        if (playbackInterval) {
+                            clearInterval(playbackInterval);
+                            playbackInterval = null;
+                        }
+                        announceChange('Playback completed');
                         return;
                     }
                     
@@ -2883,16 +2900,28 @@
                 modal.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
                         e.preventDefault();
-                        modal.classList.remove('active');
-                        announceChange('Modal closed');
+                        // Call appropriate close function based on modal
+                        if (modal.id === 'setupWizardModal') {
+                            closeSetupWizard();
+                        } else if (modal.id === 'tempoModal') {
+                            closeTempoModal();
+                        } else if (modal.id === 'midiDeviceModal') {
+                            closeMidiDeviceModal();
+                        }
                     }
                 });
                 
                 // Close modal when clicking overlay (outside dialog)
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
-                        modal.classList.remove('active');
-                        announceChange('Modal closed');
+                        // Call appropriate close function based on modal
+                        if (modal.id === 'setupWizardModal') {
+                            closeSetupWizard();
+                        } else if (modal.id === 'tempoModal') {
+                            closeTempoModal();
+                        } else if (modal.id === 'midiDeviceModal') {
+                            closeMidiDeviceModal();
+                        }
                     }
                 });
             });
