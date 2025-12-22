@@ -880,6 +880,40 @@
                         const endMeasure = parseInt(document.getElementById('endMeasure').value);
                         const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                         
+                        // Check if we've reached a volta2 start measure
+                        // If so, pause metronome and focus on volta2 to help user record the second ending
+                        for (const region of repeatRegions) {
+                            if (actualMeasure === region.volta2Start && !window.volta2ReachedFlag) {
+                                // Pause the metronome
+                                stopMetronome();
+                                isRecording = false;
+                                isCountingIn = false;
+                                updateStatusMessage('Paused at second ending (volta 2)', false);
+                                
+                                // Focus on the volta2 measure
+                                const cells = document.querySelectorAll('.chord-cell');
+                                for (let i = 0; i < cells.length; i++) {
+                                    const cellMeasure = parseInt(cells[i].getAttribute('data-measure'));
+                                    if (cellMeasure === region.volta2Start) {
+                                        setTimeout(() => {
+                                            selectChord(i);
+                                            announceCount(`Second ending, measure ${region.volta2Start}. Press R to continue recording.`);
+                                        }, 100);
+                                        break;
+                                    }
+                                }
+                                
+                                // Set flag to prevent re-triggering
+                                window.volta2ReachedFlag = true;
+                                
+                                document.getElementById('startBtn').disabled = false;
+                                document.getElementById('stopBtn').disabled = true;
+                                document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+                                
+                                return; // Exit early to prevent other checks
+                            }
+                        }
+                        
                         // Check for new section and announce it
                         const sectionInfo = getSectionForMeasure(actualMeasure);
                         if (sectionInfo) {
@@ -2407,6 +2441,7 @@
             chordMeasurePosition = null;
             activeNotes.clear();
             window.lastAnnouncedSectionId = null; // Reset section announcement tracker
+            window.volta2ReachedFlag = false; // Reset volta2 pause flag for new recording
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -2423,6 +2458,7 @@
             updateStatusMessage('Recording stopped', false);
             announceCount('Recording stopped');
             window.lastAnnouncedSectionId = null; // Reset for next recording
+            window.volta2ReachedFlag = false; // Reset volta2 pause flag
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
