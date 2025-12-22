@@ -705,7 +705,7 @@
                         isCountingIn = false;
                         isRecording = true;
                         updateStatusMessage('Recording...', true);
-                        announceCount('Recording started');
+                        // Don't announce "Recording started" - user knows from last count-in beat
                         lastRecordedChord = null; // Reset on recording start
                     }
                     
@@ -714,13 +714,25 @@
                         const endMeasure = parseInt(document.getElementById('endMeasure').value);
                         const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                         
+                        // Check for new section and announce it
+                        const sectionForMeasure = getSectionForMeasure(actualMeasure);
+                        if (sectionForMeasure && sectionForMeasure !== window.lastAnnouncedSection) {
+                            // Announce section change quickly
+                            if (sectionForMeasure.length === 1) {
+                                announceCount(`Section ${sectionForMeasure}`);
+                            } else {
+                                announceCount(sectionForMeasure);
+                            }
+                            window.lastAnnouncedSection = sectionForMeasure;
+                        }
+                        
                         if (endMeasure && actualMeasure > endMeasure) {
                             // Stop recording automatically
                             stopMetronome();
                             isRecording = false;
                             isCountingIn = false;
                             updateStatusMessage('Recording stopped (end measure reached)', false);
-                            announceCount('Recording stopped - end measure reached');
+                            announceCount('Recording stopped');
                             
                             document.getElementById('startBtn').disabled = false;
                             document.getElementById('stopBtn').disabled = true;
@@ -761,13 +773,16 @@
                     const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
                     const inversionText = item.inversion ? `/${item.inversion}` : '';
                     const beatInfo = item.beat ? `:${item.beat}` : '';
-                    const sectionLabel = item.section ? `[${item.section}] ` : '';
+                    // Don't show section in chord list UI - sections only visible in progression
                     return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat}">
-                        <span class="measure-num">${sectionLabel}M${item.measure}${beatInfo}:</span>
+                        <span class="measure-num">M${item.measure}${beatInfo}:</span>
                         <span class="chord-text">${chordText}${inversionText}</span>
                         <div class="chord-item-actions">
-                            <button class="chord-item-btn" onclick="markSection(${index})" aria-label="Mark section at measure ${item.measure}" title="Mark Section">
-                                §
+                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'start')" aria-label="Set start recording marker at measure ${item.measure}" title="Set Start">
+                                ⏩
+                            </button>
+                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'end')" aria-label="Set end recording marker at measure ${item.measure}" title="Set End">
+                                ⏹️
                             </button>
                             <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
                                 ✏️
@@ -783,6 +798,18 @@
                 }).join('');
             } else {
                 section.style.display = 'none';
+            }
+        }
+        
+        // Set recording marker function
+        function setRecordMarker(index, type) {
+            const item = recordedChords[index];
+            if (type === 'start') {
+                document.getElementById('startMeasure').value = item.measure;
+                announceChange(`Start recording marker set to measure ${item.measure}`);
+            } else if (type === 'end') {
+                document.getElementById('endMeasure').value = item.measure;
+                announceChange(`End recording marker set to measure ${item.measure}`);
             }
         }
         
@@ -1358,6 +1385,7 @@
             chordBeatPosition = null;
             chordMeasurePosition = null;
             activeNotes.clear();
+            window.lastAnnouncedSection = null; // Reset section announcement tracker
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -1373,6 +1401,7 @@
             isCountingIn = false;
             updateStatusMessage('Recording stopped', false);
             announceCount('Recording stopped');
+            window.lastAnnouncedSection = null; // Reset for next recording
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
