@@ -364,6 +364,9 @@
         let audioContext = null;
         let metronomeInterval = null;
         let lastRecordedChord = null; // Track last chord to avoid duplicates
+        let chordNotesPressed = new Set(); // Notes that were pressed for current chord
+        let chordBeatPosition = null; // Beat when first note of chord was pressed
+        let chordMeasurePosition = null; // Measure when first note of chord was pressed
         
         // MIDI note number to note name mapping
         const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -588,27 +591,6 @@
                         updateStatusMessage('Recording...', true);
                         announceCount('Recording started');
                         lastRecordedChord = null; // Reset on recording start
-                    }
-                }
-                
-                // Record chord on beat if chord has changed during recording
-                if (isRecording && !isCountingIn && currentChord) {
-                    const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
-                    const chordText = currentChord.type ? `${currentChord.root}${currentChord.type}` : currentChord.root;
-                    const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
-                    
-                    // Only record if chord has changed from the last recorded chord
-                    if (chordText !== lastChordText) {
-                        const beatNum = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
-                        const chordEntry = {
-                            measure: actualMeasure,
-                            beat: beatNum,
-                            chord: currentChord,
-                            inversion: ''
-                        };
-                        recordedChords.push(chordEntry);
-                        lastRecordedChord = chordEntry;
-                        updateChordList();
                     }
                 }
             }, beatDuration);
@@ -998,11 +980,61 @@
             const command = status & 0xF0;
             
             if (command === 0x90 && velocity > 0) {
+                // Note ON
+                // If this is the first note pressed, capture the beat position
+                if (activeNotes.size === 0 && isRecording && !isCountingIn) {
+                    chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
+                    chordMeasurePosition = window.actualStartMeasure + (currentMeasure - 2);
+                    chordNotesPressed.clear(); // Start fresh for new chord
+                }
+                
                 activeNotes.add(note);
+                chordNotesPressed.add(note); // Track this note as part of the chord
                 updateChordDisplay();
             } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                // Note OFF
                 activeNotes.delete(note);
-                updateChordDisplay();
+                
+                // When all notes are released, analyze and record the chord
+                if (activeNotes.size === 0 && chordNotesPressed.size > 0) {
+                    analyzeAndRecordChord();
+                    chordNotesPressed.clear();
+                    chordBeatPosition = null;
+                    chordMeasurePosition = null;
+                } else {
+                    updateChordDisplay();
+                }
+            }
+        }
+        
+        function analyzeAndRecordChord() {
+            if (!isRecording || isCountingIn || chordNotesPressed.size === 0) {
+                return;
+            }
+            
+            // Analyze the complete set of notes that were pressed
+            const noteNames = Array.from(chordNotesPressed)
+                .sort((a, b) => a - b)
+                .map(midiNoteToName);
+            
+            const chordInfo = detectChord(noteNames);
+            if (!chordInfo) return;
+            
+            const chordText = chordInfo.type ? `${chordInfo.root}${chordInfo.type}` : chordInfo.root;
+            const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
+            
+            // Only record if chord has changed from the last recorded chord
+            if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
+                const chordEntry = {
+                    measure: chordMeasurePosition,
+                    beat: chordBeatPosition,
+                    chord: chordInfo,
+                    inversion: ''
+                };
+                recordedChords.push(chordEntry);
+                lastRecordedChord = chordEntry;
+                updateChordList();
+                announceChange(`Chord ${chordText} recorded at measure ${chordMeasurePosition} beat ${chordBeatPosition}`);
             }
         }
         
@@ -1036,6 +1068,10 @@
             initAudio();
             recordedChords = [];
             lastRecordedChord = null;
+            chordNotesPressed.clear();
+            chordBeatPosition = null;
+            chordMeasurePosition = null;
+            activeNotes.clear();
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -1068,6 +1104,10 @@
             recordedChords = [];
             currentChord = null;
             lastRecordedChord = null;
+            chordNotesPressed.clear();
+            chordBeatPosition = null;
+            chordMeasurePosition = null;
+            activeNotes.clear();
             updateChordList();
             updateStatusMessage('', false);
             document.getElementById('chordName').innerHTML = `<span class="placeholder-text">${t('irealbMaker.readyToRecord')}</span>`;
