@@ -1288,6 +1288,11 @@
             const sectionList = document.getElementById('sectionList');
             const section = document.getElementById('sectionListSection');
             
+            // Safety check: if elements don't exist, just return
+            if (!sectionList || !section) {
+                return;
+            }
+            
             if (definedSections.length > 0) {
                 section.style.display = 'block';
                 sectionList.innerHTML = definedSections.map((item, index) => {
