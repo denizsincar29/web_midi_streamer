@@ -261,7 +261,6 @@ export function chordToMIDINotes(chord, inversion = null) {
     let thirdInterval = 4; // Major third by default
     let fifthInterval = 7; // Perfect fifth by default
     let seventhInterval = null;
-    let isDominant7 = false; // Track if this is a dominant 7th chord
     
     // Determine basic chord structure
     if (chordType === '' || chordType === 'maj' || chordType.startsWith('maj7') || chordType === '6' || chordType === '6/9') {
@@ -291,7 +290,6 @@ export function chordToMIDINotes(chord, inversion = null) {
         thirdInterval = 4;
         hasSeventh = true;
         seventhInterval = 10;
-        isDominant7 = true;
         hasFifth = false; // Omit fifth on dominant 7th
     } else if (chordType.includes('dim')) {
         // Diminished

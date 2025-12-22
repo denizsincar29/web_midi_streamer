@@ -3170,7 +3170,6 @@
             }
             
             // Select the chord visually (but don't announce it during playback)
-            const prevAnnouncements = document.getElementById('announcements').textContent;
             selectChord(playbackChordIndex);
             // Suppress the announcement during playback
             if (isPlayingBack) {
