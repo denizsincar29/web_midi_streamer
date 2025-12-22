@@ -312,6 +312,76 @@
             color: #666;
             margin-top: 5px;
         }
+        
+        /* Modal Dialog Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal-dialog {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        /* Setup Wizard Styles */
+        .setup-wizard {
+            display: none;
+        }
+        
+        .setup-wizard.active {
+            display: block;
+        }
+        
+        /* Hide form sections by default in editing mode */
+        .editing-mode .setup-sections {
+            display: none;
+        }
+        
+        .editing-mode .workspace {
+            display: block !important;
+        }
     </style>
 </head>
 <body>
@@ -547,6 +617,10 @@
                     <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
                         <div><strong>N</strong>: Focus workspace</div>
+                        <div><strong>T</strong>: Tempo settings</div>
+                        <div><strong>M</strong>: MIDI devices</div>
+                        <div><strong>Spacebar</strong>: Play/pause</div>
+                        <div><strong>Ctrl+,</strong>: Song settings</div>
                         <div><strong>R</strong>: Start/Stop Recording</div>
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
@@ -577,6 +651,63 @@
                 <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
                     <div class="chord-list" id="chordList" aria-hidden="true"></div>
+                </div>
+            </div>
+            
+            <!-- Setup Wizard Modal -->
+            <div id="setupWizardModal" class="modal-overlay">
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <h2>Song Setup</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div id="wizardContent">
+                            <!-- Content will be populated from existing forms -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="wizardCancelBtn" class="btn btn-secondary">Cancel</button>
+                        <button id="wizardDoneBtn" class="btn btn-primary">Start Editing</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo/BPM Settings Modal -->
+            <div id="tempoModal" class="modal-overlay">
+                <div class="modal-dialog" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h2>Tempo Settings</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="modalBpm">BPM (Tempo):</label>
+                            <input type="number" id="modalBpm" min="40" max="240" value="120" aria-label="Beats per minute">
+                            <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="tempoCloseBtn" class="btn btn-primary">Done</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MIDI Device Selection Modal -->
+            <div id="midiDeviceModal" class="modal-overlay">
+                <div class="modal-dialog" style="max-width: 400px;">
+                    <div class="modal-header">
+                        <h2>MIDI Devices</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="modalMidiInput">MIDI Input Device:</label>
+                            <select id="modalMidiInput" aria-label="Select MIDI input device">
+                                <option value="">No device selected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="midiDeviceCloseBtn" class="btn btn-primary">Done</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -1986,6 +2117,11 @@
                     updateChordList();
                     updateSectionList();
                     
+                    // Skip wizard and go straight to editing mode if chords were loaded
+                    if (recordedChords.length > 0) {
+                        startEditingMode();
+                    }
+                    
                     announceChange('Progress loaded from JSON file');
                 } catch (error) {
                     alert('Error loading JSON file: ' + error.message);
@@ -2328,6 +2464,12 @@
             // Ctrl key combinations (without Shift)
             if (e.ctrlKey && !e.shiftKey) {
                 switch(e.key.toLowerCase()) {
+                    case ',':
+                        // Ctrl+,: Open settings wizard
+                        e.preventDefault();
+                        openSetupWizard();
+                        break;
+                    
                     case 'x':
                         // Ctrl+X: Cut
                         e.preventDefault();
@@ -2446,6 +2588,24 @@
                         e.preventDefault();
                         focusWorkspace();
                         break;
+                    
+                    case 't':
+                        // T key - Open tempo/BPM settings
+                        e.preventDefault();
+                        openTempoModal();
+                        break;
+                    
+                    case 'm':
+                        // M key - Open MIDI device selection
+                        e.preventDefault();
+                        openMidiDeviceModal();
+                        break;
+                    
+                    case ' ':
+                        // Spacebar - Play/pause chord playback
+                        e.preventDefault();
+                        togglePlayback();
+                        break;
                         
                     case 'e':
                         // E key - Edit chord via MIDI
@@ -2492,6 +2652,177 @@
             }
         });
         
+        // Modal and UI Management Functions
+        let isEditingMode = false;
+        let isPlayingBack = false;
+        let playbackInterval = null;
+        
+        function openSetupWizard() {
+            const modal = document.getElementById('setupWizardModal');
+            const wizardContent = document.getElementById('wizardContent');
+            
+            // Copy form content into wizard if not already done
+            if (wizardContent.children.length === 0) {
+                // Clone the song information section
+                const songInfoSection = document.querySelector('.chord-sequence:first-of-type');
+                const metronomeSection = document.querySelector('.chord-sequence:nth-of-type(2)');
+                const songLengthSection = document.querySelector('.chord-sequence:nth-of-type(3)');
+                
+                if (songInfoSection) {
+                    const clone = songInfoSection.cloneNode(true);
+                    // Update IDs to avoid conflicts
+                    clone.querySelectorAll('[id]').forEach(el => {
+                        el.id = 'wizard-' + el.id;
+                    });
+                    wizardContent.appendChild(clone);
+                }
+                
+                if (metronomeSection) {
+                    const clone = metronomeSection.cloneNode(true);
+                    clone.querySelectorAll('[id]').forEach(el => {
+                        el.id = 'wizard-' + el.id;
+                    });
+                    wizardContent.appendChild(clone);
+                }
+                
+                if (songLengthSection) {
+                    const clone = songLengthSection.cloneNode(true);
+                    clone.querySelectorAll('[id]').forEach(el => {
+                        el.id = 'wizard-' + el.id;
+                    });
+                    // Hide the "Add Section" button in wizard - we'll use S key instead
+                    const addSectionBtn = clone.querySelector('#wizard-addSectionBtn');
+                    if (addSectionBtn) {
+                        addSectionBtn.style.display = 'none';
+                    }
+                    wizardContent.appendChild(clone);
+                }
+            }
+            
+            modal.classList.add('active');
+            announceChange('Song setup wizard opened. Press Escape to close.');
+        }
+        
+        function closeSetupWizard() {
+            const modal = document.getElementById('setupWizardModal');
+            modal.classList.remove('active');
+        }
+        
+        function startEditingMode() {
+            isEditingMode = true;
+            document.body.classList.add('editing-mode');
+            closeSetupWizard();
+            
+            // Hide all setup sections
+            document.querySelectorAll('.chord-sequence:not(.workspace), .device-group').forEach(el => {
+                if (el.id !== 'chordSequenceSection') {
+                    el.style.display = 'none';
+                }
+            });
+            
+            // Show workspace
+            const workspace = document.getElementById('chordSequenceSection');
+            if (workspace) {
+                workspace.style.display = 'block';
+                updateChordList();
+                focusWorkspace();
+            }
+            
+            announceChange('Editing mode started. Press N to focus workspace, T for tempo, M for MIDI devices, Ctrl+comma for settings.');
+        }
+        
+        function openTempoModal() {
+            const modal = document.getElementById('tempoModal');
+            const modalBpm = document.getElementById('modalBpm');
+            const currentBpm = document.getElementById('bpm');
+            
+            if (currentBpm) {
+                modalBpm.value = currentBpm.value;
+            }
+            
+            modal.classList.add('active');
+            modalBpm.focus();
+            announceChange('Tempo settings opened');
+        }
+        
+        function closeTempoModal() {
+            const modal = document.getElementById('tempoModal');
+            const modalBpm = document.getElementById('modalBpm');
+            const currentBpm = document.getElementById('bpm');
+            
+            if (currentBpm) {
+                currentBpm.value = modalBpm.value;
+            }
+            
+            modal.classList.remove('active');
+            announceChange(`Tempo set to ${modalBpm.value} BPM`);
+        }
+        
+        function openMidiDeviceModal() {
+            const modal = document.getElementById('midiDeviceModal');
+            const modalSelect = document.getElementById('modalMidiInput');
+            const currentSelect = document.getElementById('midiInput');
+            
+            // Copy options from main select to modal select
+            modalSelect.innerHTML = currentSelect.innerHTML;
+            modalSelect.value = currentSelect.value;
+            
+            modal.classList.add('active');
+            modalSelect.focus();
+            announceChange('MIDI device selection opened');
+        }
+        
+        function closeMidiDeviceModal() {
+            const modal = document.getElementById('midiDeviceModal');
+            const modalSelect = document.getElementById('modalMidiInput');
+            const currentSelect = document.getElementById('midiInput');
+            
+            currentSelect.value = modalSelect.value;
+            // Trigger change event to update MIDI input
+            const event = new Event('change');
+            currentSelect.dispatchEvent(event);
+            
+            modal.classList.remove('active');
+            announceChange('MIDI device selection closed');
+        }
+        
+        function togglePlayback() {
+            if (recordedChords.length === 0) {
+                announceChange('No chords to play back');
+                return;
+            }
+            
+            if (isPlayingBack) {
+                // Stop playback
+                isPlayingBack = false;
+                if (playbackInterval) {
+                    clearInterval(playbackInterval);
+                    playbackInterval = null;
+                }
+                announceChange('Playback stopped');
+            } else {
+                // Start playback
+                isPlayingBack = true;
+                announceChange('Playback started');
+                
+                let currentIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
+                const cells = document.querySelectorAll('.chord-cell');
+                const bpm = parseInt(document.getElementById('bpm')?.value || 120);
+                const beatDuration = 60000 / bpm; // milliseconds per beat
+                
+                playbackInterval = setInterval(() => {
+                    if (currentIndex >= cells.length) {
+                        // Reached end, stop playback
+                        togglePlayback();
+                        return;
+                    }
+                    
+                    selectChord(currentIndex);
+                    currentIndex++;
+                }, beatDuration);
+            }
+        }
+        
         // Expose functions to global scope for inline onclick handlers
         window.setRecordMarker = setRecordMarker;
         window.editChord = editChord;
@@ -2513,6 +2844,63 @@
             const workspace = document.getElementById('chordSequenceSection');
             if (workspace) {
                 workspace.addEventListener('keydown', handleWorkspaceKeydown);
+            }
+            
+            // Setup modal event listeners
+            document.getElementById('wizardDoneBtn')?.addEventListener('click', () => {
+                const wizardSongName = document.getElementById('wizard-songName');
+                const songName = wizardSongName ? wizardSongName.value : document.getElementById('songName').value;
+                
+                if (!songName.trim()) {
+                    announceChange(t('irealbMaker.enterSongName'));
+                    return;
+                }
+                
+                // Sync wizard values back to main form
+                if (wizardSongName) {
+                    document.getElementById('songName').value = wizardSongName.value;
+                    document.getElementById('authorName').value = document.getElementById('wizard-authorName')?.value || '';
+                    document.getElementById('timeSignature').value = document.getElementById('wizard-timeSignature')?.value || '44';
+                    document.getElementById('musicStyle').value = document.getElementById('wizard-musicStyle')?.value || 'Medium Swing';
+                    document.getElementById('keySignature').value = document.getElementById('wizard-keySignature')?.value || 'C';
+                    document.getElementById('bpm').value = document.getElementById('wizard-bpm')?.value || '120';
+                    document.getElementById('startMeasure').value = document.getElementById('wizard-startMeasure')?.value || '1';
+                    document.getElementById('endMeasure').value = document.getElementById('wizard-endMeasure')?.value || '';
+                    document.getElementById('totalMeasures').value = document.getElementById('wizard-totalMeasures')?.value || '32';
+                }
+                
+                startEditingMode();
+            });
+            
+            document.getElementById('wizardCancelBtn')?.addEventListener('click', closeSetupWizard);
+            
+            document.getElementById('tempoCloseBtn')?.addEventListener('click', closeTempoModal);
+            
+            document.getElementById('midiDeviceCloseBtn')?.addEventListener('click', closeMidiDeviceModal);
+            
+            // Close modals on Escape key
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        modal.classList.remove('active');
+                        announceChange('Modal closed');
+                    }
+                });
+                
+                // Close modal when clicking overlay (outside dialog)
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                        announceChange('Modal closed');
+                    }
+                });
+            });
+            
+            // Show setup wizard on initial load if no song loaded
+            const isNewSong = recordedChords.length === 0;
+            if (isNewSong) {
+                openSetupWizard();
             }
         });
     </script>
