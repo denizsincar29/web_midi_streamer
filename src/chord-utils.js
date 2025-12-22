@@ -329,9 +329,9 @@ export function chordToMIDINotes(chord, inversion = null) {
         addInterval(thirdInterval);
     }
     
-    // Add fifth (if present and not a sus chord)
-    // Sus chords don't have a fifth because the 4th or 2nd replaces it
-    if (hasFifth && !chordType.includes('sus')) {
+    // Add fifth (if present)
+    // Note: Sus chords do have a fifth, it's just the third that's replaced
+    if (hasFifth) {
         addInterval(fifthInterval);
     }
     
