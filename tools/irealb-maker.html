@@ -375,6 +375,38 @@
                     </div>
                 </section>
 
+                <!-- Song Structure / Sections -->
+                <section class="irealb-maker-section">
+                    <h3 data-i18n="irealbMaker.songStructure">Song Structure</h3>
+                    <div class="form-group">
+                        <label for="sectionType" data-i18n="irealbMaker.sectionType">Section Type:</label>
+                        <select id="sectionType" aria-label="Section type">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="Intro">Intro</option>
+                            <option value="Verse">Verse</option>
+                            <option value="Chorus">Chorus</option>
+                            <option value="Bridge">Bridge</option>
+                            <option value="Solo">Solo</option>
+                            <option value="Outro">Outro</option>
+                            <option value="Coda">Coda</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sectionMeasure" data-i18n="irealbMaker.sectionMeasure">Section Starts at Measure:</label>
+                        <input type="number" id="sectionMeasure" value="1" min="1" max="999" step="1" aria-label="Section measure number">
+                    </div>
+                    <button id="addSectionBtn" class="btn btn-secondary" data-i18n="irealbMaker.addSection">
+                        ➕ Add Section
+                    </button>
+                    <div class="chord-sequence" id="sectionListSection" style="display: none; margin-top: 20px;">
+                        <h4 data-i18n="irealbMaker.definedSections">Defined Sections:</h4>
+                        <div class="chord-list" id="sectionList"></div>
+                    </div>
+                </section>
+
                 <!-- MIDI Input Selection -->
                 <section class="device-group">
                     <label for="midiInput" data-i18n="irealbMaker.inputDevice">MIDI Input Device:</label>
@@ -431,6 +463,7 @@
         let activeNotes = new Set();
         let currentChord = null;
         let recordedChords = [];
+        let definedSections = []; // Array to store section definitions
         let isRecording = false;
         let isCountingIn = false;
         let currentBeat = 0;
@@ -844,7 +877,86 @@
             announcements.textContent = message;
         }
         
-        // Mark section function
+        // Add section definition
+        function addSection() {
+            const sectionType = document.getElementById('sectionType').value;
+            const measure = parseInt(document.getElementById('sectionMeasure').value) || 1;
+            
+            // Check if section already exists at this measure
+            const existingIndex = definedSections.findIndex(s => s.measure === measure);
+            if (existingIndex !== -1) {
+                if (!confirm(`A section already exists at measure ${measure}. Replace it?`)) {
+                    return;
+                }
+                definedSections[existingIndex] = { type: sectionType, measure: measure };
+            } else {
+                definedSections.push({ type: sectionType, measure: measure });
+            }
+            
+            // Sort sections by measure
+            definedSections.sort((a, b) => a.measure - b.measure);
+            
+            updateSectionList();
+            
+            // Announce the addition
+            if (sectionType.length === 1) {
+                announceChange(`Section ${sectionType} added at measure ${measure}`);
+            } else {
+                announceChange(`${sectionType} section added at measure ${measure}`);
+            }
+            
+            // Increment measure number for next section
+            document.getElementById('sectionMeasure').value = measure + 4;
+        }
+        
+        // Update section list display
+        function updateSectionList() {
+            const sectionList = document.getElementById('sectionList');
+            const section = document.getElementById('sectionListSection');
+            
+            if (definedSections.length > 0) {
+                section.style.display = 'block';
+                sectionList.innerHTML = definedSections.map((item, index) => {
+                    return `<div class="chord-item" role="group" aria-label="${item.type} at measure ${item.measure}">
+                        <span class="measure-num">M${item.measure}:</span>
+                        <span class="chord-text">${item.type}</span>
+                        <div class="chord-item-actions">
+                            <button class="chord-item-btn" onclick="deleteSection(${index})" aria-label="Delete ${item.type} section at measure ${item.measure}">
+                                ❌
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                section.style.display = 'none';
+            }
+        }
+        
+        // Delete section definition
+        function deleteSection(index) {
+            const item = definedSections[index];
+            if (confirm(`Delete ${item.type} section at measure ${item.measure}?`)) {
+                definedSections.splice(index, 1);
+                updateSectionList();
+                announceChange(`Section deleted`);
+            }
+        }
+        
+        // Get section for a specific measure
+        function getSectionForMeasure(measure) {
+            // Find the section that starts at or before this measure
+            let currentSection = null;
+            for (const section of definedSections) {
+                if (section.measure <= measure) {
+                    currentSection = section.type;
+                } else {
+                    break;
+                }
+            }
+            return currentSection;
+        }
+        
+        // Mark section function (deprecated - kept for backward compatibility with existing chords)
         function markSection(index) {
             const item = recordedChords[index];
             const currentSection = item.section || '';
@@ -1166,11 +1278,15 @@
             
             // Only record if chord has changed from the last recorded chord
             if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
+                // Automatically assign section based on defined sections
+                const sectionForMeasure = getSectionForMeasure(chordMeasurePosition);
+                
                 const chordEntry = {
                     measure: chordMeasurePosition,
                     beat: chordBeatPosition,
                     chord: chordInfo,
-                    inversion: ''
+                    inversion: '',
+                    section: sectionForMeasure || '' // Auto-assign section if defined
                 };
                 recordedChords.push(chordEntry);
                 lastRecordedChord = chordEntry;
@@ -1274,6 +1390,8 @@
             document.getElementById('stopBtn').disabled = true;
             document.getElementById('downloadBtn').disabled = true;
         });
+        
+        document.getElementById('addSectionBtn').addEventListener('click', addSection);
         
         document.getElementById('midiInput').addEventListener('change', (e) => {
             selectInput(e.target.value);
