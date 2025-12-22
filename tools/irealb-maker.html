@@ -420,6 +420,14 @@
                             Select the key signature for your song
                         </div>
                     </div>
+                </section>
+
+                <!-- Metronome Settings -->
+                <section class="chord-sequence">
+                    <h3 data-i18n="irealbMaker.metronomeSettings">Metronome Settings</h3>
+                    <div class="time-signature-help" style="margin-bottom: 15px; font-weight: bold; color: #667eea;">
+                        ⚠️ Note: BPM is used for metronome only during recording, not saved to iReal Pro file
+                    </div>
                     <div class="form-group">
                         <label for="bpm" data-i18n="irealbMaker.bpm">BPM (Tempo):</label>
                         <input type="number" id="bpm" value="120" min="40" max="240" step="1" aria-label="Beats per minute">
@@ -441,6 +449,14 @@
                             Optionally set an end measure to overwrite a specific range (e.g., 5-8)
                         </div>
                     </div>
+                </section>
+
+                <!-- Song Length -->
+                <section class="chord-sequence">
+                    <h3 data-i18n="irealbMaker.songLength">Song Length</h3>
+                <!-- Song Length -->
+                <section class="chord-sequence">
+                    <h3 data-i18n="irealbMaker.songLength">Song Length</h3>
                     <div class="form-group">
                         <label for="totalMeasures" data-i18n="irealbMaker.totalMeasures">Total Measures in Song:</label>
                         <input type="number" id="totalMeasures" value="32" min="1" max="999" step="1" aria-label="Total number of measures">
@@ -530,6 +546,7 @@
                 <div class="keyboard-shortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
+                        <div><strong>N</strong>: Focus workspace</div>
                         <div><strong>R</strong>: Start/Stop Recording</div>
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
@@ -540,7 +557,6 @@
                         <div><strong>Ctrl+X</strong>: Cut (marker range)</div>
                         <div><strong>Ctrl+C</strong>: Copy (marker range)</div>
                         <div><strong>Ctrl+V</strong>: Paste at cursor</div>
-                        <div><strong>Ctrl+Shift+E</strong>: Focus workspace</div>
                         <div><strong>Shift+S</strong>: Save to storage</div>
                         <div><strong>Shift+O</strong>: Open from storage</div>
                         <div><strong>Shift+D</strong>: Download iReal</div>
@@ -555,9 +571,9 @@
                 </div>
 
                 <!-- Recorded Chord Sequence -->
-                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" aria-label="Chord workspace">
+                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="region" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
-                    <div class="chord-list" id="chordList" role="grid" aria-label="Chord chart"></div>
+                    <div class="chord-list" id="chordList" role="grid" aria-label="Chord chart - navigate with arrow keys"></div>
                 </div>
             </div>
         </main>
@@ -2247,12 +2263,9 @@
             
             // Ctrl+Shift combinations (must check before Shift or Ctrl alone)
             if (e.ctrlKey && e.shiftKey) {
-                if (e.key.toUpperCase() === 'E') {
-                    // Ctrl+Shift+E: Focus workspace
-                    e.preventDefault();
-                    focusWorkspace();
-                    return;
-                }
+                // No Ctrl+Shift combinations currently used
+                // (Removed Ctrl+Shift+E as it's now just N)
+                return;
             }
             
             // Ctrl key combinations (without Shift)
@@ -2369,6 +2382,12 @@
                         e.preventDefault();
                         sectionInputMode = true;
                         announceChange('Section input mode: Press A for section A, B, C, D, Q for Coda, I for Intro, etc.');
+                        break;
+                        
+                    case 'n':
+                        // N key - Focus workspace (MuseScore style)
+                        e.preventDefault();
+                        focusWorkspace();
                         break;
                         
                     case 'e':
