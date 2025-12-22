@@ -286,6 +286,66 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label for="musicStyle" data-i18n="irealbMaker.musicStyle">Music Style:</label>
+                        <select id="musicStyle" aria-label="Music style">
+                            <option value="Medium Swing">Medium Swing</option>
+                            <option value="Up Tempo Swing">Up Tempo Swing</option>
+                            <option value="Ballad">Ballad</option>
+                            <option value="Even 8ths">Even 8ths</option>
+                            <option value="Bossa Nova">Bossa Nova</option>
+                            <option value="Latin">Latin</option>
+                            <option value="Jazz Waltz">Jazz Waltz</option>
+                            <option value="Medium Up Swing">Medium Up Swing</option>
+                            <option value="Fast Swing">Fast Swing</option>
+                            <option value="Slow Swing">Slow Swing</option>
+                            <option value="Funk">Funk</option>
+                            <option value="Samba">Samba</option>
+                            <option value="Afro Cuban">Afro Cuban</option>
+                            <option value="Blues">Blues</option>
+                            <option value="Rock">Rock</option>
+                            <option value="Pop">Pop</option>
+                            <option value="Folk">Folk</option>
+                            <option value="Country">Country</option>
+                            <option value="R&amp;B">R&amp;B</option>
+                            <option value="Gospel">Gospel</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.musicStyleHelp">
+                            Select the music style for your song
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="keySignature" data-i18n="irealbMaker.keySignature">Key Signature:</label>
+                        <select id="keySignature" aria-label="Key signature">
+                            <option value="C">C Major</option>
+                            <option value="Db">Db Major</option>
+                            <option value="D">D Major</option>
+                            <option value="Eb">Eb Major</option>
+                            <option value="E">E Major</option>
+                            <option value="F">F Major</option>
+                            <option value="Gb">Gb Major</option>
+                            <option value="G">G Major</option>
+                            <option value="Ab">Ab Major</option>
+                            <option value="A">A Major</option>
+                            <option value="Bb">Bb Major</option>
+                            <option value="B">B Major</option>
+                            <option value="A-">A Minor</option>
+                            <option value="Bb-">Bb Minor</option>
+                            <option value="B-">B Minor</option>
+                            <option value="C-">C Minor</option>
+                            <option value="C#-">C# Minor</option>
+                            <option value="D-">D Minor</option>
+                            <option value="Eb-">Eb Minor</option>
+                            <option value="E-">E Minor</option>
+                            <option value="F-">F Minor</option>
+                            <option value="F#-">F# Minor</option>
+                            <option value="G-">G Minor</option>
+                            <option value="G#-">G# Minor</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.keySignatureHelp">
+                            Select the key signature for your song
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label for="bpm" data-i18n="irealbMaker.bpm">BPM (Tempo):</label>
                         <input type="number" id="bpm" value="120" min="40" max="240" step="1" aria-label="Beats per minute">
                         <div class="time-signature-help" data-i18n="irealbMaker.bpmHelp">
@@ -663,10 +723,14 @@
                     const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
                     const inversionText = item.inversion ? `/${item.inversion}` : '';
                     const beatInfo = item.beat ? `:${item.beat}` : '';
+                    const sectionLabel = item.section ? `[${item.section}] ` : '';
                     return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat}">
-                        <span class="measure-num">M${item.measure}${beatInfo}:</span>
+                        <span class="measure-num">${sectionLabel}M${item.measure}${beatInfo}:</span>
                         <span class="chord-text">${chordText}${inversionText}</span>
                         <div class="chord-item-actions">
+                            <button class="chord-item-btn" onclick="markSection(${index})" aria-label="Mark section at measure ${item.measure}" title="Mark Section">
+                                §
+                            </button>
                             <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
                                 ✏️
                             </button>
@@ -775,6 +839,22 @@
             announcements.textContent = message;
         }
         
+        // Mark section function
+        function markSection(index) {
+            const item = recordedChords[index];
+            const currentSection = item.section || '';
+            const newSection = prompt(`Enter section marker (A, B, C, etc.) for measure ${item.measure}:`, currentSection);
+            if (newSection !== null) {
+                item.section = newSection.trim().toUpperCase();
+                updateChordList();
+                if (item.section) {
+                    announceChange(`Section ${item.section} marked at measure ${item.measure}`);
+                } else {
+                    announceChange(`Section marker removed from measure ${item.measure}`);
+                }
+            }
+        }
+        
         // Convert chord to iRealb format
         function chordToIRealb(chordItem) {
             if (!chordItem || !chordItem.chord) return ' ';
@@ -814,6 +894,8 @@
         function generateIRealbFormat() {
             const songName = document.getElementById('songName').value || 'Untitled';
             const author = document.getElementById('authorName').value || '';
+            const musicStyle = document.getElementById('musicStyle').value || 'Medium Swing';
+            const keySignature = document.getElementById('keySignature').value || 'C';
             const { numerator, denominator } = getTimeSignatureInfo();
             
             // Group chords by measure
@@ -825,15 +907,23 @@
                 chordsByMeasure[item.measure].push(item);
             });
             
-            // Build chord string with multiple chords per measure
-            let chordString = '';
+            // Build chord string with sections and time signature
+            let chordString = 'T' + numerator + denominator; // Time signature at start
             const measures = Object.keys(chordsByMeasure).sort((a, b) => parseInt(a) - parseInt(b));
+            let lastSection = null;
             
             measures.forEach((measureNum, measureIndex) => {
                 const chordsInMeasure = chordsByMeasure[measureNum];
                 
                 // Sort chords by beat within the measure
                 chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
+                
+                // Check if this measure starts a new section
+                const firstChordSection = chordsInMeasure[0].section;
+                if (firstChordSection && firstChordSection !== lastSection) {
+                    chordString += '*' + firstChordSection;
+                    lastSection = firstChordSection;
+                }
                 
                 // Add chords with spacing based on beats
                 chordsInMeasure.forEach((item, chordIndex) => {
@@ -845,14 +935,17 @@
                     }
                 });
                 
-                // Add measure separator (every measure gets a bar)
-                chordString += '|';
+                // Add measure separator
+                chordString += ' |';
             });
             
-            // iRealb format: irealb://SongName=Author=Style=Key=TimeSignature=ChordData
-            const irealbUrl = `irealb://${encodeURIComponent(songName)}=${encodeURIComponent(author)}=Medium Swing=${encodeURIComponent('C')}=${numerator}${denominator}=${encodeURIComponent(chordString)}`;
+            // Add final bar line
+            chordString += 'Z';
             
-            return irealbUrl;
+            // iRealbook format: irealbook://SongName=Author=Style=Key=n=ChordData
+            const irealbookUrl = `irealbook://${encodeURIComponent(songName)}=${encodeURIComponent(author)}=${encodeURIComponent(musicStyle)}=${encodeURIComponent(keySignature)}=n=${encodeURIComponent(chordString)}`;
+            
+            return irealbookUrl;
         }
         
         // Download as HTML file
