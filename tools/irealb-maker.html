@@ -1032,35 +1032,46 @@
             
             // Build chord string with sections and time signature
             let chordString = 'T' + numerator + denominator; // Time signature at start
-            const measures = Object.keys(chordsByMeasure).sort((a, b) => parseInt(a) - parseInt(b));
+            const measures = Object.keys(chordsByMeasure).map(m => parseInt(m)).sort((a, b) => a - b);
             let lastSection = null;
             
-            measures.forEach((measureNum, measureIndex) => {
+            // Determine the total measures to export
+            const totalMeasuresInput = parseInt(document.getElementById('totalMeasures').value) || 32;
+            const firstMeasure = measures.length > 0 ? measures[0] : 1;
+            const lastMeasure = Math.max(...measures, totalMeasuresInput);
+            
+            // Iterate through all measures from first to last
+            for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
                 const chordsInMeasure = chordsByMeasure[measureNum];
                 
-                // Sort chords by beat within the measure
-                chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
-                
-                // Check if this measure starts a new section
-                const firstChordSection = chordsInMeasure[0].section;
-                if (firstChordSection && firstChordSection !== lastSection) {
-                    chordString += '*' + firstChordSection;
-                    lastSection = firstChordSection;
-                }
-                
-                // Add chords with spacing based on beats
-                chordsInMeasure.forEach((item, chordIndex) => {
-                    chordString += chordToIRealb(item);
+                if (chordsInMeasure && chordsInMeasure.length > 0) {
+                    // Sort chords by beat within the measure
+                    chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
                     
-                    // Add space between chords in the same measure
-                    if (chordIndex < chordsInMeasure.length - 1) {
-                        chordString += ' ';
+                    // Check if this measure starts a new section
+                    const firstChordSection = chordsInMeasure[0].section;
+                    if (firstChordSection && firstChordSection !== lastSection) {
+                        chordString += '*' + firstChordSection;
+                        lastSection = firstChordSection;
                     }
-                });
+                    
+                    // Add chords with spacing based on beats
+                    chordsInMeasure.forEach((item, chordIndex) => {
+                        chordString += chordToIRealb(item);
+                        
+                        // Add space between chords in the same measure
+                        if (chordIndex < chordsInMeasure.length - 1) {
+                            chordString += ' ';
+                        }
+                    });
+                } else {
+                    // No chord in this measure - add repeat symbol
+                    chordString += 'x';
+                }
                 
                 // Add measure separator
                 chordString += '|';
-            });
+            }
             
             // Add final bar line
             chordString += 'Z';
