@@ -468,6 +468,12 @@
         let isCountingIn = false;
         let currentBeat = 0;
         let currentMeasure = 0;
+        
+        // Soft pedal (CC 67) tracking for section copy
+        let softPedalPressed = false;
+        let softPedalPressTime = 0;
+        let softPedalCopyTriggered = false;
+        let copiedSectionChords = []; // Temporarily store copied chords during recording
         let audioContext = null;
         let metronomeInterval = null;
         let lastRecordedChord = null; // Track last chord to avoid duplicates
@@ -799,6 +805,40 @@
             } else {
                 section.style.display = 'none';
             }
+            
+            // Show "Copy from Previous Section" buttons for empty sections (when not recording)
+            if (!isRecording && definedSections.length > 1) {
+                let emptySectionsHTML = '';
+                
+                for (let i = 1; i < definedSections.length; i++) {
+                    const sectionType = definedSections[i].type;
+                    const sectionRange = getSectionRange(sectionType);
+                    
+                    if (sectionRange) {
+                        // Check if section has any chords
+                        const hasChords = recordedChords.some(chord => 
+                            chord.measure >= sectionRange.start && chord.measure <= sectionRange.end
+                        );
+                        
+                        if (!hasChords) {
+                            const prevSection = definedSections[i - 1];
+                            emptySectionsHTML += `<div class="chord-item" role="group" aria-label="Empty section ${sectionType}">
+                                <span class="measure-num">Section ${sectionType} (M${sectionRange.start}-${sectionRange.end}):</span>
+                                <span class="chord-text" style="opacity: 0.6;">Empty</span>
+                                <div class="chord-item-actions">
+                                    <button class="chord-item-btn" onclick="copyFromPreviousSection('${sectionType}')" aria-label="Copy chords from ${prevSection.type} to ${sectionType}" title="Copy from ${prevSection.type}">
+                                        📋 Copy from ${prevSection.type}
+                                    </button>
+                                </div>
+                            </div>`;
+                        }
+                    }
+                }
+                
+                if (emptySectionsHTML) {
+                    chordList.innerHTML += '<div style="margin-top: 20px; padding-top: 20px; border-top: 2px dashed #ddd;">' + emptySectionsHTML + '</div>';
+                }
+            }
         }
         
         // Set recording marker function
@@ -981,6 +1021,142 @@
                 }
             }
             return currentSection;
+        }
+        
+        // Get the measure range for a section
+        function getSectionRange(sectionType) {
+            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
+            if (sectionIndex === -1) return null;
+            
+            const startMeasure = definedSections[sectionIndex].measure;
+            const endMeasure = sectionIndex < definedSections.length - 1 
+                ? definedSections[sectionIndex + 1].measure - 1
+                : parseInt(document.getElementById('totalMeasures').value) || 32;
+            
+            return { start: startMeasure, end: endMeasure };
+        }
+        
+        // Trigger section copy during recording (soft pedal held for 1 second)
+        function triggerSectionCopy() {
+            softPedalCopyTriggered = true;
+            
+            const currentMeasureNum = window.actualStartMeasure + (currentMeasure - 2);
+            const currentSection = getSectionForMeasure(currentMeasureNum);
+            
+            if (!currentSection) {
+                announceChange("No section defined for current measure");
+                return;
+            }
+            
+            // Find the previous section
+            const currentSectionIndex = definedSections.findIndex(s => s.type === currentSection);
+            if (currentSectionIndex <= 0) {
+                announceChange("No previous section to copy from");
+                return;
+            }
+            
+            const prevSection = definedSections[currentSectionIndex - 1];
+            const prevSectionRange = getSectionRange(prevSection.type);
+            const currentSectionRange = getSectionRange(currentSection);
+            
+            if (!prevSectionRange || !currentSectionRange) {
+                announceChange("Unable to determine section ranges");
+                return;
+            }
+            
+            // Get chords from previous section
+            const previousSectionChords = recordedChords.filter(chord => 
+                chord.measure >= prevSectionRange.start && chord.measure <= prevSectionRange.end
+            );
+            
+            if (previousSectionChords.length === 0) {
+                announceChange("Previous section is empty");
+                return;
+            }
+            
+            // Copy chords with adjusted measure numbers
+            const measureOffset = currentSectionRange.start - prevSectionRange.start;
+            copiedSectionChords = previousSectionChords.map(chord => ({
+                ...chord,
+                measure: chord.measure + measureOffset,
+                section: currentSection
+            }));
+            
+            // Add copied chords to recordedChords
+            copiedSectionChords.forEach(chord => {
+                recordedChords.push({...chord});
+            });
+            
+            updateChordList();
+            announceChange(`Section ${currentSection} copied from ${prevSection.type}`);
+        }
+        
+        // Remove chords from a specific measure onwards within the current section
+        function removeChordFromMeasureOnwards(startMeasure) {
+            const currentSection = getSectionForMeasure(startMeasure);
+            if (!currentSection) return;
+            
+            const sectionRange = getSectionRange(currentSection);
+            if (!sectionRange) return;
+            
+            // Remove chords from startMeasure to end of section
+            recordedChords = recordedChords.filter(chord => {
+                if (chord.section !== currentSection) return true;
+                return chord.measure < startMeasure;
+            });
+            
+            updateChordList();
+        }
+        
+        // Copy chords from previous section (button click when not recording)
+        function copyFromPreviousSection(sectionType) {
+            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
+            if (sectionIndex <= 0) {
+                announceChange("No previous section to copy from");
+                return;
+            }
+            
+            const prevSection = definedSections[sectionIndex - 1];
+            const prevSectionRange = getSectionRange(prevSection.type);
+            const currentSectionRange = getSectionRange(sectionType);
+            
+            if (!prevSectionRange || !currentSectionRange) {
+                announceChange("Unable to determine section ranges");
+                return;
+            }
+            
+            // Get chords from previous section
+            const previousSectionChords = recordedChords.filter(chord => 
+                chord.measure >= prevSectionRange.start && chord.measure <= prevSectionRange.end
+            );
+            
+            if (previousSectionChords.length === 0) {
+                announceChange("Previous section is empty");
+                return;
+            }
+            
+            // Remove existing chords in current section first
+            recordedChords = recordedChords.filter(chord => 
+                !(chord.measure >= currentSectionRange.start && chord.measure <= currentSectionRange.end)
+            );
+            
+            // Copy chords with adjusted measure numbers
+            const measureOffset = currentSectionRange.start - prevSectionRange.start;
+            const copiedChords = previousSectionChords.map(chord => ({
+                ...chord,
+                measure: chord.measure + measureOffset,
+                section: sectionType
+            }));
+            
+            // Add copied chords
+            recordedChords.push(...copiedChords);
+            recordedChords.sort((a, b) => {
+                if (a.measure !== b.measure) return a.measure - b.measure;
+                return a.beat - b.beat;
+            });
+            
+            updateChordList();
+            announceChange(`Section ${sectionType} copied from ${prevSection.type}`);
         }
         
         // Mark section function (deprecated - kept for backward compatibility with existing chords)
@@ -1270,8 +1446,48 @@
             const [status, note, velocity] = event.data;
             const command = status & 0xF0;
             
+            // Handle Control Change messages (CC)
+            if (command === 0xB0) {
+                const ccNumber = note;
+                const ccValue = velocity;
+                
+                // Soft pedal is CC 67
+                if (ccNumber === 67) {
+                    if (ccValue >= 64) {
+                        // Soft pedal pressed
+                        if (!softPedalPressed) {
+                            softPedalPressed = true;
+                            softPedalPressTime = Date.now();
+                            softPedalCopyTriggered = false;
+                            
+                            // Check if held for 1 second during recording
+                            setTimeout(() => {
+                                if (softPedalPressed && isRecording && !isCountingIn && !softPedalCopyTriggered) {
+                                    const holdTime = Date.now() - softPedalPressTime;
+                                    if (holdTime >= 1000) {
+                                        triggerSectionCopy();
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    } else {
+                        // Soft pedal released
+                        softPedalPressed = false;
+                    }
+                }
+                return;
+            }
+            
             if (command === 0x90 && velocity > 0) {
                 // Note ON
+                // If section copy is active and this is first note, start overwriting
+                if (copiedSectionChords.length > 0 && isRecording && !isCountingIn) {
+                    const measureNum = window.actualStartMeasure + (currentMeasure - 2);
+                    // Remove all copied chords from this measure onwards in current section
+                    removeChordFromMeasureOnwards(measureNum);
+                    copiedSectionChords = []; // Clear copied chords - now recording new ones
+                }
+                
                 // If this is the first note pressed, capture the beat position
                 if (activeNotes.size === 0 && isRecording && !isCountingIn) {
                     chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
