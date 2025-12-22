@@ -220,3 +220,158 @@ export function detectChord(noteNames) {
     
     return { root, type: chordName };
 }
+
+/**
+ * Convert chord symbol to MIDI note numbers for playback
+ * Uses jazz voicing conventions:
+ * - Root in 2nd octave (C2-B2, MIDI 36-47)
+ * - Third and seventh in 3rd octave (E3-G4, MIDI 52-67)
+ * - Extensions above the basic structure
+ * 
+ * @param {object} chord - Chord object with root and type
+ * @param {string} inversion - Optional bass note for slash chords
+ * @returns {number[]} Array of MIDI note numbers
+ */
+export function chordToMIDINotes(chord, inversion = null) {
+    if (!chord || !chord.root) {
+        return [];
+    }
+    
+    const rootNote = chord.root;
+    const chordType = chord.type || '';
+    
+    // Base octave for root note (C2 = MIDI 36)
+    const rootOctave = 2;
+    const rootMIDI = noteNameToSemitone(rootNote) + (rootOctave + 1) * 12;
+    
+    const notes = [rootMIDI]; // Always start with root
+    
+    // Helper to add note above root
+    const addInterval = (semitones, octaveOffset = 0) => {
+        const note = rootMIDI + semitones + (octaveOffset * 12);
+        notes.push(note);
+    };
+    
+    // Parse chord type to determine intervals
+    let hasThird = true;
+    let hasFifth = true;
+    let hasSeventh = false;
+    let thirdInterval = 4; // Major third by default
+    let fifthInterval = 7; // Perfect fifth by default
+    let seventhInterval = null;
+    
+    // Determine basic chord structure
+    if (chordType === '' || chordType === 'maj' || chordType.startsWith('maj7') || chordType === '6' || chordType === '6/9') {
+        // Major chord
+        thirdInterval = 4;
+        if (chordType.includes('maj7')) {
+            hasSeventh = true;
+            seventhInterval = 11;
+        } else if (chordType === '6' || chordType === '6/9') {
+            // Use 6th instead of 7th
+            hasSeventh = true;
+            seventhInterval = 9;
+        }
+    } else if (chordType.startsWith('m') && !chordType.startsWith('maj')) {
+        // Minor chord
+        thirdInterval = 3;
+        if (chordType.includes('7') || chordType.includes('9') || chordType.includes('11') || chordType.includes('13')) {
+            hasSeventh = true;
+            seventhInterval = chordType.includes('M7') || chordType.includes('maj7') ? 11 : 10;
+        }
+        if (chordType === 'm6' || chordType === 'm6/9') {
+            hasSeventh = true;
+            seventhInterval = 9;
+        }
+    } else if (chordType === '7' || chordType === '9' || chordType === '13') {
+        // Dominant 7th
+        thirdInterval = 4;
+        hasSeventh = true;
+        seventhInterval = 10;
+    } else if (chordType.includes('dim')) {
+        // Diminished
+        thirdInterval = 3;
+        fifthInterval = 6;
+        if (chordType === 'dim7') {
+            hasSeventh = true;
+            seventhInterval = 9; // Diminished 7th
+        }
+    } else if (chordType.includes('ø') || chordType === 'ø7') {
+        // Half-diminished
+        thirdInterval = 3;
+        fifthInterval = 6;
+        hasSeventh = true;
+        seventhInterval = 10;
+    } else if (chordType.includes('aug') || chordType === '+') {
+        // Augmented
+        thirdInterval = 4;
+        fifthInterval = 8;
+    } else if (chordType.includes('sus4')) {
+        // Sus4 - no third, use 4th instead
+        hasThird = false;
+        addInterval(5); // Perfect 4th instead of third
+        if (chordType.includes('7')) {
+            hasSeventh = true;
+            seventhInterval = 10;
+        }
+    } else if (chordType.includes('sus2')) {
+        // Sus2 - no third, use 2nd instead
+        hasThird = false;
+        addInterval(2); // Major 2nd instead of third
+        if (chordType.includes('7')) {
+            hasSeventh = true;
+            seventhInterval = 10;
+        }
+    }
+    
+    // Add third (if present)
+    if (hasThird) {
+        addInterval(thirdInterval);
+    }
+    
+    // Add fifth (if present)
+    if (hasFifth && (!chordType.includes('sus') || !hasThird)) {
+        // Don't add 5th to sus chords if we already added 4th/2nd
+        if (!chordType.includes('sus')) {
+            addInterval(fifthInterval);
+        }
+    }
+    
+    // Add seventh (if present)
+    if (hasSeventh && seventhInterval !== null) {
+        addInterval(seventhInterval);
+    }
+    
+    // Add extensions
+    if (chordType.includes('9') || chordType === '6/9' || chordType === 'm6/9') {
+        addInterval(2, 1); // 9th = one octave above 2nd
+    }
+    
+    if (chordType.includes('b9')) {
+        addInterval(1, 1); // Flat 9
+    }
+    
+    if (chordType.includes('#9')) {
+        addInterval(3, 1); // Sharp 9
+    }
+    
+    if (chordType.includes('11') || chordType.includes('#11')) {
+        addInterval(chordType.includes('#11') ? 6 : 5, 1); // 11th or #11
+    }
+    
+    if (chordType.includes('13')) {
+        addInterval(chordType.includes('b13') ? 8 : 9, 1); // 13th or b13
+    }
+    
+    // Handle inversion (bass note)
+    if (inversion) {
+        const bassNote = noteNameToSemitone(inversion) + (rootOctave) * 12; // One octave lower
+        notes.unshift(bassNote);
+    }
+    
+    // Ensure notes are unique and sorted
+    const uniqueNotes = [...new Set(notes)].sort((a, b) => a - b);
+    
+    // Limit to reasonable range (MIDI 24-96, C1-C7)
+    return uniqueNotes.filter(n => n >= 24 && n <= 96);
+}

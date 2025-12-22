@@ -644,6 +644,12 @@
                                 <option value="">No device selected</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="modalMidiOutput">MIDI Output Device (for playback):</label>
+                            <select id="modalMidiOutput" aria-label="Select MIDI output device for chord playback">
+                                <option value="">No device selected</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button id="midiDeviceCloseBtn" class="btn btn-primary">Done</button>
@@ -655,7 +661,7 @@
 
     <script type="module">
         import { t, getCurrentLanguage } from '../src/i18n.js';
-        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord } from '../src/chord-utils.js';
+        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord, chordToMIDINotes } from '../src/chord-utils.js';
         
         let midiAccess = null;
         let selectedInput = null;
@@ -1884,7 +1890,9 @@
         
         function populateInputDevices() {
             const select = document.getElementById('midiInput');
+            const modalSelect = document.getElementById('modalMidiInput');
             select.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            modalSelect.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
             
             const inputs = Array.from(midiAccess.inputs.values());
             inputs.forEach((input, index) => {
@@ -1893,6 +1901,25 @@
                 option.textContent = input.name;
                 if (index === 0) option.selected = true;
                 select.appendChild(option);
+                
+                const modalOption = option.cloneNode(true);
+                modalSelect.appendChild(modalOption);
+            });
+            
+            // Populate MIDI output devices
+            const outputSelect = document.getElementById('modalMidiOutput');
+            outputSelect.innerHTML = `<option value="">No device selected</option>`;
+            
+            const outputs = Array.from(midiAccess.outputs.values());
+            outputs.forEach((output, index) => {
+                const option = document.createElement('option');
+                option.value = output.id;
+                option.textContent = output.name;
+                if (index === 0) {
+                    option.selected = true;
+                    playbackMIDIOutput = output;
+                }
+                outputSelect.appendChild(option);
             });
             
             if (inputs.length > 0) {
@@ -2904,6 +2931,9 @@
         let isEditingMode = false;
         let isPlayingBack = false;
         let playbackInterval = null;
+        let playbackChordIndex = 0;
+        let playbackMIDIOutput = null; // MIDI output for playback
+        let activePlaybackNotes = []; // Currently playing notes for cleanup
         
         function openSetupWizard() {
             const modal = document.getElementById('setupWizardModal');
@@ -2997,19 +3027,75 @@
             const modal = document.getElementById('midiDeviceModal');
             const modalSelect = document.getElementById('modalMidiInput');
             const currentSelect = document.getElementById('midiInput');
+            const outputSelect = document.getElementById('modalMidiOutput');
             
             currentSelect.value = modalSelect.value;
             // Trigger change event to update MIDI input
             const event = new Event('change');
             currentSelect.dispatchEvent(event);
             
+            // Update MIDI output for playback
+            const outputId = outputSelect.value;
+            if (outputId && midiAccess) {
+                playbackMIDIOutput = midiAccess.outputs.get(outputId);
+                announceChange(`MIDI output set to ${playbackMIDIOutput.name}`);
+            } else {
+                playbackMIDIOutput = null;
+            }
+            
             modal.classList.remove('active');
             announceChange('MIDI device selection closed');
+        }
+        
+        // Play MIDI notes for a chord
+        function playChordMIDI(chord, inversion = null, duration = 500) {
+            if (!playbackMIDIOutput) {
+                return;
+            }
+            
+            // Stop any currently playing notes
+            stopPlaybackNotes();
+            
+            // Get MIDI notes for this chord
+            const notes = chordToMIDINotes(chord, inversion);
+            
+            if (notes.length === 0) {
+                return;
+            }
+            
+            // Send note-on messages
+            notes.forEach(note => {
+                playbackMIDIOutput.send([0x90, note, 80]); // Note on, velocity 80
+                activePlaybackNotes.push(note);
+            });
+            
+            // Schedule note-off messages
+            setTimeout(() => {
+                stopPlaybackNotes();
+            }, duration);
+        }
+        
+        // Stop all currently playing playback notes
+        function stopPlaybackNotes() {
+            if (!playbackMIDIOutput || activePlaybackNotes.length === 0) {
+                return;
+            }
+            
+            activePlaybackNotes.forEach(note => {
+                playbackMIDIOutput.send([0x80, note, 0]); // Note off
+            });
+            
+            activePlaybackNotes = [];
         }
         
         function togglePlayback() {
             if (recordedChords.length === 0) {
                 announceChange('No chords to play back');
+                return;
+            }
+            
+            if (!playbackMIDIOutput) {
+                announceChange('No MIDI output device selected. Press M to select a device.');
                 return;
             }
             
@@ -3020,33 +3106,68 @@
                     clearInterval(playbackInterval);
                     playbackInterval = null;
                 }
+                stopPlaybackNotes();
                 announceChange('Playback stopped');
             } else {
                 // Start playback
                 isPlayingBack = true;
                 announceChange('Playback started');
                 
-                let currentIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
+                // Start from selected chord or beginning
+                playbackChordIndex = selectedChordIndex >= 0 ? selectedChordIndex : 0;
                 const cells = document.querySelectorAll('.chord-cell');
                 const bpm = parseInt(document.getElementById('bpm')?.value || 120);
+                const { numerator } = getTimeSignatureInfo();
                 const beatDuration = 60000 / bpm; // milliseconds per beat
                 
+                // Play first chord immediately
+                playNextChord();
+                
+                // Continue playing based on beat timing
+                let lastMeasure = null;
+                let lastBeat = null;
+                
                 playbackInterval = setInterval(() => {
-                    if (currentIndex >= cells.length) {
-                        // Reached end, stop playback
-                        isPlayingBack = false;
-                        if (playbackInterval) {
-                            clearInterval(playbackInterval);
-                            playbackInterval = null;
-                        }
-                        announceChange('Playback completed');
-                        return;
-                    }
-                    
-                    selectChord(currentIndex);
-                    currentIndex++;
-                }, beatDuration);
+                    playNextChord();
+                }, beatDuration * numerator); // Play each measure
             }
+        }
+        
+        function playNextChord() {
+            const cells = document.querySelectorAll('.chord-cell');
+            
+            if (playbackChordIndex >= cells.length) {
+                // Reached end, stop playback
+                isPlayingBack = false;
+                if (playbackInterval) {
+                    clearInterval(playbackInterval);
+                    playbackInterval = null;
+                }
+                stopPlaybackNotes();
+                announceChange('Playback completed');
+                return;
+            }
+            
+            selectChord(playbackChordIndex);
+            
+            // Get chord at current index
+            const cell = cells[playbackChordIndex];
+            const dataIndex = cell.getAttribute('data-index');
+            
+            if (dataIndex !== null) {
+                const chordData = recordedChords[parseInt(dataIndex)];
+                if (chordData && chordData.chord) {
+                    // Play the chord via MIDI
+                    const bpm = parseInt(document.getElementById('bpm')?.value || 120);
+                    const { numerator } = getTimeSignatureInfo();
+                    const beatDuration = 60000 / bpm;
+                    const chordDuration = beatDuration * numerator * 0.9; // 90% of measure duration
+                    
+                    playChordMIDI(chordData.chord, chordData.inversion, chordDuration);
+                }
+            }
+            
+            playbackChordIndex++;
         }
         
         // Expose functions to global scope for inline onclick handlers
