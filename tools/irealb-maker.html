@@ -481,7 +481,8 @@
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
                         <div><strong>S</strong>: Add section</div>
-                        <div><strong>V</strong>: Add volta (first/second ending)</div>
+                        <div><strong>V</strong>: Toggle volta (cycles: none → 1st → 2nd → none)</div>
+                        <div><strong>Shift+V</strong>: Delete marker (section/volta)</div>
                         <div><strong>Backspace</strong>: Delete current chord</div>
                         <div><strong>Delete</strong>: Delete marker range</div>
                         <div><strong>Shift+Backspace</strong>: Delete section</div>
@@ -2479,31 +2480,75 @@
                 parseInt(selectedCell.getAttribute('data-measure')) : 
                 parseInt(document.getElementById('startMeasure').value) || 1;
             
-            // Ask which type of ending (1 or 2)
-            const endingType = prompt('Enter ending type (1 for first ending, 2 for second ending):', '1');
-            
-            if (endingType && (endingType === '1' || endingType === '2')) {
-                // Check if volta already exists at this measure
-                const existingIndex = voltaEndings.findIndex(v => v.measure === measure);
-                if (existingIndex !== -1) {
-                    voltaEndings[existingIndex].type = parseInt(endingType);
-                    announceChange(`Volta ending updated to ${endingType} at measure ${measure}`);
+            // Check if volta already exists at this measure
+            const existingIndex = voltaEndings.findIndex(v => v.measure === measure);
+            if (existingIndex !== -1) {
+                // Toggle volta type: 1 -> 2 -> remove
+                const currentType = voltaEndings[existingIndex].type;
+                if (currentType === 1) {
+                    voltaEndings[existingIndex].type = 2;
+                    announceChange(`Volta ending changed to second ending at measure ${measure}`);
                 } else {
-                    voltaEndings.push({ measure: measure, type: parseInt(endingType) });
-                    voltaEndings.sort((a, b) => a.measure - b.measure);
-                    announceChange(`Volta ending ${endingType} added at measure ${measure}`);
+                    voltaEndings.splice(existingIndex, 1);
+                    announceChange(`Volta ending removed from measure ${measure}`);
                 }
+            } else {
+                // Add new volta as first ending
+                voltaEndings.push({ measure: measure, type: 1 });
+                voltaEndings.sort((a, b) => a.measure - b.measure);
+                announceChange(`Volta first ending added at measure ${measure}`);
+            }
+            
+            updateChordList();
+            // Re-select the current chord
+            const newCells = document.querySelectorAll('.chord-cell');
+            const cellIndex = Array.from(newCells).findIndex(cell => 
+                parseInt(cell.getAttribute('data-measure')) === measure
+            );
+            if (cellIndex !== -1) {
+                selectChord(cellIndex);
+            }
+        }
+        
+        // Delete marker at current position (section or volta) without deleting chord
+        function deleteMarkerAtCurrentPosition() {
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            
+            if (!selectedCell) {
+                announceChange('No measure selected');
+                return;
+            }
+            
+            const measure = parseInt(selectedCell.getAttribute('data-measure'));
+            let markerDeleted = false;
+            
+            // Check for volta ending at this measure
+            const voltaIndex = voltaEndings.findIndex(v => v.measure === measure);
+            if (voltaIndex !== -1) {
+                const voltaType = voltaEndings[voltaIndex].type;
+                voltaEndings.splice(voltaIndex, 1);
+                announceChange(`Volta ending ${voltaType} removed from measure ${measure}`);
+                markerDeleted = true;
+            }
+            
+            // Check for section at this measure
+            const sectionIndex = definedSections.findIndex(s => s.measure === measure);
+            if (sectionIndex !== -1) {
+                const sectionType = definedSections[sectionIndex].type;
+                definedSections.splice(sectionIndex, 1);
+                announceChange(`Section ${sectionType} removed from measure ${measure}`);
+                updateSectionList();
+                markerDeleted = true;
+            }
+            
+            if (markerDeleted) {
                 updateChordList();
                 // Re-select the current chord
-                const newCells = document.querySelectorAll('.chord-cell');
-                const cellIndex = Array.from(newCells).findIndex(cell => 
-                    parseInt(cell.getAttribute('data-measure')) === measure
-                );
-                if (cellIndex !== -1) {
-                    selectChord(cellIndex);
-                }
-            } else if (endingType !== null) {
-                announceChange('Invalid ending type. Use 1 or 2.');
+                const currentIndex = Array.from(cells).indexOf(selectedCell);
+                selectChord(currentIndex);
+            } else {
+                announceChange(`No marker at measure ${measure}`);
             }
         }
         
@@ -2853,6 +2898,12 @@
                         // Shift+W: Close with save prompt
                         e.preventDefault();
                         closeWithSavePrompt();
+                        break;
+                        
+                    case 'V':
+                        // Shift+V: Delete marker at current position
+                        e.preventDefault();
+                        deleteMarkerAtCurrentPosition();
                         break;
                 }
                 return;
@@ -3273,6 +3324,7 @@
         window.deleteSection = deleteSection;
         window.copyFromPreviousSection = copyFromPreviousSection;
         window.markSection = markSection;
+        window.deleteMarkerAtCurrentPosition = deleteMarkerAtCurrentPosition;
         
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
