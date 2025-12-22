@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iRealPro Maker - MIDI Tools</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <style>
+        .irealb-maker-section {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .chord-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .chord-name {
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-message {
+            font-size: 1.2em;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        
+        .controls button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 25px;
+            font-size: 1.1em;
+        }
+        
+        .recording-indicator {
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .chord-sequence {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chord-sequence h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .chord-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .chord-item {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chord-item .measure-num {
+            opacity: 0.7;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        
+        .chord-item .chord-text {
+            flex: 1;
+        }
+        
+        .chord-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .chord-item-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        
+        .chord-item-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .inversion-selector {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .inversion-selector h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .inversion-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .inversion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.2s;
+        }
+        
+        .inversion-btn:hover, .inversion-btn.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .midi-status {
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .midi-status.connected {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .placeholder-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2em;
+        }
+        
+        .device-group {
+            margin-bottom: 20px;
+        }
+        
+        .device-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .device-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        .time-signature-help {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1 data-i18n="irealbMaker.title">🎵 iRealPro Maker</h1>
+                    <p data-i18n="irealbMaker.subtitle">Create iRealPro chord charts from MIDI input</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToTools">← Back to Tools</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">
+                <strong data-i18n="irealbMaker.midiStatus">MIDI Status:</strong> <span id="statusText" data-i18n="irealbMaker.initializing">Initializing...</span>
+            </div>
+
+            <div class="irealb-maker-section">
+                <!-- Song Information Form -->
+                <section class="chord-sequence">
+                    <h3 data-i18n="irealbMaker.songInfo">Song Information</h3>
+                    <div class="form-group">
+                        <label for="songName" data-i18n="irealbMaker.songName">Song Name:</label>
+                        <input type="text" id="songName" placeholder="Enter song name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="authorName" data-i18n="irealbMaker.authorName">Author/Composer:</label>
+                        <input type="text" id="authorName" placeholder="Enter author name">
+                    </div>
+                    <div class="form-group">
+                        <label for="timeSignature" data-i18n="irealbMaker.timeSignature">Time Signature:</label>
+                        <select id="timeSignature">
+                            <option value="44">4/4 (Common Time)</option>
+                            <option value="34">3/4 (Waltz)</option>
+                            <option value="54">5/4</option>
+                            <option value="68">6/8</option>
+                            <option value="78">7/8</option>
+                            <option value="24">2/4</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.timeSignatureHelp">
+                            Count-in will be announced for the first 2 measures
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="musicStyle" data-i18n="irealbMaker.musicStyle">Music Style:</label>
+                        <select id="musicStyle" aria-label="Music style">
+                            <option value="Medium Swing">Medium Swing</option>
+                            <option value="Up Tempo Swing">Up Tempo Swing</option>
+                            <option value="Ballad">Ballad</option>
+                            <option value="Even 8ths">Even 8ths</option>
+                            <option value="Bossa Nova">Bossa Nova</option>
+                            <option value="Latin">Latin</option>
+                            <option value="Jazz Waltz">Jazz Waltz</option>
+                            <option value="Medium Up Swing">Medium Up Swing</option>
+                            <option value="Fast Swing">Fast Swing</option>
+                            <option value="Slow Swing">Slow Swing</option>
+                            <option value="Funk">Funk</option>
+                            <option value="Samba">Samba</option>
+                            <option value="Afro Cuban">Afro Cuban</option>
+                            <option value="Blues">Blues</option>
+                            <option value="Rock">Rock</option>
+                            <option value="Pop">Pop</option>
+                            <option value="Folk">Folk</option>
+                            <option value="Country">Country</option>
+                            <option value="R&B">R&amp;B</option>
+                            <option value="Gospel">Gospel</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.musicStyleHelp">
+                            Select the music style for your song
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="keySignature" data-i18n="irealbMaker.keySignature">Key Signature:</label>
+                        <select id="keySignature" aria-label="Key signature">
+                            <option value="C">C Major</option>
+                            <option value="Db">Db Major</option>
+                            <option value="D">D Major</option>
+                            <option value="Eb">Eb Major</option>
+                            <option value="E">E Major</option>
+                            <option value="F">F Major</option>
+                            <option value="Gb">Gb Major</option>
+                            <option value="G">G Major</option>
+                            <option value="Ab">Ab Major</option>
+                            <option value="A">A Major</option>
+                            <option value="Bb">Bb Major</option>
+                            <option value="B">B Major</option>
+                            <option value="A-">A Minor</option>
+                            <option value="Bb-">Bb Minor</option>
+                            <option value="B-">B Minor</option>
+                            <option value="C-">C Minor</option>
+                            <option value="C#-">C# Minor</option>
+                            <option value="D-">D Minor</option>
+                            <option value="Eb-">Eb Minor</option>
+                            <option value="E-">E Minor</option>
+                            <option value="F-">F Minor</option>
+                            <option value="F#-">F# Minor</option>
+                            <option value="G-">G Minor</option>
+                            <option value="G#-">G# Minor</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.keySignatureHelp">
+                            Select the key signature for your song
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bpm" data-i18n="irealbMaker.bpm">BPM (Tempo):</label>
+                        <input type="number" id="bpm" value="120" min="40" max="240" step="1" aria-label="Beats per minute">
+                        <div class="time-signature-help" data-i18n="irealbMaker.bpmHelp">
+                            Metronome tempo (40-240 beats per minute)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="startMeasure" data-i18n="irealbMaker.startMeasure">Start Recording from Measure:</label>
+                        <input type="number" id="startMeasure" value="1" min="1" max="999" step="1" aria-label="Starting measure number">
+                        <div class="time-signature-help" data-i18n="irealbMaker.startMeasureHelp">
+                            Choose which measure to start recording from
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="endMeasure" data-i18n="irealbMaker.endMeasure">End Recording at Measure (optional):</label>
+                        <input type="number" id="endMeasure" value="" min="1" max="999" step="1" placeholder="Leave empty for no limit" aria-label="Ending measure number">
+                        <div class="time-signature-help" data-i18n="irealbMaker.endMeasureHelp">
+                            Optionally set an end measure to overwrite a specific range (e.g., 5-8)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="totalMeasures" data-i18n="irealbMaker.totalMeasures">Total Measures in Song:</label>
+                        <input type="number" id="totalMeasures" value="32" min="1" max="999" step="1" aria-label="Total number of measures">
+                        <div class="time-signature-help" data-i18n="irealbMaker.totalMeasuresHelp">
+                            Set the total length of your song
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Song Structure / Sections -->
+                <section class="irealb-maker-section">
+                    <h3 data-i18n="irealbMaker.songStructure">Song Structure</h3>
+                    <div class="form-group">
+                        <label for="sectionType" data-i18n="irealbMaker.sectionType">Section Type:</label>
+                        <select id="sectionType" aria-label="Section type">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="Intro">Intro</option>
+                            <option value="Verse">Verse</option>
+                            <option value="Chorus">Chorus</option>
+                            <option value="Bridge">Bridge</option>
+                            <option value="Solo">Solo</option>
+                            <option value="Outro">Outro</option>
+                            <option value="Coda">Coda</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sectionMeasure" data-i18n="irealbMaker.sectionMeasure">Section Starts at Measure:</label>
+                        <input type="number" id="sectionMeasure" value="1" min="1" max="999" step="1" aria-label="Section measure number">
+                    </div>
+                    <button id="addSectionBtn" class="btn btn-secondary" data-i18n="irealbMaker.addSection">
+                        ➕ Add Section
+                    </button>
+                    <div class="chord-sequence" id="sectionListSection" style="display: none; margin-top: 20px;">
+                        <h4 data-i18n="irealbMaker.definedSections">Defined Sections:</h4>
+                        <div class="chord-list" id="sectionList"></div>
+                    </div>
+                </section>
+
+                <!-- MIDI Input Selection -->
+                <section class="device-group">
+                    <label for="midiInput" data-i18n="irealbMaker.inputDevice">MIDI Input Device:</label>
+                    <select id="midiInput" aria-label="Select MIDI input device">
+                        <option value="" data-i18n="irealbMaker.noDeviceSelected">No device selected</option>
+                    </select>
+                </section>
+
+                <!-- Current Chord Display -->
+                <div class="chord-display" role="region" aria-atomic="true">
+                    <div class="chord-name" id="chordName">
+                        <span class="placeholder-text" data-i18n="irealbMaker.readyToRecord">Ready to record...</span>
+                    </div>
+                    <div class="status-message" id="statusMessage"></div>
+                </div>
+
+                <!-- Hidden div for screen reader announcements -->
+                <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="announcements"></div>
+
+                <!-- Controls -->
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary" data-i18n="irealbMaker.startRecording">
+                        ▶️ Start Recording
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" disabled data-i18n="irealbMaker.stopRecording">
+                        ⏹️ Stop Recording
+                    </button>
+                    <button id="downloadBtn" class="btn btn-success" disabled data-i18n="irealbMaker.download">
+                        💾 Download iRealPro File
+                    </button>
+                    <button id="resetBtn" class="btn btn-secondary" data-i18n="irealbMaker.reset">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <!-- Recorded Chord Sequence -->
+                <div class="chord-sequence" id="chordSequenceSection" style="display: none;">
+                    <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
+                    <div class="chord-list" id="chordList"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
+        let midiAccess = null;
+        let selectedInput = null;
+        let activeNotes = new Set();
+        let currentChord = null;
+        let recordedChords = [];
+        let definedSections = []; // Array to store section definitions
+        let isRecording = false;
+        let isCountingIn = false;
+        let currentBeat = 0;
+        let currentMeasure = 0;
+        
+        // Soft pedal (CC 67) tracking for section copy
+        let softPedalPressed = false;
+        let softPedalPressTime = 0;
+        let softPedalCopyTriggered = false;
+        let copiedSectionChords = []; // Temporarily store copied chords during recording
+        let audioContext = null;
+        let metronomeInterval = null;
+        let lastRecordedChord = null; // Track last chord to avoid duplicates
+        let chordNotesPressed = new Set(); // Notes that were pressed for current chord
+        let chordBeatPosition = null; // Beat when first note of chord was pressed
+        let chordMeasurePosition = null; // Measure when first note of chord was pressed
+        
+        // MIDI note number to note name mapping
+        const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+        
+        function midiNoteToName(midiNote) {
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteName = NOTE_NAMES[midiNote % 12];
+            return noteName + octave;
+        }
+        
+        function getPitchClass(noteName) {
+            return noteName.replace(/[0-9]/g, '');
+        }
+        
+        function noteNameToSemitone(noteName) {
+            const NOTE_VALUES = {
+                'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+                'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+                'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+            };
+            return NOTE_VALUES[noteName] || 0;
+        }
+        
+        // Chord detection algorithm (simplified from chord-display.html)
+        function detectChord(noteNames) {
+            if (noteNames.length < 2) {
+                return noteNames.length === 1 ? { root: getPitchClass(noteNames[0]), type: '' } : null;
+            }
+            
+            const pitchClasses = noteNames.map(getPitchClass);
+            const uniquePitches = [...new Set(pitchClasses)];
+            
+            if (uniquePitches.length < 2) {
+                return { root: uniquePitches[0], type: '' };
+            }
+            
+            const root = uniquePitches[0];
+            const rootValue = noteNameToSemitone(root);
+            
+            const intervalSet = new Set();
+            uniquePitches.forEach(note => {
+                const value = noteNameToSemitone(note);
+                const interval = (value - rootValue + 12) % 12;
+                intervalSet.add(interval);
+            });
+            
+            const has = (interval) => intervalSet.has(interval);
+            
+            let baseChord = '';
+            let thirdType = null;
+            let seventhType = null;
+            
+            if (has(4)) thirdType = 'major';
+            else if (has(3)) thirdType = 'minor';
+            
+            if (has(11)) seventhType = 'maj7';
+            else if (has(10)) seventhType = 'dom7';
+            
+            if (thirdType === 'major' && seventhType === 'dom7') {
+                baseChord = '7';
+            } else if (thirdType === 'major' && seventhType === 'maj7') {
+                baseChord = 'maj7';
+            } else if (thirdType === 'minor' && seventhType === 'dom7') {
+                baseChord = 'm7';
+            } else if (thirdType === 'minor' && seventhType === 'maj7') {
+                baseChord = 'mM7';
+            } else if (thirdType === 'major' && !seventhType) {
+                baseChord = '';
+            } else if (thirdType === 'minor' && !seventhType) {
+                baseChord = 'm';
+            } else if (has(3) && has(6) && !has(7) && has(10)) {
+                // Half-diminished: minor 3rd, b5, minor 7th (no perfect 5th)
+                return { root, type: 'ø7' };
+            } else if (has(3) && has(6) && !has(7) && has(9)) {
+                // Diminished 7th: minor 3rd, b5, dim7 (no perfect 5th)
+                return { root, type: 'dim7' };
+            } else if (has(3) && has(6) && !has(7)) {
+                // Diminished triad: minor 3rd, b5 (no perfect 5th)
+                return { root, type: 'dim' };
+            } else if (has(4) && has(8)) {
+                return { root, type: 'aug' };
+            } else if (has(5) && has(7)) {
+                if (has(10)) return { root, type: '7sus4' };
+                return { root, type: 'sus4' };
+            } else if (has(2) && has(7) && !has(3) && !has(4)) {
+                if (has(10)) return { root, type: '7sus2' };
+                return { root, type: 'sus2' };
+            } else if (has(9) && !has(10) && !has(11)) {
+                if (thirdType === 'major') {
+                    if (has(2)) return { root, type: '6/9' };
+                    return { root, type: '6' };
+                } else if (thirdType === 'minor') {
+                    if (has(2)) return { root, type: 'm6/9' };
+                    return { root, type: 'm6' };
+                }
+            }
+            
+            const extensions = [];
+            
+            if (has(1)) extensions.push('b9');
+            else if (has(3) && thirdType === 'major') extensions.push('#9');
+            else if (has(2) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7' || baseChord === 'mM7')) {
+                if (!has(1) && !has(3)) extensions.push('9');
+            }
+            
+            // Only treat interval 6 as #11 if there's also a perfect 5th (to distinguish from b5/diminished)
+            if (has(6) && has(7)) extensions.push('#11');
+            
+            if (has(9) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7')) {
+                extensions.push('13');
+            } else if (has(8) && (baseChord === '7' || baseChord === 'maj7')) {
+                extensions.push('b13');
+            }
+            
+            let chordName = baseChord;
+            
+            if (baseChord === '7' && extensions.includes('9') && !extensions.includes('b9') && !extensions.includes('#9')) {
+                if (extensions.length === 1 || (extensions.length === 2 && extensions.includes('13'))) {
+                    chordName = '9';
+                    extensions.shift();
+                }
+            }
+            
+            if (baseChord === '7' && extensions.includes('13')) {
+                chordName = '13';
+                const idx = extensions.indexOf('13');
+                extensions.splice(idx, 1);
+            }
+            
+            if (extensions.length > 0) {
+                chordName += '(' + extensions.join(',') + ')';
+            }
+            
+            return { root, type: chordName };
+        }
+        
+        // Initialize Web Audio API for metronome
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        // Play metronome click
+        function playClick(isAccent = false) {
+            if (!audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = isAccent ? 1000 : 800;
+            gainNode.gain.value = isAccent ? 0.3 : 0.2;
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.05);
+            
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+        }
+        
+        // Announce count for screen reader
+        function announceCount(text) {
+            const announcements = document.getElementById('announcements');
+            announcements.textContent = text;
+        }
+        
+        // Get time signature info
+        function getTimeSignatureInfo() {
+            const ts = document.getElementById('timeSignature').value;
+            const numerator = parseInt(ts[0]);
+            const denominator = parseInt(ts[1]);
+            return { numerator, denominator };
+        }
+        
+        // Start metronome with count-in
+        function startMetronome() {
+            const { numerator } = getTimeSignatureInfo();
+            const bpm = parseInt(document.getElementById('bpm').value) || 120;
+            const startMeasureNum = parseInt(document.getElementById('startMeasure').value) || 1;
+            const beatDuration = 60000 / bpm;
+            
+            currentBeat = 0;
+            currentMeasure = 0; // Count-in always starts at 0
+            isCountingIn = true;
+            
+            // Store the actual start measure for later
+            window.actualStartMeasure = startMeasureNum;
+            
+            metronomeInterval = setInterval(() => {
+                currentBeat++;
+                const isAccent = currentBeat === 1;
+                playClick(isAccent);
+                
+                // Announce counts during count-in
+                if (isCountingIn) {
+                    if (currentMeasure === 0) {
+                        // First measure: announce on beats 1 and 3 for 4/4 (jazz convention)
+                        if (numerator === 4) {
+                            if (currentBeat === 1) {
+                                announceCount('one');
+                            } else if (currentBeat === 3) {
+                                announceCount('two');
+                            }
+                        } else {
+                            // For other time signatures, announce beat numbers
+                            announceCount(currentBeat.toString());
+                        }
+                    } else if (currentMeasure === 1) {
+                        // Second measure: announce all beats
+                        if (numerator === 4) {
+                            // For 4/4, use beat names only (no numbers)
+                            const beatNames = ['', 'one', 'two', 'three', 'four'];
+                            announceCount(beatNames[currentBeat]);
+                        } else {
+                            // For other time signatures, use numbers
+                            announceCount(currentBeat.toString());
+                        }
+                    }
+                }
+                
+                if (currentBeat >= numerator) {
+                    currentBeat = 0;
+                    currentMeasure++;
+                    
+                    // After 2 measures of count-in, start recording
+                    if (isCountingIn && currentMeasure >= 2) {
+                        isCountingIn = false;
+                        isRecording = true;
+                        updateStatusMessage('Recording...', true);
+                        // Don't announce "Recording started" - user knows from last count-in beat
+                        lastRecordedChord = null; // Reset on recording start
+                    }
+                    
+                    // Check if we've reached the end measure
+                    if (isRecording && !isCountingIn) {
+                        const endMeasure = parseInt(document.getElementById('endMeasure').value);
+                        const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
+                        
+                        // Check for new section and announce it
+                        const sectionForMeasure = getSectionForMeasure(actualMeasure);
+                        if (sectionForMeasure && sectionForMeasure !== window.lastAnnouncedSection) {
+                            // Announce section change quickly
+                            if (sectionForMeasure.length === 1) {
+                                announceCount(`Section ${sectionForMeasure}`);
+                            } else {
+                                announceCount(sectionForMeasure);
+                            }
+                            window.lastAnnouncedSection = sectionForMeasure;
+                        }
+                        
+                        if (endMeasure && actualMeasure > endMeasure) {
+                            // Stop recording automatically
+                            stopMetronome();
+                            isRecording = false;
+                            isCountingIn = false;
+                            updateStatusMessage('Recording stopped (end measure reached)', false);
+                            announceCount('Recording stopped');
+                            
+                            document.getElementById('startBtn').disabled = false;
+                            document.getElementById('stopBtn').disabled = true;
+                            document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+                        }
+                    }
+                }
+            }, beatDuration);
+        }
+        
+        // Stop metronome
+        function stopMetronome() {
+            if (metronomeInterval) {
+                clearInterval(metronomeInterval);
+                metronomeInterval = null;
+            }
+        }
+        
+        // Update status message
+        function updateStatusMessage(message, isRecording = false) {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = message;
+            if (isRecording) {
+                statusMsg.className = 'status-message recording-indicator';
+            } else {
+                statusMsg.className = 'status-message';
+            }
+        }
+        
+        // Update chord list display
+        function updateChordList() {
+            const chordList = document.getElementById('chordList');
+            const section = document.getElementById('chordSequenceSection');
+            
+            if (recordedChords.length > 0) {
+                section.style.display = 'block';
+                chordList.innerHTML = recordedChords.map((item, index) => {
+                    const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                    const inversionText = item.inversion ? `/${item.inversion}` : '';
+                    const beatInfo = item.beat ? `:${item.beat}` : '';
+                    // Don't show section in chord list UI - sections only visible in progression
+                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat}">
+                        <span class="measure-num">M${item.measure}${beatInfo}:</span>
+                        <span class="chord-text">${chordText}${inversionText}</span>
+                        <div class="chord-item-actions">
+                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'start')" aria-label="Set start recording marker at measure ${item.measure}" title="Set Start">
+                                ⏩
+                            </button>
+                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'end')" aria-label="Set end recording marker at measure ${item.measure}" title="Set End">
+                                ⏹️
+                            </button>
+                            <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
+                                ✏️
+                            </button>
+                            <button class="chord-item-btn" onclick="addInversion(${index})" aria-label="Add inversion to chord at measure ${item.measure}">
+                                🔄
+                            </button>
+                            <button class="chord-item-btn" onclick="deleteChord(${index})" aria-label="Delete chord at measure ${item.measure}">
+                                ❌
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                section.style.display = 'none';
+            }
+            
+            // Show "Copy from Previous Section" buttons for empty sections (when not recording)
+            if (!isRecording && definedSections.length > 1) {
+                let emptySectionsHTML = '';
+                
+                for (let i = 1; i < definedSections.length; i++) {
+                    const sectionType = definedSections[i].type;
+                    const sectionRange = getSectionRange(sectionType);
+                    
+                    if (sectionRange) {
+                        // Check if section has any chords
+                        const hasChords = recordedChords.some(chord => 
+                            chord.measure >= sectionRange.start && chord.measure <= sectionRange.end
+                        );
+                        
+                        if (!hasChords) {
+                            const prevSection = definedSections[i - 1];
+                            emptySectionsHTML += `<div class="chord-item" role="group" aria-label="Empty section ${sectionType}">
+                                <span class="measure-num">Section ${sectionType} (M${sectionRange.start}-${sectionRange.end}):</span>
+                                <span class="chord-text" style="opacity: 0.6;">Empty</span>
+                                <div class="chord-item-actions">
+                                    <button class="chord-item-btn" onclick="copyFromPreviousSection('${sectionType}')" aria-label="Copy chords from ${prevSection.type} to ${sectionType}" title="Copy from ${prevSection.type}">
+                                        📋 Copy from ${prevSection.type}
+                                    </button>
+                                </div>
+                            </div>`;
+                        }
+                    }
+                }
+                
+                if (emptySectionsHTML) {
+                    chordList.innerHTML += '<div style="margin-top: 20px; padding-top: 20px; border-top: 2px dashed #ddd;">' + emptySectionsHTML + '</div>';
+                }
+            }
+        }
+        
+        // Set recording marker function
+        function setRecordMarker(index, type) {
+            const item = recordedChords[index];
+            if (type === 'start') {
+                document.getElementById('startMeasure').value = item.measure;
+                announceChange(`Start recording marker set to measure ${item.measure}`);
+            } else if (type === 'end') {
+                document.getElementById('endMeasure').value = item.measure;
+                announceChange(`End recording marker set to measure ${item.measure}`);
+            }
+        }
+        
+        // Edit chord function
+        function editChord(index) {
+            const item = recordedChords[index];
+            const newRoot = prompt(`Edit chord root (current: ${item.chord.root}):`, item.chord.root);
+            if (newRoot && newRoot.trim()) {
+                item.chord.root = newRoot.trim();
+                updateChordList();
+                announceChange(`Chord at measure ${item.measure} updated to ${newRoot}`);
+            }
+        }
+        
+        // Add inversion function
+        function addInversion(index) {
+            const item = recordedChords[index];
+            const chordRoot = item.chord.root;
+            
+            // Create inversion selector dialog
+            const inversionDialog = document.createElement('div');
+            inversionDialog.className = 'inversion-selector';
+            inversionDialog.setAttribute('role', 'dialog');
+            inversionDialog.setAttribute('aria-label', 'Select chord inversion');
+            
+            const notes = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+            
+            inversionDialog.innerHTML = `
+                <h4>Select Bass Note for Inversion</h4>
+                <div class="inversion-options" role="group" aria-label="Available bass notes">
+                    ${notes.map(note => `
+                        <button class="inversion-btn" onclick="setInversion(${index}, '${note}')" 
+                                aria-label="Set bass note to ${note}">
+                            ${note}
+                        </button>
+                    `).join('')}
+                    <button class="inversion-btn" onclick="setInversion(${index}, '')" 
+                            aria-label="Remove inversion">
+                        Remove
+                    </button>
+                    <button class="inversion-btn" onclick="closeInversionDialog()" 
+                            style="background: #ff4444; color: white; border-color: #ff4444;"
+                            aria-label="Cancel inversion selection">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            // Insert after the chord item
+            const chordItem = document.querySelector(`.chord-item[data-index="${index}"]`);
+            if (chordItem) {
+                const existingDialog = chordItem.nextElementSibling;
+                if (existingDialog && existingDialog.classList.contains('inversion-selector')) {
+                    existingDialog.remove();
+                } else {
+                    chordItem.after(inversionDialog);
+                    inversionDialog.querySelector('.inversion-btn').focus();
+                }
+            }
+        }
+        
+        // Set inversion
+        function setInversion(index, bassNote) {
+            recordedChords[index].inversion = bassNote;
+            updateChordList();
+            closeInversionDialog();
+            const item = recordedChords[index];
+            const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+            const inversionText = bassNote ? ` with bass note ${bassNote}` : ' (inversion removed)';
+            announceChange(`Chord ${chordText} at measure ${item.measure} updated${inversionText}`);
+        }
+        
+        // Close inversion dialog
+        function closeInversionDialog() {
+            const dialogs = document.querySelectorAll('.inversion-selector');
+            dialogs.forEach(dialog => dialog.remove());
+        }
+        
+        // Delete chord function
+        function deleteChord(index) {
+            const item = recordedChords[index];
+            if (confirm(`Delete chord at measure ${item.measure}?`)) {
+                recordedChords.splice(index, 1);
+                updateChordList();
+                announceChange(`Chord at measure ${item.measure} deleted`);
+            }
+        }
+        
+        // Announce changes for screen reader
+        function announceChange(message) {
+            const announcements = document.getElementById('announcements');
+            announcements.textContent = message;
+        }
+        
+        // Add section definition
+        function addSection() {
+            const sectionType = document.getElementById('sectionType').value;
+            const measure = parseInt(document.getElementById('sectionMeasure').value) || 1;
+            
+            // Check if section already exists at this measure
+            const existingIndex = definedSections.findIndex(s => s.measure === measure);
+            if (existingIndex !== -1) {
+                if (!confirm(`A section already exists at measure ${measure}. Replace it?`)) {
+                    return;
+                }
+                definedSections[existingIndex] = { type: sectionType, measure: measure };
+            } else {
+                definedSections.push({ type: sectionType, measure: measure });
+            }
+            
+            // Sort sections by measure
+            definedSections.sort((a, b) => a.measure - b.measure);
+            
+            updateSectionList();
+            
+            // Announce the addition
+            if (sectionType.length === 1) {
+                announceChange(`Section ${sectionType} added at measure ${measure}`);
+            } else {
+                announceChange(`${sectionType} section added at measure ${measure}`);
+            }
+            
+            // Increment measure number for next section
+            document.getElementById('sectionMeasure').value = measure + 4;
+        }
+        
+        // Update section list display
+        function updateSectionList() {
+            const sectionList = document.getElementById('sectionList');
+            const section = document.getElementById('sectionListSection');
+            
+            if (definedSections.length > 0) {
+                section.style.display = 'block';
+                sectionList.innerHTML = definedSections.map((item, index) => {
+                    return `<div class="chord-item" role="group" aria-label="${item.type} at measure ${item.measure}">
+                        <span class="measure-num">M${item.measure}:</span>
+                        <span class="chord-text">${item.type}</span>
+                        <div class="chord-item-actions">
+                            <button class="chord-item-btn" onclick="deleteSection(${index})" aria-label="Delete ${item.type} section at measure ${item.measure}">
+                                ❌
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                section.style.display = 'none';
+            }
+        }
+        
+        // Delete section definition
+        function deleteSection(index) {
+            const item = definedSections[index];
+            if (confirm(`Delete ${item.type} section at measure ${item.measure}?`)) {
+                definedSections.splice(index, 1);
+                updateSectionList();
+                announceChange(`Section deleted`);
+            }
+        }
+        
+        // Get section for a specific measure
+        function getSectionForMeasure(measure) {
+            // Find the section that starts at or before this measure
+            let currentSection = null;
+            for (const section of definedSections) {
+                if (section.measure <= measure) {
+                    currentSection = section.type;
+                } else {
+                    break;
+                }
+            }
+            return currentSection;
+        }
+        
+        // Get the measure range for a section
+        function getSectionRange(sectionType) {
+            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
+            if (sectionIndex === -1) return null;
+            
+            const startMeasure = definedSections[sectionIndex].measure;
+            const endMeasure = sectionIndex < definedSections.length - 1 
+                ? definedSections[sectionIndex + 1].measure - 1
+                : parseInt(document.getElementById('totalMeasures').value) || 32;
+            
+            return { start: startMeasure, end: endMeasure };
+        }
+        
+        // Trigger section copy during recording (soft pedal held for 1 second)
+        function triggerSectionCopy() {
+            softPedalCopyTriggered = true;
+            
+            const currentMeasureNum = window.actualStartMeasure + (currentMeasure - 2);
+            const currentSection = getSectionForMeasure(currentMeasureNum);
+            
+            if (!currentSection) {
+                announceChange("No section defined for current measure");
+                return;
+            }
+            
+            // Find the previous section
+            const currentSectionIndex = definedSections.findIndex(s => s.type === currentSection);
+            if (currentSectionIndex <= 0) {
+                announceChange("No previous section to copy from");
+                return;
+            }
+            
+            const prevSection = definedSections[currentSectionIndex - 1];
+            const prevSectionRange = getSectionRange(prevSection.type);
+            const currentSectionRange = getSectionRange(currentSection);
+            
+            if (!prevSectionRange || !currentSectionRange) {
+                announceChange("Unable to determine section ranges");
+                return;
+            }
+            
+            // Get chords from previous section
+            const previousSectionChords = recordedChords.filter(chord => 
+                chord.measure >= prevSectionRange.start && chord.measure <= prevSectionRange.end
+            );
+            
+            if (previousSectionChords.length === 0) {
+                announceChange("Previous section is empty");
+                return;
+            }
+            
+            // Copy chords with adjusted measure numbers
+            const measureOffset = currentSectionRange.start - prevSectionRange.start;
+            copiedSectionChords = previousSectionChords.map(chord => ({
+                ...chord,
+                measure: chord.measure + measureOffset,
+                section: currentSection
+            }));
+            
+            // Add copied chords to recordedChords
+            copiedSectionChords.forEach(chord => {
+                recordedChords.push({...chord});
+            });
+            
+            updateChordList();
+            announceChange(`Section ${currentSection} copied from ${prevSection.type}`);
+        }
+        
+        // Remove chords from a specific measure onwards within the current section
+        function removeChordFromMeasureOnwards(startMeasure) {
+            const currentSection = getSectionForMeasure(startMeasure);
+            if (!currentSection) return;
+            
+            const sectionRange = getSectionRange(currentSection);
+            if (!sectionRange) return;
+            
+            // Remove chords from startMeasure to end of section
+            recordedChords = recordedChords.filter(chord => {
+                if (chord.section !== currentSection) return true;
+                return chord.measure < startMeasure;
+            });
+            
+            updateChordList();
+        }
+        
+        // Copy chords from previous section (button click when not recording)
+        function copyFromPreviousSection(sectionType) {
+            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
+            if (sectionIndex <= 0) {
+                announceChange("No previous section to copy from");
+                return;
+            }
+            
+            const prevSection = definedSections[sectionIndex - 1];
+            const prevSectionRange = getSectionRange(prevSection.type);
+            const currentSectionRange = getSectionRange(sectionType);
+            
+            if (!prevSectionRange || !currentSectionRange) {
+                announceChange("Unable to determine section ranges");
+                return;
+            }
+            
+            // Get chords from previous section
+            const previousSectionChords = recordedChords.filter(chord => 
+                chord.measure >= prevSectionRange.start && chord.measure <= prevSectionRange.end
+            );
+            
+            if (previousSectionChords.length === 0) {
+                announceChange("Previous section is empty");
+                return;
+            }
+            
+            // Remove existing chords in current section first
+            recordedChords = recordedChords.filter(chord => 
+                !(chord.measure >= currentSectionRange.start && chord.measure <= currentSectionRange.end)
+            );
+            
+            // Copy chords with adjusted measure numbers
+            const measureOffset = currentSectionRange.start - prevSectionRange.start;
+            const copiedChords = previousSectionChords.map(chord => ({
+                ...chord,
+                measure: chord.measure + measureOffset,
+                section: sectionType
+            }));
+            
+            // Add copied chords
+            recordedChords.push(...copiedChords);
+            recordedChords.sort((a, b) => {
+                if (a.measure !== b.measure) return a.measure - b.measure;
+                return a.beat - b.beat;
+            });
+            
+            updateChordList();
+            announceChange(`Section ${sectionType} copied from ${prevSection.type}`);
+        }
+        
+        // Mark section function (deprecated - kept for backward compatibility with existing chords)
+        function markSection(index) {
+            const item = recordedChords[index];
+            const currentSection = item.section || '';
+            const newSection = prompt(`Enter section marker (A, B, C, etc.) for measure ${item.measure}:`, currentSection);
+            if (newSection !== null) {
+                item.section = newSection.trim().toUpperCase();
+                updateChordList();
+                if (item.section) {
+                    // For single letter sections, say "Section X"
+                    if (item.section.length === 1) {
+                        announceChange(`Section ${item.section}`);
+                    } else {
+                        // For longer names (like "Intro", "Verse"), just say the name
+                        announceChange(item.section);
+                    }
+                } else {
+                    announceChange(`Section marker removed`);
+                }
+            }
+        }
+        
+        // Convert chord to iRealb format
+        function chordToIRealb(chordItem) {
+            if (!chordItem || !chordItem.chord) return ' ';
+            
+            const chord = chordItem.chord;
+            let result = chord.root;
+            
+            // Convert chord type to iRealb notation
+            const typeMap = {
+                '': '', // Major
+                'm': '-', // Minor
+                'maj7': '^7',
+                'm7': '-7',
+                '7': '7',
+                'dim': 'o',
+                'dim7': 'o7',
+                'ø7': 'h7',
+                'aug': '+',
+                'sus4': 'sus',
+                '6': '6',
+                'm6': '-6',
+                '9': '9',
+                '13': '13'
+            };
+            
+            result += typeMap[chord.type] || chord.type;
+            
+            // Add inversion (bass note)
+            if (chordItem.inversion) {
+                result += '/' + chordItem.inversion;
+            }
+            
+            return result;
+        }
+        
+        // Generate iRealb format string
+        function generateIRealbFormat() {
+            const songName = document.getElementById('songName').value || 'Untitled';
+            const author = document.getElementById('authorName').value || '';
+            const musicStyle = document.getElementById('musicStyle').value || 'Medium Swing';
+            const keySignature = document.getElementById('keySignature').value || 'C';
+            const { numerator, denominator } = getTimeSignatureInfo();
+            
+            // Group chords by measure
+            const chordsByMeasure = {};
+            recordedChords.forEach(item => {
+                if (!chordsByMeasure[item.measure]) {
+                    chordsByMeasure[item.measure] = [];
+                }
+                chordsByMeasure[item.measure].push(item);
+            });
+            
+            // Build chord string with sections and time signature
+            let chordString = 'T' + numerator + denominator; // Time signature at start
+            const measures = Object.keys(chordsByMeasure).map(m => parseInt(m)).sort((a, b) => a - b);
+            let lastSection = null;
+            
+            // Determine the total measures to export
+            const totalMeasuresInput = parseInt(document.getElementById('totalMeasures').value) || 32;
+            const firstMeasure = measures.length > 0 ? measures[0] : 1;
+            const lastMeasure = measures.length > 0 ? Math.max(...measures, totalMeasuresInput) : totalMeasuresInput;
+            
+            // Iterate through all measures from first to last
+            for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
+                const chordsInMeasure = chordsByMeasure[measureNum];
+                
+                if (chordsInMeasure && chordsInMeasure.length > 0) {
+                    // Sort chords by beat within the measure
+                    chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
+                    
+                    // Check if this measure starts a new section
+                    const firstChordSection = chordsInMeasure[0].section;
+                    if (firstChordSection && firstChordSection !== lastSection) {
+                        chordString += '*' + firstChordSection;
+                        lastSection = firstChordSection;
+                    }
+                    
+                    // Add chords with spacing based on beats
+                    chordsInMeasure.forEach((item, chordIndex) => {
+                        chordString += chordToIRealb(item);
+                        
+                        // Add space between chords in the same measure
+                        if (chordIndex < chordsInMeasure.length - 1) {
+                            chordString += ' ';
+                        }
+                    });
+                } else {
+                    // No chord in this measure - add repeat symbol
+                    chordString += 'x';
+                }
+                
+                // Add measure separator
+                chordString += '|';
+            }
+            
+            // Add final bar line
+            chordString += 'Z';
+            
+            // iRealbook format: irealbook://SongName=Author=Style=Key=n=ChordData
+            const irealbookUrl = `irealbook://${encodeURIComponent(songName)}=${encodeURIComponent(author)}=${encodeURIComponent(musicStyle)}=${encodeURIComponent(keySignature)}=n=${encodeURIComponent(chordString)}`;
+            
+            return irealbookUrl;
+        }
+        
+        // Download as HTML file
+        function downloadIRealbFile() {
+            const songName = document.getElementById('songName').value || 'Untitled';
+            const irealbUrl = generateIRealbFormat();
+            
+            const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${songName} - iRealPro Chart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        .meta { color: #666; margin-bottom: 30px; }
+        .chords {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .chord-cell {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .irealb-link {
+            margin-top: 30px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 5px;
+        }
+        .irealb-link a {
+            color: #667eea;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-container">
+        <h1>${songName}</h1>
+        <div class="meta">
+            <p><strong>Composer:</strong> ${document.getElementById('authorName').value || 'Unknown'}</p>
+            <p><strong>Time Signature:</strong> ${getTimeSignatureInfo().numerator}/${getTimeSignatureInfo().denominator}</p>
+        </div>
+        <div class="chords">
+            ${(() => {
+                // Group chords by measure for display
+                const chordsByMeasure = {};
+                recordedChords.forEach(item => {
+                    if (!chordsByMeasure[item.measure]) {
+                        chordsByMeasure[item.measure] = [];
+                    }
+                    chordsByMeasure[item.measure].push(item);
+                });
+                
+                const measures = Object.keys(chordsByMeasure).sort((a, b) => parseInt(a) - parseInt(b));
+                return measures.map(measureNum => {
+                    const chordsInMeasure = chordsByMeasure[measureNum];
+                    const chordTexts = chordsInMeasure.map(item => {
+                        const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                        const inversionText = item.inversion ? `/${item.inversion}` : '';
+                        return `${chordText}${inversionText}`;
+                    }).join(' ');
+                    return `<div class="chord-cell">${chordTexts}</div>`;
+                }).join('');
+            })()}
+        </div>
+        <div class="irealb-link">
+            <p><strong>iRealPro Link:</strong></p>
+            <p><a href="${irealbUrl}" target="_blank">${irealbUrl}</a></p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                Click the link above to open in iRealPro app (if installed)
+            </p>
+        </div>
+    </div>
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${songName.replace(/[^a-z0-9]/gi, '_')}_irealb.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize MIDI
+        async function initMIDI() {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                updateMIDIStatus(t('irealbMaker.accessGranted'), true);
+                populateInputDevices();
+                midiAccess.onstatechange = populateInputDevices;
+            } catch (error) {
+                updateMIDIStatus(t('irealbMaker.accessDenied') + ' ' + error.message, false);
+            }
+        }
+        
+        function updateMIDIStatus(message, connected) {
+            const statusEl = document.getElementById('midiStatus');
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+            statusEl.className = connected ? 'midi-status connected' : 'midi-status';
+        }
+        
+        function populateInputDevices() {
+            const select = document.getElementById('midiInput');
+            select.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            
+            const inputs = Array.from(midiAccess.inputs.values());
+            inputs.forEach((input, index) => {
+                const option = document.createElement('option');
+                option.value = input.id;
+                option.textContent = input.name;
+                if (index === 0) option.selected = true;
+                select.appendChild(option);
+            });
+            
+            if (inputs.length > 0) {
+                selectInput(inputs[0].id);
+            }
+        }
+        
+        function selectInput(deviceId) {
+            if (selectedInput) {
+                selectedInput.onmidimessage = null;
+            }
+            
+            if (deviceId && midiAccess) {
+                selectedInput = midiAccess.inputs.get(deviceId);
+                selectedInput.onmidimessage = handleMIDIMessage;
+                updateMIDIStatus(t('irealbMaker.connectedTo') + ' ' + selectedInput.name, true);
+            } else {
+                selectedInput = null;
+                updateMIDIStatus(t('irealbMaker.noDevice'), false);
+            }
+        }
+        
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xF0;
+            
+            // Handle Control Change messages (CC)
+            if (command === 0xB0) {
+                const ccNumber = note;
+                const ccValue = velocity;
+                
+                // Soft pedal is CC 67
+                if (ccNumber === 67) {
+                    if (ccValue >= 64) {
+                        // Soft pedal pressed
+                        if (!softPedalPressed) {
+                            softPedalPressed = true;
+                            softPedalPressTime = Date.now();
+                            softPedalCopyTriggered = false;
+                            
+                            // Check if held for 1 second during recording
+                            setTimeout(() => {
+                                if (softPedalPressed && isRecording && !isCountingIn && !softPedalCopyTriggered) {
+                                    const holdTime = Date.now() - softPedalPressTime;
+                                    if (holdTime >= 1000) {
+                                        triggerSectionCopy();
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    } else {
+                        // Soft pedal released
+                        softPedalPressed = false;
+                    }
+                }
+                return;
+            }
+            
+            if (command === 0x90 && velocity > 0) {
+                // Note ON
+                // If section copy is active and this is first note, start overwriting
+                if (copiedSectionChords.length > 0 && isRecording && !isCountingIn) {
+                    const measureNum = window.actualStartMeasure + (currentMeasure - 2);
+                    // Remove all copied chords from this measure onwards in current section
+                    removeChordFromMeasureOnwards(measureNum);
+                    copiedSectionChords = []; // Clear copied chords - now recording new ones
+                }
+                
+                // If this is the first note pressed, capture the beat position
+                if (activeNotes.size === 0 && isRecording && !isCountingIn) {
+                    chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
+                    chordMeasurePosition = window.actualStartMeasure + (currentMeasure - 2);
+                    chordNotesPressed.clear(); // Start fresh for new chord
+                }
+                
+                activeNotes.add(note);
+                chordNotesPressed.add(note); // Track this note as part of the chord
+                updateChordDisplay();
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                // Note OFF
+                activeNotes.delete(note);
+                
+                // When all notes are released, analyze and record the chord
+                if (activeNotes.size === 0 && chordNotesPressed.size > 0) {
+                    analyzeAndRecordChord();
+                    chordNotesPressed.clear();
+                    chordBeatPosition = null;
+                    chordMeasurePosition = null;
+                } else {
+                    updateChordDisplay();
+                }
+            }
+        }
+        
+        function analyzeAndRecordChord() {
+            if (!isRecording || isCountingIn || chordNotesPressed.size === 0) {
+                return;
+            }
+            
+            // Analyze the complete set of notes that were pressed
+            const noteNames = Array.from(chordNotesPressed)
+                .sort((a, b) => a - b)
+                .map(midiNoteToName);
+            
+            const chordInfo = detectChord(noteNames);
+            if (!chordInfo) return;
+            
+            const chordText = chordInfo.type ? `${chordInfo.root}${chordInfo.type}` : chordInfo.root;
+            const lastChordText = lastRecordedChord ? (lastRecordedChord.chord.type ? `${lastRecordedChord.chord.root}${lastRecordedChord.chord.type}` : lastRecordedChord.chord.root) : '';
+            
+            // Only record if chord has changed from the last recorded chord
+            if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
+                // Automatically assign section based on defined sections
+                const sectionForMeasure = getSectionForMeasure(chordMeasurePosition);
+                
+                const chordEntry = {
+                    measure: chordMeasurePosition,
+                    beat: chordBeatPosition,
+                    chord: chordInfo,
+                    inversion: '',
+                    section: sectionForMeasure || '' // Auto-assign section if defined
+                };
+                recordedChords.push(chordEntry);
+                lastRecordedChord = chordEntry;
+                updateChordList();
+                
+                // Simple announcement: just chord name
+                announceChange(chordText);
+            }
+        }
+        
+        function updateChordDisplay() {
+            if (activeNotes.size === 0) {
+                return;
+            }
+            
+            const noteNames = Array.from(activeNotes)
+                .sort((a, b) => a - b)
+                .map(midiNoteToName);
+            
+            const chordInfo = detectChord(noteNames);
+            currentChord = chordInfo;
+            
+            const chordNameEl = document.getElementById('chordName');
+            if (chordInfo) {
+                const chordFullName = chordInfo.type ? `${chordInfo.root} ${chordInfo.type}` : chordInfo.root;
+                chordNameEl.textContent = chordFullName;
+            }
+        }
+        
+        // Event handlers
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const songName = document.getElementById('songName').value;
+            if (!songName) {
+                alert(t('irealbMaker.enterSongName'));
+                return;
+            }
+            
+            initAudio();
+            
+            // Handle overwrite mode: keep chords outside the recording range
+            const startMeasure = parseInt(document.getElementById('startMeasure').value) || 1;
+            const endMeasure = parseInt(document.getElementById('endMeasure').value);
+            
+            if (startMeasure > 1 || endMeasure) {
+                // Overwrite mode: keep existing chords outside the range
+                recordedChords = recordedChords.filter(chord => {
+                    if (chord.measure < startMeasure) return true; // Keep chords before start
+                    if (endMeasure && chord.measure > endMeasure) return true; // Keep chords after end
+                    return false; // Remove chords in the recording range
+                });
+            } else {
+                // Full re-record: clear everything
+                recordedChords = [];
+            }
+            
+            lastRecordedChord = null;
+            chordNotesPressed.clear();
+            chordBeatPosition = null;
+            chordMeasurePosition = null;
+            activeNotes.clear();
+            window.lastAnnouncedSection = null; // Reset section announcement tracker
+            updateChordList();
+            updateStatusMessage('Count-in...', false);
+            startMetronome();
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('downloadBtn').disabled = true;
+        });
+        
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            stopMetronome();
+            isRecording = false;
+            isCountingIn = false;
+            updateStatusMessage('Recording stopped', false);
+            announceCount('Recording stopped');
+            window.lastAnnouncedSection = null; // Reset for next recording
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+        });
+        
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            downloadIRealbFile();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            stopMetronome();
+            isRecording = false;
+            isCountingIn = false;
+            recordedChords = [];
+            currentChord = null;
+            lastRecordedChord = null;
+            chordNotesPressed.clear();
+            chordBeatPosition = null;
+            chordMeasurePosition = null;
+            activeNotes.clear();
+            updateChordList();
+            updateStatusMessage('', false);
+            document.getElementById('chordName').innerHTML = `<span class="placeholder-text">${t('irealbMaker.readyToRecord')}</span>`;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+        });
+        
+        document.getElementById('addSectionBtn').addEventListener('click', addSection);
+        
+        document.getElementById('midiInput').addEventListener('change', (e) => {
+            selectInput(e.target.value);
+        });
+        
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // Update translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+            document.documentElement.lang = getCurrentLanguage();
+        }
+        
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            updateTranslations();
+            initMIDI();
+        });
+    </script>
+</body>
+</html>
