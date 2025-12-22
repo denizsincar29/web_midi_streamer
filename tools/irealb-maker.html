@@ -405,6 +405,8 @@
             </div>
 
             <div class="irealb-maker-section">
+                <!-- Setup sections - hidden by default, shown only before wizard completion -->
+                <div id="setupSections" style="display: none;">
                 <!-- Song Information Form -->
                 <section class="chord-sequence">
                     <h3 data-i18n="irealbMaker.songInfo">Song Information</h3>
@@ -643,6 +645,7 @@
                         <div><strong>Esc</strong>: Cancel</div>
                     </div>
                 </div>
+                </div><!-- End of setupSections -->
 
                 <!-- Recorded Chord Sequence -->
                 <!-- Using role="application" because this is a custom music notation workspace
