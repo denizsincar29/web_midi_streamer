@@ -598,15 +598,19 @@
                         const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                         
                         // Check for new section and announce it
-                        const sectionForMeasure = getSectionForMeasure(actualMeasure);
-                        if (sectionForMeasure && sectionForMeasure !== window.lastAnnouncedSection) {
-                            // Announce section change quickly
-                            if (sectionForMeasure.length === 1) {
-                                announceCount(`Section ${sectionForMeasure}`);
-                            } else {
-                                announceCount(sectionForMeasure);
+                        const sectionInfo = getSectionForMeasure(actualMeasure);
+                        if (sectionInfo) {
+                            // Create a unique identifier for this section (type + measure)
+                            const sectionId = `${sectionInfo.type}_${sectionInfo.measure}`;
+                            if (sectionId !== window.lastAnnouncedSectionId) {
+                                // Announce section change quickly
+                                if (sectionInfo.type.length === 1) {
+                                    announceCount(`Section ${sectionInfo.type}`);
+                                } else {
+                                    announceCount(sectionInfo.type);
+                                }
+                                window.lastAnnouncedSectionId = sectionId;
                             }
-                            window.lastAnnouncedSection = sectionForMeasure;
                         }
                         
                         if (endMeasure && actualMeasure > endMeasure) {
@@ -896,24 +900,30 @@
             }
         }
         
-        // Get section for a specific measure
+        // Get section index and info for a specific measure
         function getSectionForMeasure(measure) {
             // Find the section that starts at or before this measure
-            let currentSection = null;
-            for (const section of definedSections) {
-                if (section.measure <= measure) {
-                    currentSection = section.type;
+            let currentSectionIndex = -1;
+            for (let i = 0; i < definedSections.length; i++) {
+                if (definedSections[i].measure <= measure) {
+                    currentSectionIndex = i;
                 } else {
                     break;
                 }
             }
-            return currentSection;
+            
+            if (currentSectionIndex === -1) return null;
+            
+            return {
+                index: currentSectionIndex,
+                type: definedSections[currentSectionIndex].type,
+                measure: definedSections[currentSectionIndex].measure
+            };
         }
         
-        // Get the measure range for a section
-        function getSectionRange(sectionType) {
-            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
-            if (sectionIndex === -1) return null;
+        // Get the measure range for a section by index
+        function getSectionRangeByIndex(sectionIndex) {
+            if (sectionIndex < 0 || sectionIndex >= definedSections.length) return null;
             
             const startMeasure = definedSections[sectionIndex].measure;
             const endMeasure = sectionIndex < definedSections.length - 1 
@@ -923,28 +933,35 @@
             return { start: startMeasure, end: endMeasure };
         }
         
+        // Get the measure range for a section type (finds first occurrence)
+        function getSectionRange(sectionType) {
+            const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
+            if (sectionIndex === -1) return null;
+            return getSectionRangeByIndex(sectionIndex);
+        }
+        
         // Trigger section copy during recording (soft pedal held for 1 second)
         function triggerSectionCopy() {
             softPedalCopyTriggered = true;
             
             const currentMeasureNum = window.actualStartMeasure + (currentMeasure - 2);
-            const currentSection = getSectionForMeasure(currentMeasureNum);
+            const currentSectionInfo = getSectionForMeasure(currentMeasureNum);
             
-            if (!currentSection) {
+            if (!currentSectionInfo) {
                 announceChange("No section defined for current measure");
                 return;
             }
             
-            // Find the previous section
-            const currentSectionIndex = definedSections.findIndex(s => s.type === currentSection);
-            if (currentSectionIndex <= 0) {
+            // Check if there's a previous section (by index)
+            if (currentSectionInfo.index <= 0) {
                 announceChange("No previous section to copy from");
                 return;
             }
             
-            const prevSection = definedSections[currentSectionIndex - 1];
-            const prevSectionRange = getSectionRange(prevSection.type);
-            const currentSectionRange = getSectionRange(currentSection);
+            const prevSectionIndex = currentSectionInfo.index - 1;
+            const prevSection = definedSections[prevSectionIndex];
+            const prevSectionRange = getSectionRangeByIndex(prevSectionIndex);
+            const currentSectionRange = getSectionRangeByIndex(currentSectionInfo.index);
             
             if (!prevSectionRange || !currentSectionRange) {
                 announceChange("Unable to determine section ranges");
@@ -966,7 +983,7 @@
             copiedSectionChords = previousSectionChords.map(chord => ({
                 ...chord,
                 measure: chord.measure + measureOffset,
-                section: currentSection
+                section: currentSectionInfo.type
             }));
             
             // Add copied chords to recordedChords
@@ -975,20 +992,21 @@
             });
             
             updateChordList();
-            announceChange(`Section ${currentSection} copied from ${prevSection.type}`);
+            announceChange(`Section ${currentSectionInfo.type} at measure ${currentSectionInfo.measure} copied from ${prevSection.type} at measure ${prevSection.measure}`);
         }
         
         // Remove chords from a specific measure onwards within the current section
         function removeChordFromMeasureOnwards(startMeasure) {
-            const currentSection = getSectionForMeasure(startMeasure);
-            if (!currentSection) return;
+            const currentSectionInfo = getSectionForMeasure(startMeasure);
+            if (!currentSectionInfo) return;
             
-            const sectionRange = getSectionRange(currentSection);
+            const sectionRange = getSectionRangeByIndex(currentSectionInfo.index);
             if (!sectionRange) return;
             
             // Remove chords from startMeasure to end of section
             recordedChords = recordedChords.filter(chord => {
-                if (chord.section !== currentSection) return true;
+                if (chord.section !== currentSectionInfo.type) return true;
+                if (chord.measure < sectionRange.start || chord.measure > sectionRange.end) return true;
                 return chord.measure < startMeasure;
             });
             
@@ -1420,14 +1438,14 @@
             // Only record if chord has changed from the last recorded chord
             if (chordText !== lastChordText && chordBeatPosition !== null && chordMeasurePosition !== null) {
                 // Automatically assign section based on defined sections
-                const sectionForMeasure = getSectionForMeasure(chordMeasurePosition);
+                const sectionInfo = getSectionForMeasure(chordMeasurePosition);
                 
                 const chordEntry = {
                     measure: chordMeasurePosition,
                     beat: chordBeatPosition,
                     chord: chordInfo,
                     inversion: '',
-                    section: sectionForMeasure || '' // Auto-assign section if defined
+                    section: sectionInfo ? sectionInfo.type : '' // Auto-assign section if defined
                 };
                 recordedChords.push(chordEntry);
                 lastRecordedChord = chordEntry;
@@ -1488,7 +1506,7 @@
             chordBeatPosition = null;
             chordMeasurePosition = null;
             activeNotes.clear();
-            window.lastAnnouncedSection = null; // Reset section announcement tracker
+            window.lastAnnouncedSectionId = null; // Reset section announcement tracker
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -1504,7 +1522,7 @@
             isCountingIn = false;
             updateStatusMessage('Recording stopped', false);
             announceCount('Recording stopped');
-            window.lastAnnouncedSection = null; // Reset for next recording
+            window.lastAnnouncedSectionId = null; // Reset for next recording
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
@@ -1634,6 +1652,18 @@
             });
             document.documentElement.lang = getCurrentLanguage();
         }
+        
+        // Expose functions to global scope for inline onclick handlers
+        window.setRecordMarker = setRecordMarker;
+        window.editChord = editChord;
+        window.addInversion = addInversion;
+        window.setInversion = setInversion;
+        window.closeInversionDialog = closeInversionDialog;
+        window.deleteChord = deleteChord;
+        window.addSection = addSection;
+        window.deleteSection = deleteSection;
+        window.copyFromPreviousSection = copyFromPreviousSection;
+        window.markSection = markSection;
         
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
