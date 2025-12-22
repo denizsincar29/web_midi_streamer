@@ -1051,13 +1051,13 @@
                     announcement = `${t('irealbMaker.emptyMeasure')} ${measure}`;
                 } else {
                     // Chord announcement with optional beat information
-                    // Format: "Bb major measure 4" or "Bb major measure 4, beat 2"
+                    // Format: "Bb major measure 4" or "Bb major measure 4 beat 2"
                     const chordText = chordName.trim();
                     announcement = `${chordText} ${t('irealbMaker.measure').toLowerCase()} ${measure}`;
                     
                     // Add beat information if the chord is not the only one in the measure
                     if (beatAttr && beatAttr !== '') {
-                        announcement += `, ${t('irealbMaker.beat')} ${beatAttr}`;
+                        announcement += ` ${t('irealbMaker.beat')} ${beatAttr}`;
                     }
                 }
                 
@@ -1366,11 +1366,10 @@
                 announceChange('No chord to delete at this position');
                 return;
             }
-            if (confirm(`Delete chord at measure ${item.measure}?`)) {
-                recordedChords.splice(index, 1);
-                updateChordList();
-                announceChange(`Chord at measure ${item.measure} deleted`);
-            }
+            // Delete without confirmation
+            recordedChords.splice(index, 1);
+            updateChordList();
+            announceChange(`Chord at measure ${item.measure} deleted`);
         }
         
         // Move chord to a different beat or measure
@@ -3157,74 +3156,110 @@
                 const { numerator } = getTimeSignatureInfo();
                 const beatDuration = 60000 / bpm; // milliseconds per beat
                 
-                // Track beat for metronome
+                // Track current measure and beat for playback
+                let playbackMeasure = 1;
                 let playbackBeat = 1;
+                
+                // Get the starting measure from the first chord to play
+                const cells = document.querySelectorAll('.chord-cell');
+                if (playbackChordIndex < cells.length) {
+                    const firstCell = cells[playbackChordIndex];
+                    const firstMeasure = parseInt(firstCell.getAttribute('data-measure'));
+                    if (!isNaN(firstMeasure)) {
+                        playbackMeasure = firstMeasure;
+                    }
+                }
                 
                 // Play first beat click immediately (beat 1)
                 playClick(true); // Accent on beat 1
                 
-                // Play first chord immediately after click
-                playNextChord();
+                // Check if there's a chord on beat 1 and play it
+                playChordOnBeat(playbackMeasure, playbackBeat);
                 
                 // Continue playing based on beat timing with metronome
                 playbackInterval = setInterval(() => {
                     playbackBeat++;
                     if (playbackBeat > numerator) {
                         playbackBeat = 1;
+                        playbackMeasure++;
                     }
                     
                     // Play metronome click for this beat
                     const isAccent = playbackBeat === 1;
                     playClick(isAccent);
                     
-                    // Play next chord on beat 1 of each measure
-                    if (playbackBeat === 1) {
-                        playNextChord();
+                    // Play chord if there's one on this beat
+                    playChordOnBeat(playbackMeasure, playbackBeat);
+                    
+                    // Check if we've reached the end of recorded chords
+                    if (playbackChordIndex >= cells.length) {
+                        // Reached end, stop playback
+                        isPlayingBack = false;
+                        if (playbackInterval) {
+                            clearInterval(playbackInterval);
+                            playbackInterval = null;
+                        }
+                        stopPlaybackNotes();
+                        announceChange('Playback completed');
                     }
                 }, beatDuration);
             }
         }
         
-        function playNextChord() {
+        function playChordOnBeat(measure, beat) {
             const cells = document.querySelectorAll('.chord-cell');
             
-            if (playbackChordIndex >= cells.length) {
-                // Reached end, stop playback
-                isPlayingBack = false;
-                if (playbackInterval) {
-                    clearInterval(playbackInterval);
-                    playbackInterval = null;
-                }
-                stopPlaybackNotes();
-                announceChange('Playback completed');
-                return;
-            }
-            
-            // Select the chord visually (but don't announce it during playback)
-            selectChord(playbackChordIndex);
-            // Suppress the announcement during playback
-            if (isPlayingBack) {
-                document.getElementById('announcements').textContent = '';
-            }
-            
-            // Get chord at current index
-            const cell = cells[playbackChordIndex];
-            const dataIndex = cell.getAttribute('data-index');
-            
-            if (dataIndex !== null) {
+            // Find chord(s) at this measure and beat
+            for (let i = playbackChordIndex; i < cells.length; i++) {
+                const cell = cells[i];
+                const cellMeasure = parseInt(cell.getAttribute('data-measure'));
+                const dataIndex = cell.getAttribute('data-index');
+                
+                if (dataIndex === null) continue; // Skip empty measures
+                
                 const chordData = recordedChords[parseInt(dataIndex)];
-                if (chordData && chordData.chord) {
+                if (!chordData || !chordData.chord) continue;
+                
+                const chordMeasure = chordData.measure;
+                const chordBeat = chordData.beat || 1; // Default to beat 1 if not specified
+                
+                // If we've gone past the current measure, stop searching
+                if (chordMeasure > measure) {
+                    break;
+                }
+                
+                // If this chord is on the current measure and beat, play it
+                if (chordMeasure === measure && chordBeat === beat) {
+                    // Select the chord visually
+                    selectChord(i);
+                    // Suppress the announcement during playback
+                    if (isPlayingBack) {
+                        document.getElementById('announcements').textContent = '';
+                    }
+                    
                     // Play the chord via MIDI
                     const bpm = parseInt(document.getElementById('bpm')?.value || 120);
                     const { numerator } = getTimeSignatureInfo();
                     const beatDuration = 60000 / bpm;
-                    const chordDuration = beatDuration * numerator * 0.9; // 90% of measure duration
+                    const chordDuration = beatDuration * 0.8; // 80% of beat duration
                     
                     playChordMIDI(chordData.chord, chordData.inversion, chordDuration);
+                    
+                    // Move to next chord
+                    playbackChordIndex = i + 1;
+                    break;
+                }
+                
+                // If this chord is before the current position, skip it
+                if (chordMeasure < measure || (chordMeasure === measure && chordBeat < beat)) {
+                    playbackChordIndex = i + 1;
                 }
             }
-            
-            playbackChordIndex++;
+        }
+        
+        function playNextChord() {
+            // This function is kept for compatibility but is no longer used in the new playback system
+            // Playback now uses playChordOnBeat() which plays chords based on their beat positions
         }
         
         // Expose functions to global scope for inline onclick handlers
