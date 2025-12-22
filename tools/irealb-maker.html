@@ -958,6 +958,29 @@
                 // Generate cells for all measures
                 let html = '';
                 for (let m = 1; m <= totalMeasures; m++) {
+                    // Check if this measure should be hidden (it's a reprise measure in the second occurrence)
+                    let isHiddenReprise = false;
+                    for (const region of repeatRegions) {
+                        // We need to hide measures in the volta2 section that correspond to the reprise
+                        // These are measures BEFORE volta2Start in the same section
+                        const repriseLength = region.repriseEnd - region.repriseStart + 1;
+                        
+                        // Calculate which section volta2 is in
+                        // The hidden measures are from (volta2Start - repriseLength) to (volta2Start - 1)
+                        const hiddenStart = region.volta2Start - repriseLength;
+                        const hiddenEnd = region.volta2Start - 1;
+                        
+                        if (m >= hiddenStart && m <= hiddenEnd) {
+                            isHiddenReprise = true;
+                            break;
+                        }
+                    }
+                    
+                    // Skip rendering this measure if it's a hidden reprise
+                    if (isHiddenReprise) {
+                        continue;
+                    }
+                    
                     const chordsInMeasure = chordsByMeasure[m] || [];
                     
                     if (chordsInMeasure.length > 0) {
@@ -1952,8 +1975,28 @@
                 return null;
             }
             
+            // Helper function to check if a measure should be hidden (reprise in volta 2 section)
+            function isHiddenRepriseMeasure(measureNum) {
+                for (const region of repeatRegions) {
+                    const repriseLength = region.repriseEnd - region.repriseStart + 1;
+                    // The hidden measures are from (volta2Start - repriseLength) to (volta2Start - 1)
+                    const hiddenStart = region.volta2Start - repriseLength;
+                    const hiddenEnd = region.volta2Start - 1;
+                    
+                    if (measureNum >= hiddenStart && measureNum <= hiddenEnd) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
             // Iterate through all measures from first to last
             for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
+                // Skip exporting hidden reprise measures
+                if (isHiddenRepriseMeasure(measureNum)) {
+                    continue;
+                }
+                
                 const chordsInMeasure = chordsByMeasure[measureNum];
                 const repeatContext = getRepeatContext(measureNum);
                 
