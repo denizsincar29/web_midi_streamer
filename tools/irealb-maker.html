@@ -480,7 +480,7 @@
                         <div><strong>R</strong>: Start/Stop Recording</div>
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>S</strong>: Add section</div>
-                        <div><strong>V</strong>: Toggle volta (cycles: none → 1st → 2nd → none)</div>
+                        <div><strong>V</strong>: Auto-detect volta/repeat structure (smart: creates reprise + first/second endings)</div>
                         <div><strong>Shift+V</strong>: Delete marker (section/volta)</div>
                         <div><strong>Backspace</strong>: Delete current chord</div>
                         <div><strong>Delete</strong>: Delete marker range</div>
@@ -1892,6 +1892,20 @@
         }
         
         // Generate iRealb format string
+        // iRealPro format specification: https://www.irealpro.com/ireal-pro-custom-chord-chart-protocol
+        // 
+        // Repeat/Volta syntax:
+        // { = Repeat start (left repeat bar line)
+        // } = Repeat end (right repeat bar line) 
+        // N = First ending (volta 1)
+        // Q = Second ending (volta 2)
+        // T44 = Time signature (4/4)
+        // *A = Section marker
+        // | = Measure separator
+        // Z = Final bar line
+        //
+        // Example with repeat: T44{C|F|G|C}N|Am|DmQ|Em|Z
+        // This creates: reprise (C F G C) with first ending (Am Dm) and second ending (Em)
         function generateIRealbFormat() {
             const songName = document.getElementById('songName').value || 'Untitled';
             const author = document.getElementById('authorName').value || '';
