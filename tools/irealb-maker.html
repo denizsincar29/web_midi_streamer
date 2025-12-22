@@ -686,7 +686,7 @@
         
         // Quantization settings
         let quantizationEnabled = true; // Enable quantization by default
-        let quantizationTolerance = 0.25; // Quantize if within 25% of beat duration
+        let quantizationTolerance = 0.25; // 25% of beat duration before/after each beat (creates 50% total window)
         
         // Quantize beat position based on timing
         function quantizeBeat(timestamp, currentBeatPos, currentMeasurePos) {
@@ -792,8 +792,9 @@
             isCountingIn = true;
             
             // Initialize beat timestamps for quantization
-            lastBeatTimestamp = Date.now();
-            nextBeatTimestamp = lastBeatTimestamp + beatDuration;
+            const now = Date.now();
+            lastBeatTimestamp = now;
+            nextBeatTimestamp = now + beatDuration;
             
             // Store the actual start measure for later
             window.actualStartMeasure = startMeasureNum;

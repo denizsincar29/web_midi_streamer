@@ -328,9 +328,9 @@ export function chordToMIDINotes(chord, inversion = null) {
     if (hasThird) {
         addInterval(thirdInterval);
     } else if (chordType.includes('sus4')) {
-        addInterval(5); // Perfect 4th for sus4
+        addInterval(5); // Perfect 4th (5 semitones) for sus4
     } else if (chordType.includes('sus2')) {
-        addInterval(2); // Major 2nd for sus2
+        addInterval(2); // Major 2nd (2 semitones) for sus2
     }
     
     // Add fifth (if present)
