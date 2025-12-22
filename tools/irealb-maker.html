@@ -1893,8 +1893,10 @@
         function populateInputDevices() {
             const select = document.getElementById('midiInput');
             const modalSelect = document.getElementById('modalMidiInput');
-            select.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
-            modalSelect.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            const noDeviceOption = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            
+            select.innerHTML = noDeviceOption;
+            modalSelect.innerHTML = noDeviceOption;
             
             const inputs = Array.from(midiAccess.inputs.values());
             inputs.forEach((input, index) => {
@@ -1904,13 +1906,17 @@
                 if (index === 0) option.selected = true;
                 select.appendChild(option);
                 
-                const modalOption = option.cloneNode(true);
+                // Create a separate option for modal (don't clone to avoid property issues)
+                const modalOption = document.createElement('option');
+                modalOption.value = input.id;
+                modalOption.textContent = input.name;
+                if (index === 0) modalOption.selected = true;
                 modalSelect.appendChild(modalOption);
             });
             
             // Populate MIDI output devices
             const outputSelect = document.getElementById('modalMidiOutput');
-            outputSelect.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            outputSelect.innerHTML = noDeviceOption;
             
             const outputs = Array.from(midiAccess.outputs.values());
             outputs.forEach((output, index) => {
