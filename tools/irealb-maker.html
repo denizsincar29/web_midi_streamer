@@ -405,180 +405,22 @@
             </div>
 
             <div class="irealb-maker-section">
-                <!-- Setup sections - hidden by default, shown only before wizard completion -->
-                <div id="setupSections" style="display: none;">
-                <!-- Song Information Form -->
-                <section class="chord-sequence">
-                    <h3 data-i18n="irealbMaker.songInfo">Song Information</h3>
-                    <div class="form-group">
-                        <label for="songName" data-i18n="irealbMaker.songName">Song Name:</label>
-                        <input type="text" id="songName" placeholder="Enter song name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="authorName" data-i18n="irealbMaker.authorName">Author/Composer:</label>
-                        <input type="text" id="authorName" placeholder="Enter author name">
-                    </div>
-                    <div class="form-group">
-                        <label for="timeSignature" data-i18n="irealbMaker.timeSignature">Time Signature:</label>
-                        <select id="timeSignature">
-                            <option value="44">4/4 (Common Time)</option>
-                            <option value="34">3/4 (Waltz)</option>
-                            <option value="54">5/4</option>
-                            <option value="68">6/8</option>
-                            <option value="78">7/8</option>
-                            <option value="24">2/4</option>
-                        </select>
-                        <div class="time-signature-help" data-i18n="irealbMaker.timeSignatureHelp">
-                            Count-in will be announced for the first 2 measures
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="musicStyle" data-i18n="irealbMaker.musicStyle">Music Style:</label>
-                        <select id="musicStyle" aria-label="Music style">
-                            <option value="Medium Swing">Medium Swing</option>
-                            <option value="Up Tempo Swing">Up Tempo Swing</option>
-                            <option value="Ballad">Ballad</option>
-                            <option value="Even 8ths">Even 8ths</option>
-                            <option value="Bossa Nova">Bossa Nova</option>
-                            <option value="Latin">Latin</option>
-                            <option value="Jazz Waltz">Jazz Waltz</option>
-                            <option value="Medium Up Swing">Medium Up Swing</option>
-                            <option value="Fast Swing">Fast Swing</option>
-                            <option value="Slow Swing">Slow Swing</option>
-                            <option value="Funk">Funk</option>
-                            <option value="Samba">Samba</option>
-                            <option value="Afro Cuban">Afro Cuban</option>
-                            <option value="Blues">Blues</option>
-                            <option value="Rock">Rock</option>
-                            <option value="Pop">Pop</option>
-                            <option value="Folk">Folk</option>
-                            <option value="Country">Country</option>
-                            <option value="R&B">R&amp;B</option>
-                            <option value="Gospel">Gospel</option>
-                        </select>
-                        <div class="time-signature-help" data-i18n="irealbMaker.musicStyleHelp">
-                            Select the music style for your song
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="keySignature" data-i18n="irealbMaker.keySignature">Key Signature:</label>
-                        <select id="keySignature" aria-label="Key signature">
-                            <option value="C">C Major</option>
-                            <option value="Db">Db Major</option>
-                            <option value="D">D Major</option>
-                            <option value="Eb">Eb Major</option>
-                            <option value="E">E Major</option>
-                            <option value="F">F Major</option>
-                            <option value="Gb">Gb Major</option>
-                            <option value="G">G Major</option>
-                            <option value="Ab">Ab Major</option>
-                            <option value="A">A Major</option>
-                            <option value="Bb">Bb Major</option>
-                            <option value="B">B Major</option>
-                            <option value="A-">A Minor</option>
-                            <option value="Bb-">Bb Minor</option>
-                            <option value="B-">B Minor</option>
-                            <option value="C-">C Minor</option>
-                            <option value="C#-">C# Minor</option>
-                            <option value="D-">D Minor</option>
-                            <option value="Eb-">Eb Minor</option>
-                            <option value="E-">E Minor</option>
-                            <option value="F-">F Minor</option>
-                            <option value="F#-">F# Minor</option>
-                            <option value="G-">G Minor</option>
-                            <option value="G#-">G# Minor</option>
-                        </select>
-                        <div class="time-signature-help" data-i18n="irealbMaker.keySignatureHelp">
-                            Select the key signature for your song
-                        </div>
-                    </div>
-                </section>
+                <!-- Hidden fields to store form values - populated from wizard -->
+                <input type="hidden" id="songName" value="">
+                <input type="hidden" id="authorName" value="">
+                <input type="hidden" id="timeSignature" value="44">
+                <input type="hidden" id="musicStyle" value="Medium Swing">
+                <input type="hidden" id="keySignature" value="C">
+                <input type="hidden" id="bpm" value="120">
+                <input type="hidden" id="totalMeasures" value="32">
+                <input type="hidden" id="startMeasure" value="1">
+                <input type="hidden" id="endMeasure" value="">
+                <input type="hidden" id="sectionType" value="A">
+                <input type="hidden" id="sectionMeasure" value="1">
+                <select id="midiInput" style="display: none;" aria-label="Select MIDI input device">
+                    <option value="">No device selected</option>
+                </select>
 
-                <!-- Metronome Settings -->
-                <section class="chord-sequence">
-                    <h3 data-i18n="irealbMaker.metronomeSettings">Metronome Settings</h3>
-                    <div class="time-signature-help" style="margin-bottom: 15px; font-weight: bold; color: #667eea;">
-                        ⚠️ Note: BPM is used for metronome only during recording, not saved to iReal Pro file
-                    </div>
-                    <div class="form-group">
-                        <label for="bpm" data-i18n="irealbMaker.bpm">BPM (Tempo):</label>
-                        <input type="number" id="bpm" value="120" min="40" max="240" step="1" aria-label="Beats per minute">
-                        <div class="time-signature-help" data-i18n="irealbMaker.bpmHelp">
-                            Metronome tempo (40-240 beats per minute)
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="startMeasure" data-i18n="irealbMaker.startMeasure">Start Recording from Measure:</label>
-                        <input type="number" id="startMeasure" value="1" min="1" max="999" step="1" aria-label="Starting measure number">
-                        <div class="time-signature-help" data-i18n="irealbMaker.startMeasureHelp">
-                            Choose which measure to start recording from
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="endMeasure" data-i18n="irealbMaker.endMeasure">End Recording at Measure (optional):</label>
-                        <input type="number" id="endMeasure" value="" min="1" max="999" step="1" placeholder="Leave empty for no limit" aria-label="Ending measure number">
-                        <div class="time-signature-help" data-i18n="irealbMaker.endMeasureHelp">
-                            Optionally set an end measure to overwrite a specific range (e.g., 5-8)
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Song Length -->
-                <section class="chord-sequence">
-                    <h3 data-i18n="irealbMaker.songLength">Song Length</h3>
-                <!-- Song Length -->
-                <section class="chord-sequence">
-                    <h3 data-i18n="irealbMaker.songLength">Song Length</h3>
-                    <div class="form-group">
-                        <label for="totalMeasures" data-i18n="irealbMaker.totalMeasures">Total Measures in Song:</label>
-                        <input type="number" id="totalMeasures" value="32" min="1" max="999" step="1" aria-label="Total number of measures">
-                        <div class="time-signature-help" data-i18n="irealbMaker.totalMeasuresHelp">
-                            Set the total length of your song
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Song Structure / Sections -->
-                <section class="irealb-maker-section">
-                    <h3 data-i18n="irealbMaker.songStructure">Song Structure</h3>
-                    <div class="form-group">
-                        <label for="sectionType" data-i18n="irealbMaker.sectionType">Section Type:</label>
-                        <select id="sectionType" aria-label="Section type">
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                            <option value="D">D</option>
-                            <option value="Intro">Intro</option>
-                            <option value="Verse">Verse</option>
-                            <option value="Chorus">Chorus</option>
-                            <option value="Bridge">Bridge</option>
-                            <option value="Solo">Solo</option>
-                            <option value="Outro">Outro</option>
-                            <option value="Coda">Coda</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="sectionMeasure" data-i18n="irealbMaker.sectionMeasure">Section Starts at Measure:</label>
-                        <input type="number" id="sectionMeasure" value="1" min="1" max="999" step="1" aria-label="Section measure number">
-                    </div>
-                    <button id="addSectionBtn" class="btn btn-secondary" data-i18n="irealbMaker.addSection">
-                        ➕ Add Section
-                    </button>
-                    <div class="chord-sequence" id="sectionListSection" style="display: none; margin-top: 20px;">
-                        <h4 data-i18n="irealbMaker.definedSections">Defined Sections:</h4>
-                        <div class="chord-list" id="sectionList"></div>
-                    </div>
-                </section>
-
-                <!-- MIDI Input Selection -->
-                <section class="device-group">
-                    <label for="midiInput" data-i18n="irealbMaker.inputDevice">MIDI Input Device:</label>
-                    <select id="midiInput" aria-label="Select MIDI input device">
-                        <option value="" data-i18n="irealbMaker.noDeviceSelected">No device selected</option>
-                    </select>
-                </section>
-
-                <!-- Current Chord Display -->
                 <div class="chord-display" role="region" aria-atomic="true">
                     <div class="chord-name" id="chordName">
                         <span class="placeholder-text" data-i18n="irealbMaker.readyToRecord">Ready to record...</span>
@@ -645,7 +487,6 @@
                         <div><strong>Esc</strong>: Cancel</div>
                     </div>
                 </div>
-                </div><!-- End of setupSections -->
 
                 <!-- Recorded Chord Sequence -->
                 <!-- Using role="application" because this is a custom music notation workspace
@@ -665,7 +506,104 @@
                     </div>
                     <div class="modal-body">
                         <div id="wizardContent">
-                            <!-- Content will be populated from existing forms -->
+                            <!-- Song Information -->
+                            <div class="form-group">
+                                <label for="wizard-songName">Song Name:</label>
+                                <input type="text" id="wizard-songName" placeholder="Enter song name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="wizard-authorName">Author/Composer:</label>
+                                <input type="text" id="wizard-authorName" placeholder="Enter author name">
+                            </div>
+                            <div class="form-group">
+                                <label for="wizard-timeSignature">Time Signature:</label>
+                                <select id="wizard-timeSignature">
+                                    <option value="44">4/4 (Common Time)</option>
+                                    <option value="34">3/4 (Waltz)</option>
+                                    <option value="54">5/4</option>
+                                    <option value="68">6/8</option>
+                                    <option value="78">7/8</option>
+                                    <option value="24">2/4</option>
+                                </select>
+                                <div class="time-signature-help">Count-in will be announced for the first 2 measures</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="wizard-musicStyle">Music Style:</label>
+                                <select id="wizard-musicStyle">
+                                    <option value="Medium Swing">Medium Swing</option>
+                                    <option value="Up Tempo Swing">Up Tempo Swing</option>
+                                    <option value="Ballad">Ballad</option>
+                                    <option value="Even 8ths">Even 8ths</option>
+                                    <option value="Bossa Nova">Bossa Nova</option>
+                                    <option value="Latin">Latin</option>
+                                    <option value="Jazz Waltz">Jazz Waltz</option>
+                                    <option value="Medium Up Swing">Medium Up Swing</option>
+                                    <option value="Fast Swing">Fast Swing</option>
+                                    <option value="Slow Swing">Slow Swing</option>
+                                    <option value="Funk">Funk</option>
+                                    <option value="Samba">Samba</option>
+                                    <option value="Afro Cuban">Afro Cuban</option>
+                                    <option value="Blues">Blues</option>
+                                    <option value="Rock">Rock</option>
+                                    <option value="Pop">Pop</option>
+                                    <option value="Folk">Folk</option>
+                                    <option value="Country">Country</option>
+                                    <option value="R&B">R&amp;B</option>
+                                    <option value="Gospel">Gospel</option>
+                                </select>
+                                <div class="time-signature-help">Select the music style for your song</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="wizard-keySignature">Key Signature:</label>
+                                <select id="wizard-keySignature">
+                                    <option value="C">C Major</option>
+                                    <option value="Db">Db Major</option>
+                                    <option value="D">D Major</option>
+                                    <option value="Eb">Eb Major</option>
+                                    <option value="E">E Major</option>
+                                    <option value="F">F Major</option>
+                                    <option value="Gb">Gb Major</option>
+                                    <option value="G">G Major</option>
+                                    <option value="Ab">Ab Major</option>
+                                    <option value="A">A Major</option>
+                                    <option value="Bb">Bb Major</option>
+                                    <option value="B">B Major</option>
+                                    <option value="A-">A Minor</option>
+                                    <option value="Bb-">Bb Minor</option>
+                                    <option value="B-">B Minor</option>
+                                    <option value="C-">C Minor</option>
+                                    <option value="C#-">C# Minor</option>
+                                    <option value="D-">D Minor</option>
+                                    <option value="Eb-">Eb Minor</option>
+                                    <option value="E-">E Minor</option>
+                                    <option value="F-">F Minor</option>
+                                    <option value="F#-">F# Minor</option>
+                                    <option value="G-">G Minor</option>
+                                    <option value="G#-">G# Minor</option>
+                                </select>
+                                <div class="time-signature-help">Select the key signature for your song</div>
+                            </div>
+                            
+                            <!-- Tempo Settings -->
+                            <div class="form-group">
+                                <label for="wizard-bpm">BPM (Tempo):</label>
+                                <input type="number" id="wizard-bpm" value="120" min="40" max="240" step="1">
+                                <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
+                                <div class="time-signature-help" style="font-weight: bold; color: #667eea;">
+                                    ⚠️ Note: BPM is for metronome during recording only, not saved to iReal Pro file
+                                </div>
+                            </div>
+                            
+                            <!-- Song Length -->
+                            <div class="form-group">
+                                <label for="wizard-totalMeasures">Total Measures in Song:</label>
+                                <input type="number" id="wizard-totalMeasures" value="32" min="1" max="999" step="1">
+                                <div class="time-signature-help">Set the total length of your song</div>
+                            </div>
+                            
+                            <div class="time-signature-help" style="margin-top: 20px; padding: 10px; background: #f0f4ff; border-radius: 6px;">
+                                <strong>Note:</strong> Use [ and ] keys during editing to set start/end recording markers on specific measures.
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -2039,7 +1977,8 @@
             document.getElementById('downloadBtn').disabled = true;
         });
         
-        document.getElementById('addSectionBtn').addEventListener('click', addSection);
+        // Note: addSectionBtn removed - sections added via S key only
+        // document.getElementById('addSectionBtn').addEventListener('click', addSection);
         
         document.getElementById('midiInput').addEventListener('change', (e) => {
             selectInput(e.target.value);
@@ -2662,53 +2601,14 @@
         
         function openSetupWizard() {
             const modal = document.getElementById('setupWizardModal');
-            const wizardContent = document.getElementById('wizardContent');
+            modal.classList.add('active');
             
-            // Copy form content into wizard if not already done
-            if (wizardContent.children.length === 0) {
-                // Clone the song information section - use ID for more reliable selection
-                const songInfoSection = document.querySelector('#songName')?.closest('.chord-sequence');
-                const metronomeSection = document.querySelector('#bpm')?.closest('.chord-sequence');
-                const songLengthSection = document.querySelector('#totalMeasures')?.closest('.chord-sequence');
-                
-                if (songInfoSection) {
-                    const clone = songInfoSection.cloneNode(true);
-                    // Update IDs to avoid conflicts
-                    clone.querySelectorAll('[id]').forEach(el => {
-                        if (!el.id.startsWith('wizard-')) {
-                            el.id = 'wizard-' + el.id;
-                        }
-                    });
-                    wizardContent.appendChild(clone);
-                }
-                
-                if (metronomeSection) {
-                    const clone = metronomeSection.cloneNode(true);
-                    clone.querySelectorAll('[id]').forEach(el => {
-                        if (!el.id.startsWith('wizard-')) {
-                            el.id = 'wizard-' + el.id;
-                        }
-                    });
-                    wizardContent.appendChild(clone);
-                }
-                
-                if (songLengthSection) {
-                    const clone = songLengthSection.cloneNode(true);
-                    clone.querySelectorAll('[id]').forEach(el => {
-                        if (!el.id.startsWith('wizard-')) {
-                            el.id = 'wizard-' + el.id;
-                        }
-                    });
-                    // Hide the "Add Section" button in wizard - we'll use S key instead
-                    const addSectionBtn = clone.querySelector('[id*="addSectionBtn"]');
-                    if (addSectionBtn) {
-                        addSectionBtn.style.display = 'none';
-                    }
-                    wizardContent.appendChild(clone);
-                }
+            // Focus the first input
+            const firstInput = document.getElementById('wizard-songName');
+            if (firstInput) {
+                setTimeout(() => firstInput.focus(), 100);
             }
             
-            modal.classList.add('active');
             announceChange('Song setup wizard opened. Press Escape to close.');
         }
         
@@ -2884,9 +2784,8 @@
                     document.getElementById('musicStyle').value = document.getElementById('wizard-musicStyle')?.value || 'Medium Swing';
                     document.getElementById('keySignature').value = document.getElementById('wizard-keySignature')?.value || 'C';
                     document.getElementById('bpm').value = document.getElementById('wizard-bpm')?.value || '120';
-                    document.getElementById('startMeasure').value = document.getElementById('wizard-startMeasure')?.value || '1';
-                    document.getElementById('endMeasure').value = document.getElementById('wizard-endMeasure')?.value || '';
                     document.getElementById('totalMeasures').value = document.getElementById('wizard-totalMeasures')?.value || '32';
+                    // Note: startMeasure and endMeasure are set via [ and ] keyboard markers during editing, not in wizard
                 }
                 
                 startEditingMode();
