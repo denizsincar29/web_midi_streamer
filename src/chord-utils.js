@@ -329,12 +329,10 @@ export function chordToMIDINotes(chord, inversion = null) {
         addInterval(thirdInterval);
     }
     
-    // Add fifth (if present)
-    if (hasFifth && (!chordType.includes('sus') || !hasThird)) {
-        // Don't add 5th to sus chords if we already added 4th/2nd
-        if (!chordType.includes('sus')) {
-            addInterval(fifthInterval);
-        }
+    // Add fifth (if present and not a sus chord)
+    // Sus chords don't have a fifth because the 4th or 2nd replaces it
+    if (hasFifth && !chordType.includes('sus')) {
+        addInterval(fifthInterval);
     }
     
     // Add seventh (if present)
