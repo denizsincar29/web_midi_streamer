@@ -716,6 +716,16 @@
                     chordList.innerHTML += '<div style="margin-top: 20px; padding-top: 20px; border-top: 2px dashed #ddd;">' + emptySectionsHTML + '</div>';
                 }
             }
+            
+            // Update download button states
+            updateDownloadButtonStates();
+        }
+        
+        // Update download button states based on whether we have chords
+        function updateDownloadButtonStates() {
+            const hasChords = recordedChords.length > 0;
+            document.getElementById('downloadBtn').disabled = !hasChords;
+            document.getElementById('downloadJsonBtn').disabled = !hasChords;
         }
         
         // Set recording marker function
@@ -1260,7 +1270,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${songName.replace(/[^a-z0-9]/gi, '_')}_irealb.html`;
+            a.download = `${songName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')}_irealb.html`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1559,7 +1569,7 @@
             const a = document.createElement('a');
             const songName = document.getElementById('songName').value || 'untitled';
             a.href = url;
-            a.download = `${songName.replace(/[^a-z0-9]/gi, '_')}_progress.json`;
+            a.download = `${songName.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')}_progress.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1619,20 +1629,6 @@
             // Reset file input so the same file can be loaded again
             e.target.value = '';
         });
-        
-        // Update download JSON button state when chords change
-        function updateDownloadButtonStates() {
-            const hasChords = recordedChords.length > 0;
-            document.getElementById('downloadBtn').disabled = !hasChords;
-            document.getElementById('downloadJsonBtn').disabled = !hasChords;
-        }
-        
-        // Update the updateChordList function to also update button states
-        const originalUpdateChordList = updateChordList;
-        updateChordList = function() {
-            originalUpdateChordList();
-            updateDownloadButtonStates();
-        };
         
         // Update translations
         function updateTranslations() {
