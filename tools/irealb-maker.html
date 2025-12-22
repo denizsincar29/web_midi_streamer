@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iRealPro Maker - MIDI Tools</title>
+    <title>iRealPro Maker - MIDI Mini Apps</title>
     <link rel="stylesheet" href="../style.css">
     <link rel="icon" type="image/x-icon" href="../favicon.ico">
     
@@ -437,10 +437,19 @@
                     <button id="downloadBtn" class="btn btn-success" disabled data-i18n="irealbMaker.download">
                         💾 Download iRealPro File
                     </button>
+                    <button id="downloadJsonBtn" class="btn btn-success" disabled data-i18n="irealbMaker.downloadJson">
+                        📥 Download Progress (JSON)
+                    </button>
+                    <button id="uploadJsonBtn" class="btn btn-secondary" data-i18n="irealbMaker.uploadJson">
+                        📤 Upload Progress (JSON)
+                    </button>
                     <button id="resetBtn" class="btn btn-secondary" data-i18n="irealbMaker.reset">
                         🔄 Reset
                     </button>
                 </div>
+                
+                <!-- Hidden file input for JSON upload -->
+                <input type="file" id="jsonFileInput" accept=".json" style="display: none;" aria-label="Upload JSON file">
 
                 <!-- Recorded Chord Sequence -->
                 <div class="chord-sequence" id="chordSequenceSection" style="display: none;">
@@ -457,6 +466,7 @@
 
     <script type="module">
         import { t, getCurrentLanguage } from '../src/i18n.js';
+        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord } from '../src/chord-utils.js';
         
         let midiAccess = null;
         let selectedInput = null;
@@ -481,140 +491,7 @@
         let chordBeatPosition = null; // Beat when first note of chord was pressed
         let chordMeasurePosition = null; // Measure when first note of chord was pressed
         
-        // MIDI note number to note name mapping
-        const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-        
-        function midiNoteToName(midiNote) {
-            const octave = Math.floor(midiNote / 12) - 1;
-            const noteName = NOTE_NAMES[midiNote % 12];
-            return noteName + octave;
-        }
-        
-        function getPitchClass(noteName) {
-            return noteName.replace(/[0-9]/g, '');
-        }
-        
-        function noteNameToSemitone(noteName) {
-            const NOTE_VALUES = {
-                'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
-                'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
-                'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
-            };
-            return NOTE_VALUES[noteName] || 0;
-        }
-        
-        // Chord detection algorithm (simplified from chord-display.html)
-        function detectChord(noteNames) {
-            if (noteNames.length < 2) {
-                return noteNames.length === 1 ? { root: getPitchClass(noteNames[0]), type: '' } : null;
-            }
-            
-            const pitchClasses = noteNames.map(getPitchClass);
-            const uniquePitches = [...new Set(pitchClasses)];
-            
-            if (uniquePitches.length < 2) {
-                return { root: uniquePitches[0], type: '' };
-            }
-            
-            const root = uniquePitches[0];
-            const rootValue = noteNameToSemitone(root);
-            
-            const intervalSet = new Set();
-            uniquePitches.forEach(note => {
-                const value = noteNameToSemitone(note);
-                const interval = (value - rootValue + 12) % 12;
-                intervalSet.add(interval);
-            });
-            
-            const has = (interval) => intervalSet.has(interval);
-            
-            let baseChord = '';
-            let thirdType = null;
-            let seventhType = null;
-            
-            if (has(4)) thirdType = 'major';
-            else if (has(3)) thirdType = 'minor';
-            
-            if (has(11)) seventhType = 'maj7';
-            else if (has(10)) seventhType = 'dom7';
-            
-            if (thirdType === 'major' && seventhType === 'dom7') {
-                baseChord = '7';
-            } else if (thirdType === 'major' && seventhType === 'maj7') {
-                baseChord = 'maj7';
-            } else if (thirdType === 'minor' && seventhType === 'dom7') {
-                baseChord = 'm7';
-            } else if (thirdType === 'minor' && seventhType === 'maj7') {
-                baseChord = 'mM7';
-            } else if (thirdType === 'major' && !seventhType) {
-                baseChord = '';
-            } else if (thirdType === 'minor' && !seventhType) {
-                baseChord = 'm';
-            } else if (has(3) && has(6) && !has(7) && has(10)) {
-                // Half-diminished: minor 3rd, b5, minor 7th (no perfect 5th)
-                return { root, type: 'ø7' };
-            } else if (has(3) && has(6) && !has(7) && has(9)) {
-                // Diminished 7th: minor 3rd, b5, dim7 (no perfect 5th)
-                return { root, type: 'dim7' };
-            } else if (has(3) && has(6) && !has(7)) {
-                // Diminished triad: minor 3rd, b5 (no perfect 5th)
-                return { root, type: 'dim' };
-            } else if (has(4) && has(8)) {
-                return { root, type: 'aug' };
-            } else if (has(5) && has(7)) {
-                if (has(10)) return { root, type: '7sus4' };
-                return { root, type: 'sus4' };
-            } else if (has(2) && has(7) && !has(3) && !has(4)) {
-                if (has(10)) return { root, type: '7sus2' };
-                return { root, type: 'sus2' };
-            } else if (has(9) && !has(10) && !has(11)) {
-                if (thirdType === 'major') {
-                    if (has(2)) return { root, type: '6/9' };
-                    return { root, type: '6' };
-                } else if (thirdType === 'minor') {
-                    if (has(2)) return { root, type: 'm6/9' };
-                    return { root, type: 'm6' };
-                }
-            }
-            
-            const extensions = [];
-            
-            if (has(1)) extensions.push('b9');
-            else if (has(3) && thirdType === 'major') extensions.push('#9');
-            else if (has(2) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7' || baseChord === 'mM7')) {
-                if (!has(1) && !has(3)) extensions.push('9');
-            }
-            
-            // Only treat interval 6 as #11 if there's also a perfect 5th (to distinguish from b5/diminished)
-            if (has(6) && has(7)) extensions.push('#11');
-            
-            if (has(9) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7')) {
-                extensions.push('13');
-            } else if (has(8) && (baseChord === '7' || baseChord === 'maj7')) {
-                extensions.push('b13');
-            }
-            
-            let chordName = baseChord;
-            
-            if (baseChord === '7' && extensions.includes('9') && !extensions.includes('b9') && !extensions.includes('#9')) {
-                if (extensions.length === 1 || (extensions.length === 2 && extensions.includes('13'))) {
-                    chordName = '9';
-                    extensions.shift();
-                }
-            }
-            
-            if (baseChord === '7' && extensions.includes('13')) {
-                chordName = '13';
-                const idx = extensions.indexOf('13');
-                extensions.splice(idx, 1);
-            }
-            
-            if (extensions.length > 0) {
-                chordName += '(' + extensions.join(',') + ')';
-            }
-            
-            return { root, type: chordName };
-        }
+        // Chord detection algorithm is now imported from chord-utils.js
         
         // Initialize Web Audio API for metronome
         function initAudio() {
@@ -1656,6 +1533,106 @@
         document.getElementById('backBtn').addEventListener('click', () => {
             window.location.href = 'index.html';
         });
+        
+        // JSON Export: Save current progress
+        document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+            const progressData = {
+                version: '1.0',
+                songInfo: {
+                    name: document.getElementById('songName').value,
+                    author: document.getElementById('authorName').value,
+                    timeSignature: document.getElementById('timeSignature').value,
+                    musicStyle: document.getElementById('musicStyle').value,
+                    keySignature: document.getElementById('keySignature').value,
+                    bpm: document.getElementById('bpm').value,
+                    totalMeasures: document.getElementById('totalMeasures').value,
+                    startMeasure: document.getElementById('startMeasure').value,
+                    endMeasure: document.getElementById('endMeasure').value
+                },
+                recordedChords: recordedChords,
+                definedSections: definedSections
+            };
+            
+            const jsonStr = JSON.stringify(progressData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const songName = document.getElementById('songName').value || 'untitled';
+            a.href = url;
+            a.download = `${songName.replace(/[^a-z0-9]/gi, '_')}_progress.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            announceChange('Progress saved to JSON file');
+        });
+        
+        // JSON Import: Load saved progress
+        document.getElementById('uploadJsonBtn').addEventListener('click', () => {
+            document.getElementById('jsonFileInput').click();
+        });
+        
+        document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const progressData = JSON.parse(event.target.result);
+                    
+                    // Validate version
+                    if (!progressData.version || !progressData.songInfo) {
+                        throw new Error('Invalid JSON format');
+                    }
+                    
+                    // Restore song info
+                    document.getElementById('songName').value = progressData.songInfo.name || '';
+                    document.getElementById('authorName').value = progressData.songInfo.author || '';
+                    document.getElementById('timeSignature').value = progressData.songInfo.timeSignature || '44';
+                    document.getElementById('musicStyle').value = progressData.songInfo.musicStyle || 'Medium Swing';
+                    document.getElementById('keySignature').value = progressData.songInfo.keySignature || 'C';
+                    document.getElementById('bpm').value = progressData.songInfo.bpm || '120';
+                    document.getElementById('totalMeasures').value = progressData.songInfo.totalMeasures || '32';
+                    document.getElementById('startMeasure').value = progressData.songInfo.startMeasure || '1';
+                    document.getElementById('endMeasure').value = progressData.songInfo.endMeasure || '';
+                    
+                    // Restore chords and sections
+                    recordedChords = progressData.recordedChords || [];
+                    definedSections = progressData.definedSections || [];
+                    
+                    // Update displays
+                    updateChordList();
+                    updateSectionList();
+                    
+                    // Enable download button if we have chords
+                    document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+                    document.getElementById('downloadJsonBtn').disabled = recordedChords.length === 0;
+                    
+                    announceChange('Progress loaded from JSON file');
+                } catch (error) {
+                    alert('Error loading JSON file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input so the same file can be loaded again
+            e.target.value = '';
+        });
+        
+        // Update download JSON button state when chords change
+        function updateDownloadButtonStates() {
+            const hasChords = recordedChords.length > 0;
+            document.getElementById('downloadBtn').disabled = !hasChords;
+            document.getElementById('downloadJsonBtn').disabled = !hasChords;
+        }
+        
+        // Update the updateChordList function to also update button states
+        const originalUpdateChordList = updateChordList;
+        updateChordList = function() {
+            originalUpdateChordList();
+            updateDownloadButtonStates();
+        };
         
         // Update translations
         function updateTranslations() {
