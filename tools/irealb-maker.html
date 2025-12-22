@@ -571,6 +571,9 @@
                 </div>
 
                 <!-- Recorded Chord Sequence -->
+                <!-- Using role="application" because this is a custom music notation workspace
+                     with specialized keyboard navigation that doesn't match standard HTML patterns.
+                     Standard screen reader shortcuts are overridden to provide music-specific navigation. -->
                 <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
                     <div class="chord-list" id="chordList" aria-hidden="true"></div>
@@ -885,12 +888,14 @@
         }
         
         // Handle keyboard navigation in chord cells
-        function handleChordCellKeydown(e) {
+        function handleChordCellKeydown(e, cellElement = null) {
             const cells = Array.from(document.querySelectorAll('.chord-cell'));
             let currentIndex;
             
-            // Determine current index based on event target or selected index
-            if (e.target.classList && e.target.classList.contains('chord-cell')) {
+            // Determine current index based on cellElement parameter or event target
+            if (cellElement) {
+                currentIndex = cells.indexOf(cellElement);
+            } else if (e.target && e.target.classList && e.target.classList.contains('chord-cell')) {
                 currentIndex = cells.indexOf(e.target);
             } else {
                 currentIndex = selectedChordIndex;
@@ -2277,8 +2282,8 @@
             if (selectedChordIndex >= 0 && selectedChordIndex < cells.length) {
                 const selectedCell = cells[selectedChordIndex];
                 if (selectedCell) {
-                    // Create a synthetic event on the selected cell
-                    handleChordCellKeydown.call(selectedCell, e);
+                    // Pass the selected cell as a parameter
+                    handleChordCellKeydown(e, selectedCell);
                 }
             }
         }
