@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # /// script
-# dependencies = []
+# dependencies = [
+#   "markdown",
+#   "beautifulsoup4",
+# ]
 # ///
 """
 Release script for Web MIDI Streamer
@@ -19,75 +22,64 @@ This interactive script will:
 7. Add changelog HTML to help-ru.html
 
 Note:
-    - Type 'END' on a new line to finish multiline input
-    - Markdown will be converted to HTML automatically
+    - Press Enter twice within 1 second to finish multiline input
+    - Markdown will be converted to HTML automatically using markdown library
     - Timestamps are added automatically
 """
 
 import json
 import re
+import time
 from datetime import datetime
 from pathlib import Path
+import markdown
+from bs4 import BeautifulSoup
 
 
 def get_multiline_input(prompt):
-    """Get multiline input from user, ending with 'END' on its own line"""
+    """Get multiline input from user, ending with double Enter press within 1 second"""
     print(prompt)
-    print("(Type 'END' on a new line when finished)")
+    print("(Press Enter twice within 1 second to finish)")
     lines = []
+    last_empty_time = None
+    
     while True:
         line = input()
-        if line.strip() == 'END':
-            break
-        lines.append(line)
+        
+        if line.strip() == '':
+            # Empty line detected
+            if last_empty_time is not None:
+                # Check if less than 1 second since last empty line
+                if time.time() - last_empty_time < 1.0:
+                    # Double Enter detected within 1 second - end input
+                    break
+            last_empty_time = time.time()
+            lines.append(line)
+        else:
+            # Non-empty line - reset timer
+            last_empty_time = None
+            lines.append(line)
+    
+    # Remove trailing empty lines
+    while lines and lines[-1].strip() == '':
+        lines.pop()
+    
     return '\n'.join(lines)
 
 
 def markdown_to_html(markdown_text):
-    """Convert simple markdown to HTML"""
-    html = markdown_text
+    """Convert markdown to HTML using markdown library"""
+    # Convert markdown to HTML
+    html = markdown.markdown(
+        markdown_text,
+        extensions=['extra', 'nl2br']
+    )
     
-    # Headers
-    html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
-    html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+    # Use BeautifulSoup to clean up and format the HTML
+    soup = BeautifulSoup(html, 'html.parser')
     
-    # Bold
-    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
-    
-    # Lists - multiline processing
-    lines = html.split('\n')
-    in_list = False
-    result_lines = []
-    
-    for line in lines:
-        if line.strip().startswith('- '):
-            if not in_list:
-                result_lines.append('<ul>')
-                in_list = True
-            content = line.strip()[2:]  # Remove "- "
-            result_lines.append(f'<li>{content}</li>')
-        else:
-            if in_list:
-                result_lines.append('</ul>')
-                in_list = False
-            if line.strip():  # Non-empty lines become paragraphs if not already HTML
-                if not line.strip().startswith('<'):
-                    result_lines.append(f'<p>{line}</p>')
-                else:
-                    result_lines.append(line)
-            else:
-                result_lines.append('')
-    
-    if in_list:
-        result_lines.append('</ul>')
-    
-    html = '\n'.join(result_lines)
-    
-    # Clean up extra paragraph tags around headers
-    html = re.sub(r'<p>(<h[23]>)', r'\1', html)
-    html = re.sub(r'(</h[23]>)</p>', r'\1', html)
-    
-    return html
+    # Return formatted HTML (prettified but on single line per tag for compactness)
+    return str(soup)
 
 
 def update_manifest_version(manifest_path, new_version):
