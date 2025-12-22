@@ -850,7 +850,8 @@
             const chordList = document.getElementById('chordList');
             const section = document.getElementById('chordSequenceSection');
             
-            if (recordedChords.length > 0) {
+            // Always show the section when in editing mode or when there are chords
+            if (isEditingMode || recordedChords.length > 0) {
                 section.style.display = 'block';
                 
                 // Group chords by measure
