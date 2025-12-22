@@ -457,9 +457,10 @@
                 <input type="file" id="jsonFileInput" accept=".json" style="display: none;" aria-label="Load saved progress from JSON file">
 
                 <!-- Keyboard Shortcuts Help -->
-                <div class="keyboard-shortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
+                <div class="keyboard-shortcuts" id="keyboardShortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts <span style="font-size: 0.8em; opacity: 0.8;">(Press H for help)</span></h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
+                        <div><strong>H</strong>: Show/hide help</div>
                         <div><strong>N</strong>: Focus workspace</div>
                         <div><strong>T</strong>: Tempo settings</div>
                         <div><strong>M</strong>: MIDI devices</div>
@@ -469,6 +470,7 @@
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
                         <div><strong>S</strong>: Add section</div>
+                        <div><strong>V</strong>: Add volta (first/second ending)</div>
                         <div><strong>Backspace</strong>: Delete current chord</div>
                         <div><strong>Delete</strong>: Delete marker range</div>
                         <div><strong>Shift+Backspace</strong>: Delete section</div>
@@ -492,9 +494,9 @@
                 <!-- Using role="application" because this is a custom music notation workspace
                      with specialized keyboard navigation that doesn't match standard HTML patterns.
                      Standard screen reader shortcuts are overridden to provide music-specific navigation. -->
-                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
+                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace. Press H for help, use arrow keys to navigate chords, press N to return here from other controls.">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
-                    <div class="chord-list" id="chordList" aria-hidden="true"></div>
+                    <div class="chord-list" id="chordList" aria-hidden="true" aria-label="Visual chord grid"></div>
                 </div>
             </div>
             
@@ -584,16 +586,6 @@
                                 <div class="time-signature-help">Select the key signature for your song</div>
                             </div>
                             
-                            <!-- Tempo Settings -->
-                            <div class="form-group">
-                                <label for="wizard-bpm">BPM (Tempo):</label>
-                                <input type="number" id="wizard-bpm" value="120" min="40" max="240" step="1">
-                                <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
-                                <div class="time-signature-help" style="font-weight: bold; color: #667eea;">
-                                    ⚠️ Note: BPM is for metronome during recording only, not saved to iReal Pro file
-                                </div>
-                            </div>
-                            
                             <!-- Song Length -->
                             <div class="form-group">
                                 <label for="wizard-totalMeasures">Total Measures in Song:</label>
@@ -602,7 +594,7 @@
                             </div>
                             
                             <div class="time-signature-help" style="margin-top: 20px; padding: 10px; background: #f0f4ff; border-radius: 6px;">
-                                <strong>Note:</strong> Use [ and ] keys during editing to set start/end recording markers on specific measures.
+                                <strong>Note:</strong> Use [ and ] keys during editing to set start/end recording markers on specific measures. Press T to set tempo (BPM) for metronome.
                             </div>
                         </div>
                     </div>
@@ -669,17 +661,15 @@
         let currentBeat = 0;
         let currentMeasure = 0;
         
-        // Soft pedal (CC 67) tracking for section copy
-        let softPedalPressed = false;
-        let softPedalPressTime = 0;
-        let softPedalCopyTriggered = false;
-        let copiedSectionChords = []; // Temporarily store copied chords during recording
         let audioContext = null;
         let metronomeInterval = null;
         let lastRecordedChord = null; // Track last chord to avoid duplicates
         let chordNotesPressed = new Set(); // Notes that were pressed for current chord
         let chordBeatPosition = null; // Beat when first note of chord was pressed
         let chordMeasurePosition = null; // Measure when first note of chord was pressed
+        
+        // Volta (repeat endings) tracking - stores endings like {measure: 8, type: 1} or {measure: 16, type: 2}
+        let voltaEndings = [];
         
         // Clipboard for cut/copy/paste operations
         let clipboardChords = [];
@@ -850,7 +840,8 @@
             const chordList = document.getElementById('chordList');
             const section = document.getElementById('chordSequenceSection');
             
-            if (recordedChords.length > 0) {
+            // Always show the section when in editing mode or when there are chords
+            if (isEditingMode || recordedChords.length > 0) {
                 section.style.display = 'block';
                 
                 // Group chords by measure
@@ -882,8 +873,16 @@
                         // Check if this is a marker
                         const startMarker = parseInt(document.getElementById('startMeasure').value) === m;
                         const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
-                        const markerBadge = startMarker ? '<span class="marker-badge">START</span>' : 
-                                          endMarker ? '<span class="marker-badge">END</span>' : '';
+                        const voltaEnding = voltaEndings.find(v => v.measure === m);
+                        
+                        let markerBadge = '';
+                        if (voltaEnding) {
+                            markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
+                        } else if (startMarker) {
+                            markerBadge = '<span class="marker-badge">START</span>';
+                        } else if (endMarker) {
+                            markerBadge = '<span class="marker-badge">END</span>';
+                        }
                         
                         html += `<div class="chord-cell" data-index="${actualIndex}" data-measure="${m}" 
                                      tabindex="-1" role="button" aria-hidden="true"
@@ -895,8 +894,23 @@
                         </div>`;
                     } else {
                         // Empty measure
+                        // Check for markers even on empty measures
+                        const startMarker = parseInt(document.getElementById('startMeasure').value) === m;
+                        const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
+                        const voltaEnding = voltaEndings.find(v => v.measure === m);
+                        
+                        let markerBadge = '';
+                        if (voltaEnding) {
+                            markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
+                        } else if (startMarker) {
+                            markerBadge = '<span class="marker-badge">START</span>';
+                        } else if (endMarker) {
+                            markerBadge = '<span class="marker-badge">END</span>';
+                        }
+                        
                         html += `<div class="chord-cell empty-measure" data-measure="${m}" 
                                      tabindex="-1" role="button" aria-hidden="true">
+                            ${markerBadge}
                             <div class="measure-label">M${m}</div>
                             <div class="chord-name" style="opacity: 0.5;">—</div>
                         </div>`;
@@ -938,6 +952,16 @@
                 const chordName = cells[index].querySelector('.chord-name')?.textContent || '';
                 const beatAttr = cells[index].getAttribute('data-beat');
                 const isEmptyMeasure = cells[index].classList.contains('empty-measure');
+                const voltaEnding = voltaEndings.find(v => v.measure === parseInt(measure));
+                
+                // Find the section this measure belongs to
+                let sectionInfo = null;
+                for (let i = definedSections.length - 1; i >= 0; i--) {
+                    if (definedSections[i].measure <= parseInt(measure)) {
+                        sectionInfo = definedSections[i];
+                        break;
+                    }
+                }
                 
                 let announcement = '';
                 if (isEmptyMeasure || chordName === '—') {
@@ -953,6 +977,16 @@
                     if (beatAttr && beatAttr !== '') {
                         announcement += `, ${t('irealbMaker.beat')} ${beatAttr}`;
                     }
+                }
+                
+                // Add section information
+                if (sectionInfo) {
+                    announcement += `, section ${sectionInfo.type}`;
+                }
+                
+                // Add volta ending information
+                if (voltaEnding) {
+                    announcement += `, volta ending ${voltaEnding.type}`;
                 }
                 
                 announceChange(announcement);
@@ -1017,9 +1051,10 @@
                     e.preventDefault();
                     const startMeasure = cells[currentIndex].getAttribute('data-measure');
                     document.getElementById('startMeasure').value = startMeasure;
-                    announceChange(`Start marker set at measure ${startMeasure}`);
                     updateChordList(); // Refresh to show marker
                     selectChord(currentIndex); // Reselect after refresh
+                    // Announce marker after selection to override the measure announcement
+                    setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}`), 100);
                     break;
                     
                 case ']':
@@ -1027,9 +1062,10 @@
                     e.preventDefault();
                     const endMeasure = cells[currentIndex].getAttribute('data-measure');
                     document.getElementById('endMeasure').value = endMeasure;
-                    announceChange(`End marker set at measure ${endMeasure}`);
                     updateChordList(); // Refresh to show marker
                     selectChord(currentIndex); // Reselect after refresh
+                    // Announce marker after selection to override the measure announcement
+                    setTimeout(() => announceChange(`End marker set at measure ${endMeasure}`), 100);
                     break;
                     
                 case 'e':
@@ -1224,6 +1260,11 @@
         // Delete chord function
         function deleteChord(index) {
             const item = recordedChords[index];
+            if (!item) {
+                // No chord at this index (empty measure or invalid index)
+                announceChange('No chord to delete at this position');
+                return;
+            }
             if (confirm(`Delete chord at measure ${item.measure}?`)) {
                 recordedChords.splice(index, 1);
                 updateChordList();
@@ -1273,6 +1314,11 @@
         function updateSectionList() {
             const sectionList = document.getElementById('sectionList');
             const section = document.getElementById('sectionListSection');
+            
+            // Safety check: if elements don't exist, just return
+            if (!sectionList || !section) {
+                return;
+            }
             
             if (definedSections.length > 0) {
                 section.style.display = 'block';
@@ -1340,79 +1386,6 @@
             const sectionIndex = definedSections.findIndex(s => s.type === sectionType);
             if (sectionIndex === -1) return null;
             return getSectionRangeByIndex(sectionIndex);
-        }
-        
-        // Trigger section copy during recording (soft pedal held for 1 second)
-        function triggerSectionCopy() {
-            softPedalCopyTriggered = true;
-            
-            const currentMeasureNum = window.actualStartMeasure + (currentMeasure - 2);
-            const currentSectionInfo = getSectionForMeasure(currentMeasureNum);
-            
-            if (!currentSectionInfo) {
-                announceChange("No section defined for current measure");
-                return;
-            }
-            
-            // Check if there's a previous section (by index)
-            if (currentSectionInfo.index <= 0) {
-                announceChange("No previous section to copy from");
-                return;
-            }
-            
-            const prevSectionIndex = currentSectionInfo.index - 1;
-            const prevSection = definedSections[prevSectionIndex];
-            const prevSectionRange = getSectionRangeByIndex(prevSectionIndex);
-            const currentSectionRange = getSectionRangeByIndex(currentSectionInfo.index);
-            
-            if (!prevSectionRange || !currentSectionRange) {
-                announceChange("Unable to determine section ranges");
-                return;
-            }
-            
-            // Get chords from previous section
-            const previousSectionChords = recordedChords.filter(chord => 
-                chord.measure >= prevSectionRange.start && chord.measure <= prevSectionRange.end
-            );
-            
-            if (previousSectionChords.length === 0) {
-                announceChange("Previous section is empty");
-                return;
-            }
-            
-            // Copy chords with adjusted measure numbers
-            const measureOffset = currentSectionRange.start - prevSectionRange.start;
-            copiedSectionChords = previousSectionChords.map(chord => ({
-                ...chord,
-                measure: chord.measure + measureOffset,
-                section: currentSectionInfo.type
-            }));
-            
-            // Add copied chords to recordedChords
-            copiedSectionChords.forEach(chord => {
-                recordedChords.push({...chord});
-            });
-            
-            updateChordList();
-            announceChange(`Section ${currentSectionInfo.type} at measure ${currentSectionInfo.measure} copied from ${prevSection.type} at measure ${prevSection.measure}`);
-        }
-        
-        // Remove chords from a specific measure onwards within the current section
-        function removeChordFromMeasureOnwards(startMeasure) {
-            const currentSectionInfo = getSectionForMeasure(startMeasure);
-            if (!currentSectionInfo) return;
-            
-            const sectionRange = getSectionRangeByIndex(currentSectionInfo.index);
-            if (!sectionRange) return;
-            
-            // Remove chords from startMeasure to end of section
-            recordedChords = recordedChords.filter(chord => {
-                if (chord.section !== currentSectionInfo.type) return true;
-                if (chord.measure < sectionRange.start || chord.measure > sectionRange.end) return true;
-                return chord.measure < startMeasure;
-            });
-            
-            updateChordList();
         }
         
         // Copy chords from previous section (button click when not recording)
@@ -1553,6 +1526,16 @@
             // Iterate through all measures from first to last
             for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
                 const chordsInMeasure = chordsByMeasure[measureNum];
+                
+                // Check for volta ending markers
+                const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
+                if (voltaEnding) {
+                    if (voltaEnding.type === 1) {
+                        chordString += 'N'; // First ending
+                    } else if (voltaEnding.type === 2) {
+                        chordString += 'Q'; // Second ending
+                    }
+                }
                 
                 if (chordsInMeasure && chordsInMeasure.length > 0) {
                     // Sort chords by beat within the measure
@@ -1776,48 +1759,8 @@
                 if (handleMIDIEdit(note, false)) return;
             }
             
-            // Handle Control Change messages (CC)
-            if (command === 0xB0) {
-                const ccNumber = note;
-                const ccValue = velocity;
-                
-                // Soft pedal is CC 67
-                if (ccNumber === 67) {
-                    if (ccValue >= 64) {
-                        // Soft pedal pressed
-                        if (!softPedalPressed) {
-                            softPedalPressed = true;
-                            softPedalPressTime = Date.now();
-                            softPedalCopyTriggered = false;
-                            
-                            // Check if held for 1 second during recording
-                            setTimeout(() => {
-                                if (softPedalPressed && isRecording && !isCountingIn && !softPedalCopyTriggered) {
-                                    const holdTime = Date.now() - softPedalPressTime;
-                                    if (holdTime >= 1000) {
-                                        triggerSectionCopy();
-                                    }
-                                }
-                            }, 1000);
-                        }
-                    } else {
-                        // Soft pedal released
-                        softPedalPressed = false;
-                    }
-                }
-                return;
-            }
-            
             if (command === 0x90 && velocity > 0) {
                 // Note ON
-                // If section copy is active and this is first note, start overwriting
-                if (copiedSectionChords.length > 0 && isRecording && !isCountingIn) {
-                    const measureNum = window.actualStartMeasure + (currentMeasure - 2);
-                    // Remove all copied chords from this measure onwards in current section
-                    removeChordFromMeasureOnwards(measureNum);
-                    copiedSectionChords = []; // Clear copied chords - now recording new ones
-                }
-                
                 // If this is the first note pressed, capture the beat position
                 if (activeNotes.size === 0 && isRecording && !isCountingIn) {
                     chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
@@ -1963,6 +1906,8 @@
             isRecording = false;
             isCountingIn = false;
             recordedChords = [];
+            definedSections = [];
+            voltaEndings = [];
             currentChord = null;
             lastRecordedChord = null;
             chordNotesPressed.clear();
@@ -2004,7 +1949,8 @@
                     endMeasure: document.getElementById('endMeasure').value
                 },
                 recordedChords: recordedChords,
-                definedSections: definedSections
+                definedSections: definedSections,
+                voltaEndings: voltaEndings
             };
             
             const jsonStr = JSON.stringify(progressData, null, 2);
@@ -2054,6 +2000,7 @@
                     // Restore chords and sections
                     recordedChords = progressData.recordedChords || [];
                     definedSections = progressData.definedSections || [];
+                    voltaEndings = progressData.voltaEndings || [];
                     
                     // Update displays (this will also update button states)
                     updateChordList();
@@ -2111,7 +2058,8 @@
                     endMeasure: document.getElementById('endMeasure').value
                 },
                 recordedChords: recordedChords,
-                definedSections: definedSections
+                definedSections: definedSections,
+                voltaEndings: voltaEndings
             };
             
             try {
@@ -2165,6 +2113,7 @@
                     // Restore chords and sections
                     recordedChords = songData.recordedChords || [];
                     definedSections = songData.definedSections || [];
+                    voltaEndings = songData.voltaEndings || [];
                     
                     // Update displays
                     updateChordList();
@@ -2208,6 +2157,65 @@
             updateSectionList();
             announceChange(`Section ${type} added at measure ${measure}`);
             sectionInputMode = false;
+        }
+        
+        // Add volta (first/second ending) function
+        function addVoltaEnding() {
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            const measure = selectedCell ? 
+                parseInt(selectedCell.getAttribute('data-measure')) : 
+                parseInt(document.getElementById('startMeasure').value) || 1;
+            
+            // Ask which type of ending (1 or 2)
+            const endingType = prompt('Enter ending type (1 for first ending, 2 for second ending):', '1');
+            
+            if (endingType && (endingType === '1' || endingType === '2')) {
+                // Check if volta already exists at this measure
+                const existingIndex = voltaEndings.findIndex(v => v.measure === measure);
+                if (existingIndex !== -1) {
+                    voltaEndings[existingIndex].type = parseInt(endingType);
+                    announceChange(`Volta ending updated to ${endingType} at measure ${measure}`);
+                } else {
+                    voltaEndings.push({ measure: measure, type: parseInt(endingType) });
+                    voltaEndings.sort((a, b) => a.measure - b.measure);
+                    announceChange(`Volta ending ${endingType} added at measure ${measure}`);
+                }
+                updateChordList();
+                // Re-select the current chord
+                const newCells = document.querySelectorAll('.chord-cell');
+                const cellIndex = Array.from(newCells).findIndex(cell => 
+                    parseInt(cell.getAttribute('data-measure')) === measure
+                );
+                if (cellIndex !== -1) {
+                    selectChord(cellIndex);
+                }
+            } else if (endingType !== null) {
+                announceChange('Invalid ending type. Use 1 or 2.');
+            }
+        }
+        
+        // Remove volta ending at current measure
+        function removeVoltaEnding() {
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            
+            if (!selectedCell) {
+                announceChange('No measure selected');
+                return;
+            }
+            
+            const measure = parseInt(selectedCell.getAttribute('data-measure'));
+            const index = voltaEndings.findIndex(v => v.measure === measure);
+            
+            if (index !== -1) {
+                voltaEndings.splice(index, 1);
+                updateChordList();
+                announceChange(`Volta ending removed from measure ${measure}`);
+                selectChord(Array.from(cells).indexOf(selectedCell));
+            } else {
+                announceChange(`No volta ending at measure ${measure}`);
+            }
         }
         
         // Clipboard operations (cut, copy, paste)
@@ -2506,6 +2514,21 @@
             // Regular key shortcuts (no shift, no ctrl)
             if (!e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toLowerCase()) {
+                    case 'h':
+                        // H key - Toggle help visibility
+                        e.preventDefault();
+                        const helpSection = document.getElementById('keyboardShortcuts');
+                        if (helpSection) {
+                            if (helpSection.style.display === 'none') {
+                                helpSection.style.display = 'block';
+                                announceChange('Keyboard shortcuts help shown');
+                            } else {
+                                helpSection.style.display = 'none';
+                                announceChange('Keyboard shortcuts help hidden');
+                            }
+                        }
+                        break;
+                    
                     case 'r':
                         // R key - Record/Stop
                         e.preventDefault();
@@ -2523,6 +2546,12 @@
                         e.preventDefault();
                         sectionInputMode = true;
                         announceChange('Section input mode: Press A for section A, B, C, D, Q for Coda, I for Intro, etc.');
+                        break;
+                    
+                    case 'v':
+                        // V key - Add volta (first/second ending)
+                        e.preventDefault();
+                        addVoltaEnding();
                         break;
                         
                     case 'n':
@@ -2783,7 +2812,7 @@
                     document.getElementById('timeSignature').value = document.getElementById('wizard-timeSignature')?.value || '44';
                     document.getElementById('musicStyle').value = document.getElementById('wizard-musicStyle')?.value || 'Medium Swing';
                     document.getElementById('keySignature').value = document.getElementById('wizard-keySignature')?.value || 'C';
-                    document.getElementById('bpm').value = document.getElementById('wizard-bpm')?.value || '120';
+                    document.getElementById('bpm').value = '120'; // Default BPM, can be changed with T key
                     document.getElementById('totalMeasures').value = document.getElementById('wizard-totalMeasures')?.value || '32';
                     // Note: startMeasure and endMeasure are set via [ and ] keyboard markers during editing, not in wizard
                 }
