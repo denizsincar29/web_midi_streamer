@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iRealPro Maker - MIDI Tools</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <style>
+        .irealb-maker-section {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .chord-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .chord-name {
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-message {
+            font-size: 1.2em;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        
+        .controls button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 25px;
+            font-size: 1.1em;
+        }
+        
+        .recording-indicator {
+            background: #ff4444;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .chord-sequence {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chord-sequence h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .chord-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .chord-item {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        
+        .chord-item .measure-num {
+            opacity: 0.7;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        
+        .midi-status {
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .midi-status.connected {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .placeholder-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2em;
+        }
+        
+        .device-group {
+            margin-bottom: 20px;
+        }
+        
+        .device-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .device-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
+        .time-signature-help {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1 data-i18n="irealbMaker.title">🎵 iRealPro Maker</h1>
+                    <p data-i18n="irealbMaker.subtitle">Create iRealPro chord charts from MIDI input</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary" data-i18n="tools.backToTools">← Back to Tools</button>
+            </div>
+
+            <div class="midi-status" id="midiStatus">
+                <strong data-i18n="irealbMaker.midiStatus">MIDI Status:</strong> <span id="statusText" data-i18n="irealbMaker.initializing">Initializing...</span>
+            </div>
+
+            <div class="irealb-maker-section">
+                <!-- Song Information Form -->
+                <section class="chord-sequence">
+                    <h3 data-i18n="irealbMaker.songInfo">Song Information</h3>
+                    <div class="form-group">
+                        <label for="songName" data-i18n="irealbMaker.songName">Song Name:</label>
+                        <input type="text" id="songName" placeholder="Enter song name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="authorName" data-i18n="irealbMaker.authorName">Author/Composer:</label>
+                        <input type="text" id="authorName" placeholder="Enter author name">
+                    </div>
+                    <div class="form-group">
+                        <label for="timeSignature" data-i18n="irealbMaker.timeSignature">Time Signature:</label>
+                        <select id="timeSignature">
+                            <option value="44">4/4 (Common Time)</option>
+                            <option value="34">3/4 (Waltz)</option>
+                            <option value="54">5/4</option>
+                            <option value="68">6/8</option>
+                            <option value="78">7/8</option>
+                            <option value="24">2/4</option>
+                        </select>
+                        <div class="time-signature-help" data-i18n="irealbMaker.timeSignatureHelp">
+                            Count-in will be announced for the first 2 measures
+                        </div>
+                    </div>
+                </section>
+
+                <!-- MIDI Input Selection -->
+                <section class="device-group">
+                    <label for="midiInput" data-i18n="irealbMaker.inputDevice">MIDI Input Device:</label>
+                    <select id="midiInput" aria-label="Select MIDI input device">
+                        <option value="" data-i18n="irealbMaker.noDeviceSelected">No device selected</option>
+                    </select>
+                </section>
+
+                <!-- Current Chord Display -->
+                <div class="chord-display" role="region" aria-atomic="true">
+                    <div class="chord-name" id="chordName">
+                        <span class="placeholder-text" data-i18n="irealbMaker.readyToRecord">Ready to record...</span>
+                    </div>
+                    <div class="status-message" id="statusMessage"></div>
+                </div>
+
+                <!-- Hidden div for screen reader announcements -->
+                <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="announcements"></div>
+
+                <!-- Controls -->
+                <div class="controls">
+                    <button id="startBtn" class="btn btn-primary" data-i18n="irealbMaker.startRecording">
+                        ▶️ Start Recording
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" disabled data-i18n="irealbMaker.stopRecording">
+                        ⏹️ Stop Recording
+                    </button>
+                    <button id="downloadBtn" class="btn btn-success" disabled data-i18n="irealbMaker.download">
+                        💾 Download iRealPro File
+                    </button>
+                    <button id="resetBtn" class="btn btn-secondary" data-i18n="irealbMaker.reset">
+                        🔄 Reset
+                    </button>
+                </div>
+
+                <!-- Recorded Chord Sequence -->
+                <div class="chord-sequence" id="chordSequenceSection" style="display: none;">
+                    <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
+                    <div class="chord-list" id="chordList"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { t, getCurrentLanguage } from '../src/i18n.js';
+        
+        let midiAccess = null;
+        let selectedInput = null;
+        let activeNotes = new Set();
+        let currentChord = null;
+        let recordedChords = [];
+        let isRecording = false;
+        let isCountingIn = false;
+        let currentBeat = 0;
+        let currentMeasure = 0;
+        let audioContext = null;
+        let metronomeInterval = null;
+        
+        // MIDI note number to note name mapping
+        const NOTE_NAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+        
+        function midiNoteToName(midiNote) {
+            const octave = Math.floor(midiNote / 12) - 1;
+            const noteName = NOTE_NAMES[midiNote % 12];
+            return noteName + octave;
+        }
+        
+        function getPitchClass(noteName) {
+            return noteName.replace(/[0-9]/g, '');
+        }
+        
+        function noteNameToSemitone(noteName) {
+            const NOTE_VALUES = {
+                'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+                'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+                'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+            };
+            return NOTE_VALUES[noteName] || 0;
+        }
+        
+        // Chord detection algorithm (simplified from chord-display.html)
+        function detectChord(noteNames) {
+            if (noteNames.length < 2) {
+                return noteNames.length === 1 ? { root: getPitchClass(noteNames[0]), type: '' } : null;
+            }
+            
+            const pitchClasses = noteNames.map(getPitchClass);
+            const uniquePitches = [...new Set(pitchClasses)];
+            
+            if (uniquePitches.length < 2) {
+                return { root: uniquePitches[0], type: '' };
+            }
+            
+            const root = uniquePitches[0];
+            const rootValue = noteNameToSemitone(root);
+            
+            const intervalSet = new Set();
+            uniquePitches.forEach(note => {
+                const value = noteNameToSemitone(note);
+                const interval = (value - rootValue + 12) % 12;
+                intervalSet.add(interval);
+            });
+            
+            const has = (interval) => intervalSet.has(interval);
+            
+            let baseChord = '';
+            let thirdType = null;
+            let seventhType = null;
+            
+            if (has(4)) thirdType = 'major';
+            else if (has(3)) thirdType = 'minor';
+            
+            if (has(11)) seventhType = 'maj7';
+            else if (has(10)) seventhType = 'dom7';
+            
+            if (thirdType === 'major' && seventhType === 'dom7') {
+                baseChord = '7';
+            } else if (thirdType === 'major' && seventhType === 'maj7') {
+                baseChord = 'maj7';
+            } else if (thirdType === 'minor' && seventhType === 'dom7') {
+                baseChord = 'm7';
+            } else if (thirdType === 'minor' && seventhType === 'maj7') {
+                baseChord = 'mM7';
+            } else if (thirdType === 'major' && !seventhType) {
+                baseChord = '';
+            } else if (thirdType === 'minor' && !seventhType) {
+                baseChord = 'm';
+            } else if (has(3) && has(6) && has(10)) {
+                return { root, type: 'ø7' };
+            } else if (has(3) && has(6) && has(9)) {
+                return { root, type: 'dim7' };
+            } else if (has(3) && has(6)) {
+                return { root, type: 'dim' };
+            } else if (has(4) && has(8)) {
+                return { root, type: 'aug' };
+            } else if (has(5) && has(7)) {
+                if (has(10)) return { root, type: '7sus4' };
+                return { root, type: 'sus4' };
+            } else if (has(2) && has(7) && !has(3) && !has(4)) {
+                if (has(10)) return { root, type: '7sus2' };
+                return { root, type: 'sus2' };
+            } else if (has(9) && !has(10) && !has(11)) {
+                if (thirdType === 'major') {
+                    if (has(2)) return { root, type: '6/9' };
+                    return { root, type: '6' };
+                } else if (thirdType === 'minor') {
+                    if (has(2)) return { root, type: 'm6/9' };
+                    return { root, type: 'm6' };
+                }
+            }
+            
+            const extensions = [];
+            
+            if (has(1)) extensions.push('b9');
+            else if (has(3) && thirdType === 'major') extensions.push('#9');
+            else if (has(2) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7' || baseChord === 'mM7')) {
+                if (!has(1) && !has(3)) extensions.push('9');
+            }
+            
+            if (has(6)) extensions.push('#11');
+            
+            if (has(9) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7')) {
+                extensions.push('13');
+            } else if (has(8) && (baseChord === '7' || baseChord === 'maj7')) {
+                extensions.push('b13');
+            }
+            
+            let chordName = baseChord;
+            
+            if (baseChord === '7' && extensions.includes('9') && !extensions.includes('b9') && !extensions.includes('#9')) {
+                if (extensions.length === 1 || (extensions.length === 2 && extensions.includes('13'))) {
+                    chordName = '9';
+                    extensions.shift();
+                }
+            }
+            
+            if (baseChord === '7' && extensions.includes('13')) {
+                chordName = '13';
+                const idx = extensions.indexOf('13');
+                extensions.splice(idx, 1);
+            }
+            
+            if (extensions.length > 0) {
+                chordName += '(' + extensions.join(',') + ')';
+            }
+            
+            return { root, type: chordName };
+        }
+        
+        // Initialize Web Audio API for metronome
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        // Play metronome click
+        function playClick(isAccent = false) {
+            if (!audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = isAccent ? 1000 : 800;
+            gainNode.gain.value = isAccent ? 0.3 : 0.2;
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.05);
+            
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+        }
+        
+        // Announce count for screen reader
+        function announceCount(text) {
+            const announcements = document.getElementById('announcements');
+            announcements.textContent = text;
+        }
+        
+        // Get time signature info
+        function getTimeSignatureInfo() {
+            const ts = document.getElementById('timeSignature').value;
+            const numerator = parseInt(ts[0]);
+            const denominator = parseInt(ts[1]);
+            return { numerator, denominator };
+        }
+        
+        // Start metronome with count-in
+        function startMetronome() {
+            const { numerator } = getTimeSignatureInfo();
+            const bpm = 120; // Default tempo
+            const beatDuration = 60000 / bpm;
+            
+            currentBeat = 0;
+            currentMeasure = 0;
+            isCountingIn = true;
+            
+            metronomeInterval = setInterval(() => {
+                currentBeat++;
+                const isAccent = currentBeat === 1;
+                playClick(isAccent);
+                
+                // Announce counts during count-in
+                if (isCountingIn) {
+                    if (currentMeasure === 0) {
+                        // First measure: announce beats
+                        if (numerator === 4 && currentBeat <= 2) {
+                            announceCount(currentBeat === 1 ? 'one' : 'two');
+                        } else {
+                            announceCount(currentBeat.toString());
+                        }
+                    } else if (currentMeasure === 1) {
+                        // Second measure: announce all beats
+                        const beatNames = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+                        announceCount(beatNames[currentBeat] || currentBeat.toString());
+                    }
+                }
+                
+                if (currentBeat >= numerator) {
+                    currentBeat = 0;
+                    currentMeasure++;
+                    
+                    // After 2 measures of count-in, start recording
+                    if (isCountingIn && currentMeasure >= 2) {
+                        isCountingIn = false;
+                        isRecording = true;
+                        updateStatusMessage('Recording...', true);
+                        announceCount('Recording started');
+                    }
+                    
+                    // Record chord at the end of each measure during recording
+                    if (isRecording && !isCountingIn && currentChord) {
+                        recordedChords.push({
+                            measure: currentMeasure - 1,
+                            chord: currentChord
+                        });
+                        updateChordList();
+                    }
+                }
+            }, beatDuration);
+        }
+        
+        // Stop metronome
+        function stopMetronome() {
+            if (metronomeInterval) {
+                clearInterval(metronomeInterval);
+                metronomeInterval = null;
+            }
+        }
+        
+        // Update status message
+        function updateStatusMessage(message, isRecording = false) {
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = message;
+            if (isRecording) {
+                statusMsg.className = 'status-message recording-indicator';
+            } else {
+                statusMsg.className = 'status-message';
+            }
+        }
+        
+        // Update chord list display
+        function updateChordList() {
+            const chordList = document.getElementById('chordList');
+            const section = document.getElementById('chordSequenceSection');
+            
+            if (recordedChords.length > 0) {
+                section.style.display = 'block';
+                chordList.innerHTML = recordedChords.map(item => {
+                    const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                    return `<div class="chord-item">
+                        <span class="measure-num">M${item.measure}:</span>
+                        ${chordText}
+                    </div>`;
+                }).join('');
+            } else {
+                section.style.display = 'none';
+            }
+        }
+        
+        // Convert chord to iRealb format
+        function chordToIRealb(chord) {
+            if (!chord) return ' ';
+            
+            let result = chord.root;
+            
+            // Convert chord type to iRealb notation
+            const typeMap = {
+                '': '', // Major
+                'm': '-', // Minor
+                'maj7': '^7',
+                'm7': '-7',
+                '7': '7',
+                'dim': 'o',
+                'dim7': 'o7',
+                'ø7': 'h7',
+                'aug': '+',
+                'sus4': 'sus',
+                '6': '6',
+                'm6': '-6',
+                '9': '9',
+                '13': '13'
+            };
+            
+            result += typeMap[chord.type] || chord.type;
+            return result;
+        }
+        
+        // Generate iRealb format string
+        function generateIRealbFormat() {
+            const songName = document.getElementById('songName').value || 'Untitled';
+            const author = document.getElementById('authorName').value || '';
+            const { numerator, denominator } = getTimeSignatureInfo();
+            
+            // Build chord string
+            let chordString = '';
+            for (let i = 0; i < recordedChords.length; i++) {
+                chordString += chordToIRealb(recordedChords[i].chord);
+                // Add measure separator
+                if ((i + 1) % 4 === 0) {
+                    chordString += '|';
+                } else {
+                    chordString += ' ';
+                }
+            }
+            
+            // iRealb format: irealb://SongName=Author=Style=Key=TimeSignature=ChordData
+            const irealbUrl = `irealb://${encodeURIComponent(songName)}=${encodeURIComponent(author)}=Medium Swing=${encodeURIComponent('C')}=${numerator}${denominator}=${encodeURIComponent(chordString)}`;
+            
+            return irealbUrl;
+        }
+        
+        // Download as HTML file
+        function downloadIRealbFile() {
+            const songName = document.getElementById('songName').value || 'Untitled';
+            const irealbUrl = generateIRealbFormat();
+            
+            const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${songName} - iRealPro Chart</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .chart-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        .meta { color: #666; margin-bottom: 30px; }
+        .chords {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .chord-cell {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .irealb-link {
+            margin-top: 30px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 5px;
+        }
+        .irealb-link a {
+            color: #667eea;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-container">
+        <h1>${songName}</h1>
+        <div class="meta">
+            <p><strong>Composer:</strong> ${document.getElementById('authorName').value || 'Unknown'}</p>
+            <p><strong>Time Signature:</strong> ${getTimeSignatureInfo().numerator}/${getTimeSignatureInfo().denominator}</p>
+        </div>
+        <div class="chords">
+            ${recordedChords.map(item => {
+                const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                return `<div class="chord-cell">${chordText}</div>`;
+            }).join('')}
+        </div>
+        <div class="irealb-link">
+            <p><strong>iRealPro Link:</strong></p>
+            <p><a href="${irealbUrl}" target="_blank">${irealbUrl}</a></p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                Click the link above to open in iRealPro app (if installed)
+            </p>
+        </div>
+    </div>
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${songName.replace(/[^a-z0-9]/gi, '_')}_irealb.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize MIDI
+        async function initMIDI() {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                updateMIDIStatus(t('irealbMaker.accessGranted'), true);
+                populateInputDevices();
+                midiAccess.onstatechange = populateInputDevices;
+            } catch (error) {
+                updateMIDIStatus(t('irealbMaker.accessDenied') + ' ' + error.message, false);
+            }
+        }
+        
+        function updateMIDIStatus(message, connected) {
+            const statusEl = document.getElementById('midiStatus');
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = message;
+            statusEl.className = connected ? 'midi-status connected' : 'midi-status';
+        }
+        
+        function populateInputDevices() {
+            const select = document.getElementById('midiInput');
+            select.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
+            
+            const inputs = Array.from(midiAccess.inputs.values());
+            inputs.forEach((input, index) => {
+                const option = document.createElement('option');
+                option.value = input.id;
+                option.textContent = input.name;
+                if (index === 0) option.selected = true;
+                select.appendChild(option);
+            });
+            
+            if (inputs.length > 0) {
+                selectInput(inputs[0].id);
+            }
+        }
+        
+        function selectInput(deviceId) {
+            if (selectedInput) {
+                selectedInput.onmidimessage = null;
+            }
+            
+            if (deviceId && midiAccess) {
+                selectedInput = midiAccess.inputs.get(deviceId);
+                selectedInput.onmidimessage = handleMIDIMessage;
+                updateMIDIStatus(t('irealbMaker.connectedTo') + ' ' + selectedInput.name, true);
+            } else {
+                selectedInput = null;
+                updateMIDIStatus(t('irealbMaker.noDevice'), false);
+            }
+        }
+        
+        function handleMIDIMessage(event) {
+            const [status, note, velocity] = event.data;
+            const command = status & 0xF0;
+            
+            if (command === 0x90 && velocity > 0) {
+                activeNotes.add(note);
+                updateChordDisplay();
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                activeNotes.delete(note);
+                updateChordDisplay();
+            }
+        }
+        
+        function updateChordDisplay() {
+            if (activeNotes.size === 0) {
+                return;
+            }
+            
+            const noteNames = Array.from(activeNotes)
+                .sort((a, b) => a - b)
+                .map(midiNoteToName);
+            
+            const chordInfo = detectChord(noteNames);
+            currentChord = chordInfo;
+            
+            const chordNameEl = document.getElementById('chordName');
+            if (chordInfo) {
+                const chordFullName = chordInfo.type ? `${chordInfo.root} ${chordInfo.type}` : chordInfo.root;
+                chordNameEl.textContent = chordFullName;
+            }
+        }
+        
+        // Event handlers
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const songName = document.getElementById('songName').value;
+            if (!songName) {
+                alert(t('irealbMaker.enterSongName'));
+                return;
+            }
+            
+            initAudio();
+            recordedChords = [];
+            updateChordList();
+            updateStatusMessage('Count-in...', false);
+            startMetronome();
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('downloadBtn').disabled = true;
+        });
+        
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            stopMetronome();
+            isRecording = false;
+            isCountingIn = false;
+            updateStatusMessage('Recording stopped', false);
+            announceCount('Recording stopped');
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+        });
+        
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            downloadIRealbFile();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            stopMetronome();
+            isRecording = false;
+            isCountingIn = false;
+            recordedChords = [];
+            currentChord = null;
+            updateChordList();
+            updateStatusMessage('', false);
+            document.getElementById('chordName').innerHTML = `<span class="placeholder-text">${t('irealbMaker.readyToRecord')}</span>`;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
+        });
+        
+        document.getElementById('midiInput').addEventListener('change', (e) => {
+            selectInput(e.target.value);
+        });
+        
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+        
+        // Update translations
+        function updateTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+            document.documentElement.lang = getCurrentLanguage();
+        }
+        
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            updateTranslations();
+            initMIDI();
+        });
+    </script>
+</body>
+</html>
