@@ -690,7 +690,8 @@
         
         // Quantize beat position based on timing
         function quantizeBeat(timestamp, currentBeatPos, currentMeasurePos) {
-            if (!quantizationEnabled || !lastBeatTimestamp || !nextBeatTimestamp) {
+            // Skip quantization if disabled or if timing data isn't available
+            if (!quantizationEnabled || !lastBeatTimestamp || !nextBeatTimestamp || !isRecording) {
                 return { beat: currentBeatPos, measure: currentMeasurePos };
             }
             
@@ -1908,7 +1909,7 @@
             
             // Populate MIDI output devices
             const outputSelect = document.getElementById('modalMidiOutput');
-            outputSelect.innerHTML = `<option value="">No device selected</option>`;
+            outputSelect.innerHTML = `<option value="">${t('irealbMaker.noDeviceSelected')}</option>`;
             
             const outputs = Array.from(midiAccess.outputs.values());
             outputs.forEach((output, index) => {

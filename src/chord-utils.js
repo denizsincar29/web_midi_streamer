@@ -309,7 +309,7 @@ export function chordToMIDINotes(chord, inversion = null) {
     } else if (chordType.includes('sus4')) {
         // Sus4 - no third, use 4th instead
         hasThird = false;
-        addInterval(5); // Perfect 4th instead of third
+        // Note: Don't add fourth here, we'll add it along with the fifth
         if (chordType.includes('7')) {
             hasSeventh = true;
             seventhInterval = 10;
@@ -317,16 +317,20 @@ export function chordToMIDINotes(chord, inversion = null) {
     } else if (chordType.includes('sus2')) {
         // Sus2 - no third, use 2nd instead
         hasThird = false;
-        addInterval(2); // Major 2nd instead of third
+        // Note: Don't add second here, we'll add it along with the fifth
         if (chordType.includes('7')) {
             hasSeventh = true;
             seventhInterval = 10;
         }
     }
     
-    // Add third (if present)
+    // Add third (if present) OR suspended interval for sus chords
     if (hasThird) {
         addInterval(thirdInterval);
+    } else if (chordType.includes('sus4')) {
+        addInterval(5); // Perfect 4th for sus4
+    } else if (chordType.includes('sus2')) {
+        addInterval(2); // Major 2nd for sus2
     }
     
     // Add fifth (if present)
