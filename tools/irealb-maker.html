@@ -496,6 +496,7 @@
                         <div><strong>Shift+W</strong>: Close with save</div>
                         <div><strong>←/→</strong>: Navigate chords</div>
                         <div><strong>Ctrl+←/→</strong>: Jump measures</div>
+                        <div><strong>Ctrl+Shift+←/→</strong>: Jump to prev/next section</div>
                         <div><strong>Alt+←/→</strong>: Move chord beat</div>
                         <div><strong>[</strong>: Set start marker</div>
                         <div><strong>]</strong>: Set end marker</div>
@@ -510,6 +511,26 @@
                 <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace. Press H for help, use arrow keys to navigate chords, press N to return here from other controls.">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
                     <div class="chord-list" id="chordList" aria-hidden="true" aria-label="Visual chord grid"></div>
+                </div>
+            </div>
+            
+            <!-- Welcome Screen Modal -->
+            <div id="welcomeScreenModal" class="modal-overlay" style="display: none;">
+                <div class="modal-dialog" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h2>iReal Pro Maker</h2>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 30px;">
+                        <p style="margin-bottom: 30px; font-size: 1.1em;">Welcome! Choose an option to get started:</p>
+                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                            <button id="welcomeCreateNewBtn" class="primary-button" style="padding: 15px; font-size: 1.1em;">
+                                Create New Song
+                            </button>
+                            <button id="welcomeLoadStorageBtn" class="secondary-button" style="padding: 15px; font-size: 1.1em;">
+                                Load from Local Storage
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -1121,6 +1142,22 @@
                         if (dataIndexRight !== null) {
                             moveChord(parseInt(dataIndexRight), 'right');
                         }
+                    } else if (e.ctrlKey && e.shiftKey) {
+                        // Ctrl+Shift+Right: Jump to next section
+                        e.preventDefault();
+                        const currentMeasure = parseInt(cells[currentIndex].getAttribute('data-measure'));
+                        const nextSection = definedSections.find(s => s.measure > currentMeasure);
+                        if (nextSection) {
+                            // Find first cell at that measure
+                            const targetIndex = cells.findIndex(cell => 
+                                parseInt(cell.getAttribute('data-measure')) === nextSection.measure
+                            );
+                            if (targetIndex !== -1) {
+                                selectChord(targetIndex);
+                            }
+                        } else {
+                            announceChange('No next section');
+                        }
                     } else if (e.ctrlKey) {
                         // Ctrl+Right: Next measure with chord
                         const nextChordIndex = cells.findIndex((cell, idx) => 
@@ -1144,6 +1181,22 @@
                         if (dataIndexLeft !== null) {
                             moveChord(parseInt(dataIndexLeft), 'left');
                         }
+                    } else if (e.ctrlKey && e.shiftKey) {
+                        // Ctrl+Shift+Left: Jump to previous section
+                        e.preventDefault();
+                        const currentMeasure = parseInt(cells[currentIndex].getAttribute('data-measure'));
+                        const prevSection = definedSections.slice().reverse().find(s => s.measure < currentMeasure);
+                        if (prevSection) {
+                            // Find first cell at that measure
+                            const targetIndex = cells.findIndex(cell => 
+                                parseInt(cell.getAttribute('data-measure')) === prevSection.measure
+                            );
+                            if (targetIndex !== -1) {
+                                selectChord(targetIndex);
+                            }
+                        } else {
+                            announceChange('No previous section');
+                        }
                     } else if (e.ctrlKey) {
                         // Ctrl+Left: Previous measure with chord
                         const prevChordIndex = cells.slice(0, currentIndex).reverse().findIndex(
@@ -1164,11 +1217,25 @@
                     // Set start marker
                     e.preventDefault();
                     const startMeasure = cells[currentIndex].getAttribute('data-measure');
+                    const startMeasureNum = parseInt(startMeasure);
                     document.getElementById('startMeasure').value = startMeasure;
+                    
+                    // Auto-delete end marker if it's before the new start marker
+                    const endMarkerValue = document.getElementById('endMeasure').value;
+                    if (endMarkerValue) {
+                        const endMeasureNum = parseInt(endMarkerValue);
+                        if (endMeasureNum < startMeasureNum) {
+                            document.getElementById('endMeasure').value = '';
+                            setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}. End marker removed (was before start)`), 100);
+                        } else {
+                            setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}`), 100);
+                        }
+                    } else {
+                        setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}`), 100);
+                    }
+                    
                     updateChordList(); // Refresh to show marker
                     selectChord(currentIndex); // Reselect after refresh
-                    // Announce marker after selection to override the measure announcement
-                    setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}`), 100);
                     break;
                     
                 case ']':
@@ -2638,9 +2705,16 @@
                 parseInt(selectedCell.getAttribute('data-measure')) : 
                 parseInt(document.getElementById('startMeasure').value) || 1;
             
-            // Calculate offset
+            // Calculate offset and target range
             const firstMeasure = Math.min(...clipboardChords.map(c => c.measure));
+            const lastMeasure = Math.max(...clipboardChords.map(c => c.measure));
             const offset = targetMeasure - firstMeasure;
+            const targetEndMeasure = targetMeasure + (lastMeasure - firstMeasure);
+            
+            // Remove existing chords in the target range (overwrite mode)
+            recordedChords = recordedChords.filter(chord => 
+                chord.measure < targetMeasure || chord.measure > targetEndMeasure
+            );
             
             // Paste chords with offset
             const pastedChords = clipboardChords.map(chord => ({
@@ -2648,7 +2722,7 @@
                 measure: chord.measure + offset
             }));
             
-            // Add to recorded chords
+            // Add pasted chords
             recordedChords.push(...pastedChords);
             recordedChords.sort((a, b) => {
                 if (a.measure !== b.measure) return a.measure - b.measure;
@@ -2656,7 +2730,7 @@
             });
             
             updateChordList();
-            announceChange(`Pasted ${pastedChords.length} chord(s) at measure ${targetMeasure}`);
+            announceChange(`Pasted ${pastedChords.length} chord(s) at measures ${targetMeasure} to ${targetEndMeasure}, overwriting existing chords`);
         }
         
         function deleteMarkerRange() {
@@ -3418,10 +3492,36 @@
                 });
             });
             
-            // Show setup wizard on initial load if no song loaded
+            // Welcome screen functions
+            function showWelcomeScreen() {
+                const modal = document.getElementById('welcomeScreenModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                }
+            }
+            
+            function closeWelcomeScreen() {
+                const modal = document.getElementById('welcomeScreenModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            }
+            
+            // Setup welcome screen button handlers
+            document.getElementById('welcomeCreateNewBtn')?.addEventListener('click', () => {
+                closeWelcomeScreen();
+                openSetupWizard();
+            });
+            
+            document.getElementById('welcomeLoadStorageBtn')?.addEventListener('click', () => {
+                closeWelcomeScreen();
+                loadFromLocalStorage();
+            });
+            
+            // Show welcome screen on initial load if no song loaded
             const isNewSong = recordedChords.length === 0;
             if (isNewSong) {
-                openSetupWizard();
+                showWelcomeScreen();
             }
         });
     </script>
