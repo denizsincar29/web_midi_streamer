@@ -203,6 +203,8 @@ export const translations = {
         'irealbMaker.measure': 'Measure',
         'irealbMaker.emptyMeasure': 'Empty measure',
         'irealbMaker.beat': 'beat',
+        'irealbMaker.volta1': 'first volta',
+        'irealbMaker.volta2': 'second volta',
         
         // Modal titles and labels
         'modal.songSetup': 'Song Setup',
@@ -461,6 +463,8 @@ export const translations = {
         'irealbMaker.measure': 'Такт',
         'irealbMaker.emptyMeasure': 'Пустой такт',
         'irealbMaker.beat': 'доля',
+        'irealbMaker.volta1': 'первая вольта',
+        'irealbMaker.volta2': 'вторая вольта',
         
         // Modal titles and labels
         'modal.songSetup': 'Настройка песни',

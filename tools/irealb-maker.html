@@ -480,7 +480,7 @@
                         <div><strong>R</strong>: Start/Stop Recording</div>
                         <div><strong>E</strong>: Edit chord (MIDI)</div>
                         <div><strong>S</strong>: Add section</div>
-                        <div><strong>V</strong>: Toggle volta (cycles: none → 1st → 2nd → none)</div>
+                        <div><strong>V</strong>: Auto-detect volta/repeat structure (smart: creates reprise + first/second endings)</div>
                         <div><strong>Shift+V</strong>: Delete marker (section/volta)</div>
                         <div><strong>Backspace</strong>: Delete current chord</div>
                         <div><strong>Delete</strong>: Delete marker range</div>
@@ -758,6 +758,10 @@
         // Volta (repeat endings) tracking - stores endings like {measure: 8, type: 1} or {measure: 16, type: 2}
         let voltaEndings = [];
         
+        // Repeat regions tracking - stores repeat signs and volta brackets
+        // Structure: { startMeasure, endMeasure, volta1Start, volta1End, volta2Start, volta2End }
+        let repeatRegions = [];
+        
         // Clipboard for cut/copy/paste operations
         let clipboardChords = [];
         
@@ -876,6 +880,40 @@
                         const endMeasure = parseInt(document.getElementById('endMeasure').value);
                         const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                         
+                        // Check if we've reached a volta2 start measure
+                        // If so, pause metronome and focus on volta2 to help user record the second ending
+                        for (const region of repeatRegions) {
+                            if (actualMeasure === region.volta2Start && !window.volta2ReachedFlag) {
+                                // Pause the metronome
+                                stopMetronome();
+                                isRecording = false;
+                                isCountingIn = false;
+                                updateStatusMessage('Paused at second ending (volta 2)', false);
+                                
+                                // Focus on the volta2 measure
+                                const cells = document.querySelectorAll('.chord-cell');
+                                for (let i = 0; i < cells.length; i++) {
+                                    const cellMeasure = parseInt(cells[i].getAttribute('data-measure'));
+                                    if (cellMeasure === region.volta2Start) {
+                                        setTimeout(() => {
+                                            selectChord(i);
+                                            announceCount(`Second ending, measure ${region.volta2Start}. Press R to continue recording.`);
+                                        }, 100);
+                                        break;
+                                    }
+                                }
+                                
+                                // Set flag to prevent re-triggering
+                                window.volta2ReachedFlag = true;
+                                
+                                document.getElementById('startBtn').disabled = false;
+                                document.getElementById('stopBtn').disabled = true;
+                                document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+                                
+                                return; // Exit early to prevent other checks
+                            }
+                        }
+                        
                         // Check for new section and announce it
                         const sectionInfo = getSectionForMeasure(actualMeasure);
                         if (sectionInfo) {
@@ -954,6 +992,29 @@
                 // Generate cells for all measures
                 let html = '';
                 for (let m = 1; m <= totalMeasures; m++) {
+                    // Check if this measure should be hidden (it's a reprise measure in the second occurrence)
+                    let isHiddenReprise = false;
+                    for (const region of repeatRegions) {
+                        // We need to hide measures in the volta2 section that correspond to the reprise
+                        // These are measures BEFORE volta2Start in the same section
+                        const repriseLength = region.repriseEnd - region.repriseStart + 1;
+                        
+                        // Calculate which section volta2 is in
+                        // The hidden measures are from (volta2Start - repriseLength) to (volta2Start - 1)
+                        const hiddenStart = region.volta2Start - repriseLength;
+                        const hiddenEnd = region.volta2Start - 1;
+                        
+                        if (m >= hiddenStart && m <= hiddenEnd) {
+                            isHiddenReprise = true;
+                            break;
+                        }
+                    }
+                    
+                    // Skip rendering this measure if it's a hidden reprise
+                    if (isHiddenReprise) {
+                        continue;
+                    }
+                    
                     const chordsInMeasure = chordsByMeasure[m] || [];
                     
                     if (chordsInMeasure.length > 0) {
@@ -971,8 +1032,22 @@
                             const endMarker = chordIndexInMeasure === 0 && parseInt(document.getElementById('endMeasure').value) === m;
                             const voltaEnding = chordIndexInMeasure === 0 ? voltaEndings.find(v => v.measure === m) : null;
                             
+                            // Check for repeat region markers
+                            let repeatMarker = '';
+                            if (chordIndexInMeasure === 0) {
+                                for (const region of repeatRegions) {
+                                    if (m === region.repriseStart) {
+                                        repeatMarker = '<span class="marker-badge" style="background: #007bff;">🔁 START</span>';
+                                    } else if (m === region.repriseEnd + 1) {
+                                        repeatMarker = '<span class="marker-badge" style="background: #007bff;">🔁 END</span>';
+                                    }
+                                }
+                            }
+                            
                             let markerBadge = '';
-                            if (voltaEnding) {
+                            if (repeatMarker) {
+                                markerBadge = repeatMarker;
+                            } else if (voltaEnding) {
                                 markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
                             } else if (startMarker) {
                                 markerBadge = '<span class="marker-badge">START</span>';
@@ -999,8 +1074,20 @@
                         const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
                         const voltaEnding = voltaEndings.find(v => v.measure === m);
                         
+                        // Check for repeat region markers
+                        let repeatMarker = '';
+                        for (const region of repeatRegions) {
+                            if (m === region.repriseStart) {
+                                repeatMarker = '<span class="marker-badge" style="background: #007bff;">🔁 START</span>';
+                            } else if (m === region.repriseEnd + 1) {
+                                repeatMarker = '<span class="marker-badge" style="background: #007bff;">🔁 END</span>';
+                            }
+                        }
+                        
                         let markerBadge = '';
-                        if (voltaEnding) {
+                        if (repeatMarker) {
+                            markerBadge = repeatMarker;
+                        } else if (voltaEnding) {
                             markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
                         } else if (startMarker) {
                             markerBadge = '<span class="marker-badge">START</span>';
@@ -1027,21 +1114,24 @@
                 
                 // Auto-restore focus to previously selected chord or first chord
                 // This prevents focus loss after operations like delete, add volta, etc.
-                if (selectedChordIndex >= 0) {
-                    const cells = document.querySelectorAll('.chord-cell');
-                    // If selected index is beyond the updated list, select last chord
-                    const targetIndex = Math.min(selectedChordIndex, cells.length - 1);
-                    if (targetIndex >= 0 && targetIndex < cells.length) {
-                        // Use setTimeout to ensure DOM is fully updated
+                // Skip auto-focus during recording to avoid announcing focused chord instead of newly recorded one
+                if (!isRecording) {
+                    if (selectedChordIndex >= 0) {
+                        const cells = document.querySelectorAll('.chord-cell');
+                        // If selected index is beyond the updated list, select last chord
+                        const targetIndex = Math.min(selectedChordIndex, cells.length - 1);
+                        if (targetIndex >= 0 && targetIndex < cells.length) {
+                            // Use setTimeout to ensure DOM is fully updated
+                            setTimeout(() => {
+                                selectChord(targetIndex);
+                            }, 0);
+                        }
+                    } else if (recordedChords.length > 0) {
+                        // If no selection but chords exist, select first chord
                         setTimeout(() => {
-                            selectChord(targetIndex);
+                            selectChord(0);
                         }, 0);
                     }
-                } else if (recordedChords.length > 0) {
-                    // If no selection but chords exist, select first chord
-                    setTimeout(() => {
-                        selectChord(0);
-                    }, 0);
                 }
                 
             } else {
@@ -1098,23 +1188,23 @@
             
             // Handle half-diminished symbol
             if (result.includes('ø7')) {
-                result = result.replace('ø7', translations['ø7'] || 'ø7');
+                result = result.replace('ø7', ' ' + (translations['ø7'] || 'ø7'));
             } else if (result.includes('ø')) {
-                result = result.replace('ø', translations['ø'] || 'ø');
+                result = result.replace('ø', ' ' + (translations['ø'] || 'ø'));
             }
             
             // Handle diminished
             if (result.includes('dim7')) {
-                result = result.replace('dim7', translations['dim7'] || 'dim7');
+                result = result.replace('dim7', ' ' + (translations['dim7'] || 'dim7'));
             } else if (result.includes('dim')) {
-                result = result.replace('dim', translations['dim'] || 'dim');
+                result = result.replace('dim', ' ' + (translations['dim'] || 'dim'));
             }
             
             // Handle augmented
             if (result.includes('aug')) {
-                result = result.replace('aug', translations['aug'] || 'aug');
+                result = result.replace('aug', ' ' + (translations['aug'] || 'aug'));
             } else if (result.includes('+')) {
-                result = result.replace('+', translations['+'] || '+');
+                result = result.replace('+', ' ' + (translations['+'] || '+'));
             }
             
             // Handle suspended chords (keep sus in English)
@@ -1122,7 +1212,7 @@
             
             // Handle maj7
             if (result.includes('maj7')) {
-                result = result.replace('maj7', translations['maj7'] || 'maj7');
+                result = result.replace('maj7', ' ' + (translations['maj7'] || 'maj7'));
             }
             
             // Handle minor (must come after maj7 to avoid conflicts)
@@ -1197,7 +1287,8 @@
                 
                 // Add volta ending information
                 if (voltaEnding) {
-                    announcement += `, volta ending ${voltaEnding.type}`;
+                    const voltaKey = voltaEnding.type === 1 ? 'irealbMaker.volta1' : 'irealbMaker.volta2';
+                    announcement += `, ${t(voltaKey)}`;
                 }
                 
                 announceChange(announcement);
@@ -1862,6 +1953,20 @@
         }
         
         // Generate iRealb format string
+        // iRealPro format specification: https://www.irealpro.com/ireal-pro-custom-chord-chart-protocol
+        // 
+        // Repeat/Volta syntax:
+        // { = Repeat start (left repeat bar line)
+        // } = Repeat end (right repeat bar line) 
+        // N = First ending (volta 1)
+        // Q = Second ending (volta 2)
+        // T44 = Time signature (4/4)
+        // *A = Section marker
+        // | = Measure separator
+        // Z = Final bar line
+        //
+        // Example with repeat: T44{C|F|G|C}N|Am|DmQ|Em|Z
+        // This creates: reprise (C F G C) with first ending (Am Dm) and second ending (Em)
         function generateIRealbFormat() {
             const songName = document.getElementById('songName').value || 'Untitled';
             const author = document.getElementById('authorName').value || '';
@@ -1888,11 +1993,61 @@
             const firstMeasure = measures.length > 0 ? measures[0] : 1;
             const lastMeasure = measures.length > 0 ? Math.max(...measures, totalMeasuresInput) : totalMeasuresInput;
             
+            // Helper function to check if a measure is in a repeat region
+            function getRepeatContext(measureNum) {
+                for (const region of repeatRegions) {
+                    if (measureNum === region.repriseStart) {
+                        return { type: 'repriseStart', region };
+                    }
+                    if (measureNum === region.repriseEnd + 1) {
+                        return { type: 'repriseEnd', region };
+                    }
+                    if (measureNum === region.volta1Start) {
+                        return { type: 'volta1Start', region };
+                    }
+                    if (measureNum === region.volta2Start) {
+                        return { type: 'volta2Start', region };
+                    }
+                }
+                return null;
+            }
+            
+            // Helper function to check if a measure should be hidden (reprise in volta 2 section)
+            function isHiddenRepriseMeasure(measureNum) {
+                for (const region of repeatRegions) {
+                    const repriseLength = region.repriseEnd - region.repriseStart + 1;
+                    // The hidden measures are from (volta2Start - repriseLength) to (volta2Start - 1)
+                    const hiddenStart = region.volta2Start - repriseLength;
+                    const hiddenEnd = region.volta2Start - 1;
+                    
+                    if (measureNum >= hiddenStart && measureNum <= hiddenEnd) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
             // Iterate through all measures from first to last
             for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
-                const chordsInMeasure = chordsByMeasure[measureNum];
+                // Skip exporting hidden reprise measures
+                if (isHiddenRepriseMeasure(measureNum)) {
+                    continue;
+                }
                 
-                // Check for volta ending markers
+                const chordsInMeasure = chordsByMeasure[measureNum];
+                const repeatContext = getRepeatContext(measureNum);
+                
+                // Add repeat start marker if this is the start of a reprise
+                if (repeatContext && repeatContext.type === 'repriseStart') {
+                    chordString += '{'; // Repeat start marker
+                }
+                
+                // Add repeat end marker if this is right before volta 1
+                if (repeatContext && repeatContext.type === 'repriseEnd') {
+                    chordString += '}'; // Repeat end marker
+                }
+                
+                // Check for volta ending markers (use existing logic but enhanced)
                 const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
                 if (voltaEnding) {
                     if (voltaEnding.type === 1) {
@@ -2286,6 +2441,7 @@
             chordMeasurePosition = null;
             activeNotes.clear();
             window.lastAnnouncedSectionId = null; // Reset section announcement tracker
+            window.volta2ReachedFlag = false; // Reset volta2 pause flag for new recording
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
@@ -2302,6 +2458,7 @@
             updateStatusMessage('Recording stopped', false);
             announceCount('Recording stopped');
             window.lastAnnouncedSectionId = null; // Reset for next recording
+            window.volta2ReachedFlag = false; // Reset volta2 pause flag
             
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
@@ -2319,6 +2476,7 @@
             recordedChords = [];
             definedSections = [];
             voltaEndings = [];
+            repeatRegions = [];
             currentChord = null;
             lastRecordedChord = null;
             chordNotesPressed.clear();
@@ -2347,7 +2505,7 @@
         // JSON Export: Save current progress
         document.getElementById('downloadJsonBtn').addEventListener('click', () => {
             const progressData = {
-                version: '1.0',
+                version: '1.1', // Increment version for new repeatRegions field
                 songInfo: {
                     name: document.getElementById('songName').value,
                     author: document.getElementById('authorName').value,
@@ -2361,7 +2519,8 @@
                 },
                 recordedChords: recordedChords,
                 definedSections: definedSections,
-                voltaEndings: voltaEndings
+                voltaEndings: voltaEndings,
+                repeatRegions: repeatRegions
             };
             
             const jsonStr = JSON.stringify(progressData, null, 2);
@@ -2412,6 +2571,7 @@
                     recordedChords = progressData.recordedChords || [];
                     definedSections = progressData.definedSections || [];
                     voltaEndings = progressData.voltaEndings || [];
+                    repeatRegions = progressData.repeatRegions || []; // Add repeatRegions support
                     
                     // Update displays (this will also update button states)
                     updateChordList();
@@ -2470,7 +2630,8 @@
                 },
                 recordedChords: recordedChords,
                 definedSections: definedSections,
-                voltaEndings: voltaEndings
+                voltaEndings: voltaEndings,
+                repeatRegions: repeatRegions
             };
             
             try {
@@ -2508,15 +2669,24 @@
                 const date = new Date(song.timestamp).toLocaleDateString();
                 const time = new Date(song.timestamp).toLocaleTimeString();
                 html += `
-                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #f9f9f9;" 
-                         onclick="loadSongFromStorage(${index})" 
-                         onkeydown="if(event.key==='Enter') loadSongFromStorage(${index})"
-                         tabindex="0"
-                         role="button"
-                         aria-label="Load ${song.name || 'Untitled'} from ${date}">
-                        <div style="font-weight: bold; font-size: 1.1em;">${song.name || 'Untitled'}</div>
-                        <div style="color: #666; font-size: 0.9em;">Saved: ${date} ${time}</div>
-                        <div style="color: #999; font-size: 0.85em;">${song.recordedChords?.length || 0} chords</div>
+                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;" 
+                         role="group"
+                         aria-label="${song.name || 'Untitled'} saved on ${date}">
+                        <button style="flex: 1; text-align: left; background: transparent; border: none; cursor: pointer; padding: 0;" 
+                                onclick="loadSongFromStorage(${index})"
+                                tabindex="0"
+                                aria-label="Load ${song.name || 'Untitled'} from ${date}">
+                            <div style="font-weight: bold; font-size: 1.1em;">${song.name || 'Untitled'}</div>
+                            <div style="color: #666; font-size: 0.9em;">Saved: ${date} ${time}</div>
+                            <div style="color: #999; font-size: 0.85em;">${song.recordedChords?.length || 0} chords</div>
+                        </button>
+                        <button onclick="deleteSongFromStorage(${index})" 
+                                class="btn btn-danger" 
+                                tabindex="0"
+                                style="margin-left: 10px; padding: 5px 10px;"
+                                aria-label="Delete ${song.name || 'Untitled'}">
+                            🗑️ Delete
+                        </button>
                     </div>
                 `;
             });
@@ -2524,6 +2694,15 @@
             
             songList.innerHTML = html;
             modal.style.display = 'flex';
+            
+            // Focus the first load button after modal is displayed
+            setTimeout(() => {
+                const firstButton = songList.querySelector('button[aria-label^="Load"]');
+                if (firstButton) {
+                    firstButton.focus();
+                }
+            }, 100);
+            
             announceChange(`${songs.length} saved songs available. Select one to load.`);
         }
         
@@ -2547,6 +2726,7 @@
                 recordedChords = songData.recordedChords || [];
                 definedSections = songData.definedSections || [];
                 voltaEndings = songData.voltaEndings || [];
+                repeatRegions = songData.repeatRegions || [];
                 
                 // Update displays
                 updateChordList();
@@ -2556,6 +2736,26 @@
                 document.getElementById('loadStorageModal').style.display = 'none';
                 
                 announceChange(`Song "${songData.name}" loaded from local storage`);
+            }
+        }
+        
+        function deleteSongFromStorage(index) {
+            const songs = getSavedSongs();
+            if (index >= 0 && index < songs.length) {
+                const songName = songs[index].name || 'Untitled';
+                if (confirm(`Delete "${songName}" from local storage?`)) {
+                    songs.splice(index, 1);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+                    announceChange(`Song "${songName}" deleted`);
+                    
+                    // Refresh the modal display
+                    if (songs.length > 0) {
+                        loadFromLocalStorage();
+                    } else {
+                        closeLoadStorageModal();
+                        announceChange('No saved songs remaining');
+                    }
+                }
             }
         }
         
@@ -2674,7 +2874,7 @@
             sectionInputMode = false;
         }
         
-        // Add volta (first/second ending) function
+        // Add volta (first/second ending) function with automatic repeat detection
         function addVoltaEnding() {
             const cells = document.querySelectorAll('.chord-cell');
             const selectedCell = document.querySelector('.chord-cell.selected');
@@ -2695,10 +2895,92 @@
                     announceChange(`Volta ending removed from measure ${measure}`);
                 }
             } else {
-                // Add new volta as first ending
-                voltaEndings.push({ measure: measure, type: 1 });
-                voltaEndings.sort((a, b) => a.measure - b.measure);
-                announceChange(`Volta first ending added at measure ${measure}`);
+                // NEW: Automatic repeat detection logic
+                // When V is pressed at a measure, implement smart volta detection
+                
+                // Find the section this measure belongs to
+                const sectionInfo = getSectionForMeasure(measure);
+                if (!sectionInfo) {
+                    // No section defined - use simple volta addition
+                    voltaEndings.push({ measure: measure, type: 1 });
+                    voltaEndings.sort((a, b) => a.measure - b.measure);
+                    announceChange(`Volta first ending added at measure ${measure}`);
+                } else {
+                    // Automatic repeat detection based on section structure
+                    const sectionRange = getSectionRangeByIndex(sectionInfo.index);
+                    
+                    // The measure where V is pressed becomes the start of volta 1
+                    const volta1Start = measure;
+                    const volta1End = sectionRange.end;
+                    const repriseStart = sectionRange.start;
+                    const repriseEnd = measure - 1;
+                    
+                    // Calculate the length of the reprise and volta 1
+                    const repriseLength = repriseEnd - repriseStart + 1;
+                    const volta1Length = volta1End - volta1Start + 1;
+                    const sectionLength = sectionRange.end - sectionRange.start + 1;
+                    
+                    // Find next section with the same length for volta 2
+                    let volta2Start = -1;
+                    let volta2End = -1;
+                    let nextSectionInfo = null;
+                    
+                    // Search for next section
+                    for (let i = sectionInfo.index + 1; i < definedSections.length; i++) {
+                        const nextRange = getSectionRangeByIndex(i);
+                        const nextLength = nextRange.end - nextRange.start + 1;
+                        
+                        if (nextLength === sectionLength) {
+                            // Found matching section
+                            // The volta 2 should be at the same relative position
+                            volta2Start = nextRange.start + (volta1Start - sectionRange.start);
+                            volta2End = volta2Start + volta1Length - 1;
+                            nextSectionInfo = { index: i, type: definedSections[i].type, range: nextRange };
+                            break;
+                        }
+                    }
+                    
+                    if (volta2Start === -1) {
+                        // No matching section found - just add simple volta
+                        voltaEndings.push({ measure: measure, type: 1 });
+                        voltaEndings.sort((a, b) => a.measure - b.measure);
+                        announceChange(`Volta first ending added at measure ${measure}. No matching section found for automatic volta 2.`);
+                    } else {
+                        // Add volta 1 (from V press position to end of section)
+                        for (let m = volta1Start; m <= volta1End; m++) {
+                            const existingVolta = voltaEndings.find(v => v.measure === m);
+                            if (!existingVolta) {
+                                voltaEndings.push({ measure: m, type: 1 });
+                            }
+                        }
+                        
+                        // Add volta 2 (corresponding measures in next section)
+                        for (let m = volta2Start; m <= volta2End; m++) {
+                            const existingVolta = voltaEndings.find(v => v.measure === m);
+                            if (!existingVolta) {
+                                voltaEndings.push({ measure: m, type: 2 });
+                            }
+                        }
+                        
+                        voltaEndings.sort((a, b) => a.measure - b.measure);
+                        
+                        // Create repeat region entry
+                        repeatRegions.push({
+                            repriseStart: repriseStart,
+                            repriseEnd: repriseEnd,
+                            volta1Start: volta1Start,
+                            volta1End: volta1End,
+                            volta2Start: volta2Start,
+                            volta2End: volta2End
+                        });
+                        
+                        announceChange(
+                            `Repeat created: measures ${repriseStart}-${repriseEnd} reprise, ` +
+                            `measures ${volta1Start}-${volta1End} first ending, ` +
+                            `measures ${volta2Start}-${volta2End} second ending in section ${nextSectionInfo.type}`
+                        );
+                    }
+                }
             }
             
             updateChordList();
@@ -3119,8 +3401,11 @@
                             document.getElementById('stopBtn').click();
                             announceChange('Recording stopped');
                         } else {
-                            document.getElementById('startBtn').click();
-                            announceChange('Recording started');
+                            // Announce briefly and add delay before starting count-in
+                            announceChange('Recording');
+                            setTimeout(() => {
+                                document.getElementById('startBtn').click();
+                            }, 1000); // 1 second delay
                         }
                         break;
                         
@@ -3157,6 +3442,10 @@
                     
                     case ' ':
                         // Spacebar - Play/pause chord playback
+                        // Don't intercept if focus is on a button (let button handle it)
+                        if (e.target.tagName === 'BUTTON') {
+                            return;
+                        }
                         e.preventDefault();
                         togglePlayback();
                         break;
@@ -3520,6 +3809,7 @@
         window.markSection = markSection;
         window.deleteMarkerAtCurrentPosition = deleteMarkerAtCurrentPosition;
         window.loadSongFromStorage = loadSongFromStorage;
+        window.deleteSongFromStorage = deleteSongFromStorage;
         
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
