@@ -1986,9 +1986,15 @@
                 // When all notes are released, analyze and record the chord
                 if (activeNotes.size === 0 && chordNotesPressed.size > 0) {
                     analyzeAndRecordChord();
-                    chordNotesPressed.clear();
-                    chordBeatPosition = null;
-                    chordMeasurePosition = null;
+                    // Don't clear position immediately - wait a bit to avoid timing issues
+                    // This allows quick chord changes to capture position properly
+                    setTimeout(() => {
+                        if (activeNotes.size === 0) {
+                            chordNotesPressed.clear();
+                            chordBeatPosition = null;
+                            chordMeasurePosition = null;
+                        }
+                    }, 50); // 50ms grace period
                 } else {
                     updateChordDisplay();
                 }
@@ -3135,19 +3141,25 @@
                 // Track beat for metronome
                 let playbackBeat = 1;
                 
-                // Play first chord immediately
+                // Play first beat click immediately (beat 1)
+                playClick(true); // Accent on beat 1
+                
+                // Play first chord immediately after click
                 playNextChord();
                 
                 // Continue playing based on beat timing with metronome
                 playbackInterval = setInterval(() => {
-                    // Play metronome click
-                    const isAccent = playbackBeat === 1;
-                    playClick(isAccent);
-                    
                     playbackBeat++;
                     if (playbackBeat > numerator) {
                         playbackBeat = 1;
-                        // Play next chord on beat 1 of each measure
+                    }
+                    
+                    // Play metronome click for this beat
+                    const isAccent = playbackBeat === 1;
+                    playClick(isAccent);
+                    
+                    // Play next chord on beat 1 of each measure
+                    if (playbackBeat === 1) {
                         playNextChord();
                     }
                 }, beatDuration);

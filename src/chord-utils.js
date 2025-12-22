@@ -104,6 +104,23 @@ export function detectChord(noteNames) {
         seventhType = 'dom7';
     }
     
+    // Check for sixth chord early (before base chord determination)
+    // Sixth chords have interval 9 (major 6th) and no seventh
+    if (has(9) && !has(10) && !has(11)) {
+        // Sixth chord (no seventh)
+        if (thirdType === 'major') {
+            if (has(2)) {
+                return { root, type: '6/9' };
+            }
+            return { root, type: '6' };
+        } else if (thirdType === 'minor') {
+            if (has(2)) {
+                return { root, type: 'm6/9' };
+            }
+            return { root, type: 'm6' };
+        }
+    }
+    
     // Determine base chord
     if (thirdType === 'major' && seventhType === 'dom7') {
         baseChord = '7';
@@ -146,19 +163,6 @@ export function detectChord(noteNames) {
             return { root, type: '7sus2' };
         }
         return { root, type: 'sus2' };
-    } else if (has(9) && !has(10) && !has(11)) {
-        // Sixth chord (no seventh)
-        if (thirdType === 'major') {
-            if (has(2)) {
-                return { root, type: '6/9' };
-            }
-            return { root, type: '6' };
-        } else if (thirdType === 'minor') {
-            if (has(2)) {
-                return { root, type: 'm6/9' };
-            }
-            return { root, type: 'm6' };
-        }
     } else {
         // Unknown chord structure
         return { root, type: 'Custom', notes: uniquePitches };
