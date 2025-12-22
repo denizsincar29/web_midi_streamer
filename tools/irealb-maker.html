@@ -1986,10 +1986,13 @@
                 // When all notes are released, analyze and record the chord
                 if (activeNotes.size === 0 && chordNotesPressed.size > 0) {
                     analyzeAndRecordChord();
-                    // Don't clear position immediately - wait a bit to avoid timing issues
-                    // This allows quick chord changes to capture position properly
+                    
+                    // Clear chord state after a short delay to handle rapid chord changes
+                    // Only clear if no new notes have been pressed
+                    const currentNoteCount = chordNotesPressed.size;
                     setTimeout(() => {
-                        if (activeNotes.size === 0) {
+                        // Only clear if still no active notes and no new chord started
+                        if (activeNotes.size === 0 && chordNotesPressed.size === currentNoteCount) {
                             chordNotesPressed.clear();
                             chordBeatPosition = null;
                             chordMeasurePosition = null;
