@@ -237,6 +237,8 @@ export const translations = {
         'inputHelp.bracketLeft': 'Set start marker',
         'inputHelp.bracketRight': 'Set end marker',
         'inputHelp.escape': 'Cancel current operation',
+        'inputHelp.altArrowLeft': 'Move chord to previous beat',
+        'inputHelp.altArrowRight': 'Move chord to next beat',
     },
     
     ru: {
@@ -476,6 +478,8 @@ export const translations = {
         'inputHelp.bracketLeft': 'Установить начальный маркер',
         'inputHelp.bracketRight': 'Установить конечный маркер',
         'inputHelp.escape': 'Отменить текущую операцию',
+        'inputHelp.altArrowLeft': 'Переместить аккорд на предыдущую долю',
+        'inputHelp.altArrowRight': 'Переместить аккорд на следующую долю',
     }
 };
 

@@ -490,6 +490,7 @@
                         <div><strong>Shift+W</strong>: Close with save</div>
                         <div><strong>←/→</strong>: Navigate chords</div>
                         <div><strong>Ctrl+←/→</strong>: Jump measures</div>
+                        <div><strong>Alt+←/→</strong>: Move chord beat</div>
                         <div><strong>[</strong>: Set start marker</div>
                         <div><strong>]</strong>: Set end marker</div>
                         <div><strong>Esc</strong>: Cancel</div>
@@ -1077,7 +1078,13 @@
             
             switch(e.key) {
                 case 'ArrowRight':
-                    if (e.ctrlKey) {
+                    if (e.altKey) {
+                        // Alt+Right: Move chord to next beat
+                        const dataIndexRight = cells[currentIndex].getAttribute('data-index');
+                        if (dataIndexRight !== null) {
+                            moveChord(parseInt(dataIndexRight), 'right');
+                        }
+                    } else if (e.ctrlKey) {
                         // Ctrl+Right: Next measure with chord
                         const nextChordIndex = cells.findIndex((cell, idx) => 
                             idx > currentIndex && !cell.classList.contains('empty-measure')
@@ -1094,7 +1101,13 @@
                     break;
                     
                 case 'ArrowLeft':
-                    if (e.ctrlKey) {
+                    if (e.altKey) {
+                        // Alt+Left: Move chord to previous beat
+                        const dataIndexLeft = cells[currentIndex].getAttribute('data-index');
+                        if (dataIndexLeft !== null) {
+                            moveChord(parseInt(dataIndexLeft), 'left');
+                        }
+                    } else if (e.ctrlKey) {
                         // Ctrl+Left: Previous measure with chord
                         const prevChordIndex = cells.slice(0, currentIndex).reverse().findIndex(
                             cell => !cell.classList.contains('empty-measure')
@@ -1334,6 +1347,96 @@
                 updateChordList();
                 announceChange(`Chord at measure ${item.measure} deleted`);
             }
+        }
+        
+        // Move chord to a different beat or measure
+        function moveChord(index, direction) {
+            if (index < 0 || index >= recordedChords.length) {
+                announceChange('No chord selected to move');
+                return;
+            }
+            
+            const { numerator } = getTimeSignatureInfo();
+            const chord = recordedChords[index];
+            const currentBeat = chord.beat || numerator;
+            const currentMeasure = chord.measure;
+            
+            let newBeat = currentBeat;
+            let newMeasure = currentMeasure;
+            
+            if (direction === 'left') {
+                // Move to previous beat
+                newBeat = currentBeat - 1;
+                if (newBeat < 1) {
+                    // Move to previous measure, last beat
+                    newMeasure = currentMeasure - 1;
+                    newBeat = numerator;
+                    
+                    if (newMeasure < 1) {
+                        announceChange('Cannot move chord before measure 1');
+                        return;
+                    }
+                }
+            } else if (direction === 'right') {
+                // Move to next beat
+                newBeat = currentBeat + 1;
+                if (newBeat > numerator) {
+                    // Move to next measure, first beat
+                    newMeasure = currentMeasure + 1;
+                    newBeat = 1;
+                    
+                    const totalMeasures = parseInt(document.getElementById('totalMeasures').value) || 32;
+                    if (newMeasure > totalMeasures) {
+                        announceChange(`Cannot move chord beyond measure ${totalMeasures}`);
+                        return;
+                    }
+                }
+            }
+            
+            // Check if target position already has a chord
+            const existingChord = recordedChords.find(c => 
+                c.measure === newMeasure && (c.beat || numerator) === newBeat && c !== chord
+            );
+            
+            if (existingChord) {
+                if (!confirm(`Measure ${newMeasure}, beat ${newBeat} already has a chord. Replace it?`)) {
+                    return;
+                }
+                // Remove the existing chord
+                const existingIndex = recordedChords.indexOf(existingChord);
+                recordedChords.splice(existingIndex, 1);
+                // Adjust index if needed
+                if (existingIndex < index) {
+                    index--;
+                }
+            }
+            
+            // Update the chord's position
+            recordedChords[index].beat = newBeat;
+            recordedChords[index].measure = newMeasure;
+            
+            // Re-sort chords
+            recordedChords.sort((a, b) => {
+                if (a.measure !== b.measure) return a.measure - b.measure;
+                return (a.beat || numerator) - (b.beat || numerator);
+            });
+            
+            updateChordList();
+            
+            // Find new index after sorting
+            const newIndex = recordedChords.findIndex(c => c === chord);
+            if (newIndex !== -1) {
+                // Re-select the moved chord
+                const cells = document.querySelectorAll('.chord-cell');
+                const cellIndex = Array.from(cells).findIndex(cell => 
+                    parseInt(cell.getAttribute('data-index')) === newIndex
+                );
+                if (cellIndex !== -1) {
+                    selectChord(cellIndex);
+                }
+            }
+            
+            announceChange(`Chord moved to measure ${newMeasure}, beat ${newBeat}`);
         }
         
         // Announce changes for screen reader
@@ -2216,6 +2319,7 @@
             const key = e.key.toLowerCase();
             const isShift = e.shiftKey;
             const isCtrl = e.ctrlKey;
+            const isAlt = e.altKey;
             
             // Build the i18n key based on modifiers and key
             let i18nKey = 'inputHelp.';
@@ -2223,6 +2327,10 @@
             if (isCtrl && isShift) {
                 // No Ctrl+Shift combinations currently
                 return null;
+            } else if (isAlt) {
+                if (key === 'arrowleft') i18nKey += 'altArrowLeft';
+                else if (key === 'arrowright') i18nKey += 'altArrowRight';
+                else return null;
             } else if (isCtrl) {
                 if (key === ',') i18nKey += 'ctrlComma';
                 else if (key === 'x') i18nKey += 'ctrlX';
