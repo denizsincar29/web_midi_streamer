@@ -14,7 +14,7 @@ A peer-to-peer MIDI streaming application that allows two users to stream MIDI d
 - 🔧 **Debug tools** - Connection testing and message export
 - 📱 **PWA ready** - Install as an app, works offline
 - ♿ **Accessible** - Full keyboard navigation and screen reader support
-- 🎛️ **MIDI Tools** - Nord Effects Controller (BETA) and Chord Display for pianists
+- 🎛️ **MIDI Mini Apps** - Nord Effects Controller (BETA), Chord Display, and iRealPro Maker for pianists
 
 ## 🚀 Quick Start
 
@@ -76,22 +76,22 @@ mkdir -p signaling_data
 
 - **[Help Guide](help-en.html)** - Step-by-step usage instructions (includes version history)
 - **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
-- **[Tools Help](tools/help.html)** - Documentation for MIDI Tools (Nord Effects & Chord Display)
+- **[Mini Apps Help](tools/help.html)** - Documentation for MIDI Mini Apps (Nord Effects & Chord Display)
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
 
-## 🎛️ MIDI Tools
+## 🎛️ MIDI Mini Apps
 
-Web MIDI Streamer now includes professional tools for pianists and keyboard players:
+Web MIDI Streamer now includes professional mini apps for pianists and keyboard players:
 
 ### 🎚️ Nord Effects Controller (BETA)
 Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker, and more in real-time.
 
-**⚠️ EXPERIMENTAL**: This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.
+**⚠️ EXPERIMENTAL**: This mini app is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.
 
 ### 🎼 Chord Display
 Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.
 
-Access tools via the "🎹 Tools" button in the main app header.
+Access mini apps via the "🎹 Mini Apps" button in the main app header.
 
 ## 🏗️ Architecture
 
@@ -119,7 +119,7 @@ Access tools via the "🎹 Tools" button in the main app header.
 - `src/i18n.js` - Internationalization translations
 - `signaling.php` - WebRTC signaling server
 - `service-worker.js` - PWA offline support
-- `tools/` - MIDI tools (Nord Effects Controller, Chord Display)
+- `tools/` - MIDI mini apps (Nord Effects Controller, Chord Display, iRealPro Maker)
 
 ## 🌐 Deployment
 
