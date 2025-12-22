@@ -144,6 +144,11 @@
             color: #999;
         }
         
+        .chord-cell.multi-chord {
+            border-left: 4px solid #ff9800;
+            background: #fff8e1;
+        }
+        
         .chord-cell .measure-label {
             font-size: 0.75em;
             opacity: 0.7;
@@ -934,37 +939,41 @@
                     const chordsInMeasure = chordsByMeasure[m] || [];
                     
                     if (chordsInMeasure.length > 0) {
-                        // Measure has chords
-                        const item = chordsInMeasure[0]; // Use first chord for display
-                        const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
-                        const inversionText = item.inversion ? `/${item.inversion}` : '';
-                        const beatInfo = item.beat ? `:${item.beat}` : '';
-                        
-                        // Find the actual index in recordedChords array
-                        const actualIndex = recordedChords.findIndex(c => c === item);
-                        
-                        // Check if this is a marker
-                        const startMarker = parseInt(document.getElementById('startMeasure').value) === m;
-                        const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
-                        const voltaEnding = voltaEndings.find(v => v.measure === m);
-                        
-                        let markerBadge = '';
-                        if (voltaEnding) {
-                            markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
-                        } else if (startMarker) {
-                            markerBadge = '<span class="marker-badge">START</span>';
-                        } else if (endMarker) {
-                            markerBadge = '<span class="marker-badge">END</span>';
-                        }
-                        
-                        html += `<div class="chord-cell" data-index="${actualIndex}" data-measure="${m}" 
-                                     tabindex="-1" role="button" aria-hidden="true"
-                                     data-beat="${item.beat || ''}">
-                            ${markerBadge}
-                            <div class="measure-label">M${m}</div>
-                            <div class="chord-name">${chordText}${inversionText}</div>
-                            ${beatInfo ? `<div class="beat-info">${beatInfo}</div>` : ''}
-                        </div>`;
+                        // Measure has chords - display ALL chords in this measure
+                        chordsInMeasure.forEach((item, chordIndexInMeasure) => {
+                            const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                            const inversionText = item.inversion ? `/${item.inversion}` : '';
+                            const beatInfo = item.beat ? `:${item.beat}` : '';
+                            
+                            // Find the actual index in recordedChords array
+                            const actualIndex = recordedChords.findIndex(c => c === item);
+                            
+                            // Check if this is a marker (only show on first chord of measure)
+                            const startMarker = chordIndexInMeasure === 0 && parseInt(document.getElementById('startMeasure').value) === m;
+                            const endMarker = chordIndexInMeasure === 0 && parseInt(document.getElementById('endMeasure').value) === m;
+                            const voltaEnding = chordIndexInMeasure === 0 ? voltaEndings.find(v => v.measure === m) : null;
+                            
+                            let markerBadge = '';
+                            if (voltaEnding) {
+                                markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
+                            } else if (startMarker) {
+                                markerBadge = '<span class="marker-badge">START</span>';
+                            } else if (endMarker) {
+                                markerBadge = '<span class="marker-badge">END</span>';
+                            }
+                            
+                            // Add a visual indicator if this is not the first chord in the measure
+                            const multiChordClass = chordIndexInMeasure > 0 ? ' multi-chord' : '';
+                            
+                            html += `<div class="chord-cell${multiChordClass}" data-index="${actualIndex}" data-measure="${m}" 
+                                         tabindex="-1" role="button" aria-hidden="true"
+                                         data-beat="${item.beat || ''}">
+                                ${markerBadge}
+                                <div class="measure-label">M${m}${chordIndexInMeasure > 0 ? `(${chordIndexInMeasure + 1})` : ''}</div>
+                                <div class="chord-name">${chordText}${inversionText}</div>
+                                ${beatInfo ? `<div class="beat-info">${beatInfo}</div>` : ''}
+                            </div>`;
+                        });
                     } else {
                         // Empty measure
                         // Check for markers even on empty measures
@@ -1168,8 +1177,15 @@
                     if (!e.shiftKey) {
                         e.preventDefault();
                         const deleteIndex = cells[currentIndex].getAttribute('data-index');
-                        if (deleteIndex !== null) {
-                            deleteChord(parseInt(deleteIndex));
+                        if (deleteIndex !== null && deleteIndex !== '') {
+                            const indexNum = parseInt(deleteIndex);
+                            if (!isNaN(indexNum)) {
+                                deleteChord(indexNum);
+                            } else {
+                                announceChange('Cannot delete: no chord at this position');
+                            }
+                        } else {
+                            announceChange('Cannot delete: empty measure');
                         }
                     }
                     // Shift+Backspace handled in global handler
