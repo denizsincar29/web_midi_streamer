@@ -1227,7 +1227,8 @@
                 
                 // Add volta ending information
                 if (voltaEnding) {
-                    announcement += `, volta ending ${voltaEnding.type}`;
+                    const voltaKey = voltaEnding.type === 1 ? 'irealbMaker.volta1' : 'irealbMaker.volta2';
+                    announcement += `, ${t(voltaKey)}`;
                 }
                 
                 announceChange(announcement);
@@ -2586,15 +2587,21 @@
                 const date = new Date(song.timestamp).toLocaleDateString();
                 const time = new Date(song.timestamp).toLocaleTimeString();
                 html += `
-                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #f9f9f9;" 
-                         onclick="loadSongFromStorage(${index})" 
-                         onkeydown="if(event.key==='Enter') loadSongFromStorage(${index})"
+                    <div class="song-item" style="padding: 15px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center;" 
                          tabindex="0"
                          role="button"
                          aria-label="Load ${song.name || 'Untitled'} from ${date}">
-                        <div style="font-weight: bold; font-size: 1.1em;">${song.name || 'Untitled'}</div>
-                        <div style="color: #666; font-size: 0.9em;">Saved: ${date} ${time}</div>
-                        <div style="color: #999; font-size: 0.85em;">${song.recordedChords?.length || 0} chords</div>
+                        <div style="flex: 1;" onclick="loadSongFromStorage(${index})" onkeydown="if(event.key==='Enter' && event.target.tagName !== 'BUTTON') loadSongFromStorage(${index})">
+                            <div style="font-weight: bold; font-size: 1.1em;">${song.name || 'Untitled'}</div>
+                            <div style="color: #666; font-size: 0.9em;">Saved: ${date} ${time}</div>
+                            <div style="color: #999; font-size: 0.85em;">${song.recordedChords?.length || 0} chords</div>
+                        </div>
+                        <button onclick="event.stopPropagation(); deleteSongFromStorage(${index})" 
+                                class="btn btn-danger" 
+                                style="margin-left: 10px; padding: 5px 10px;"
+                                aria-label="Delete ${song.name || 'Untitled'}">
+                            🗑️ Delete
+                        </button>
                     </div>
                 `;
             });
@@ -2602,6 +2609,15 @@
             
             songList.innerHTML = html;
             modal.style.display = 'flex';
+            
+            // Focus the first song item after modal is displayed
+            setTimeout(() => {
+                const firstItem = songList.querySelector('.song-item');
+                if (firstItem) {
+                    firstItem.focus();
+                }
+            }, 100);
+            
             announceChange(`${songs.length} saved songs available. Select one to load.`);
         }
         
@@ -2635,6 +2651,26 @@
                 document.getElementById('loadStorageModal').style.display = 'none';
                 
                 announceChange(`Song "${songData.name}" loaded from local storage`);
+            }
+        }
+        
+        function deleteSongFromStorage(index) {
+            const songs = getSavedSongs();
+            if (index >= 0 && index < songs.length) {
+                const songName = songs[index].name || 'Untitled';
+                if (confirm(`Delete "${songName}" from local storage?`)) {
+                    songs.splice(index, 1);
+                    localStorage.setItem('irealbMaker_songs', JSON.stringify(songs));
+                    announceChange(`Song "${songName}" deleted`);
+                    
+                    // Refresh the modal display
+                    if (songs.length > 0) {
+                        loadFromLocalStorage();
+                    } else {
+                        closeLoadStorageModal();
+                        announceChange('No saved songs remaining');
+                    }
+                }
             }
         }
         
