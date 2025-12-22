@@ -299,6 +299,20 @@
                             Choose which measure to start recording from
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label for="endMeasure" data-i18n="irealbMaker.endMeasure">End Recording at Measure (optional):</label>
+                        <input type="number" id="endMeasure" value="" min="1" max="999" step="1" placeholder="Leave empty for no limit" aria-label="Ending measure number">
+                        <div class="time-signature-help" data-i18n="irealbMaker.endMeasureHelp">
+                            Optionally set an end measure to overwrite a specific range (e.g., 5-8)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="totalMeasures" data-i18n="irealbMaker.totalMeasures">Total Measures in Song:</label>
+                        <input type="number" id="totalMeasures" value="32" min="1" max="999" step="1" aria-label="Total number of measures">
+                        <div class="time-signature-help" data-i18n="irealbMaker.totalMeasuresHelp">
+                            Set the total length of your song
+                        </div>
+                    </div>
                 </section>
 
                 <!-- MIDI Input Selection -->
@@ -437,11 +451,14 @@
                 baseChord = '';
             } else if (thirdType === 'minor' && !seventhType) {
                 baseChord = 'm';
-            } else if (has(3) && has(6) && has(10)) {
+            } else if (has(3) && has(6) && !has(7) && has(10)) {
+                // Half-diminished: minor 3rd, b5, minor 7th (no perfect 5th)
                 return { root, type: 'ø7' };
-            } else if (has(3) && has(6) && has(9)) {
+            } else if (has(3) && has(6) && !has(7) && has(9)) {
+                // Diminished 7th: minor 3rd, b5, dim7 (no perfect 5th)
                 return { root, type: 'dim7' };
-            } else if (has(3) && has(6)) {
+            } else if (has(3) && has(6) && !has(7)) {
+                // Diminished triad: minor 3rd, b5 (no perfect 5th)
                 return { root, type: 'dim' };
             } else if (has(4) && has(8)) {
                 return { root, type: 'aug' };
@@ -469,7 +486,8 @@
                 if (!has(1) && !has(3)) extensions.push('9');
             }
             
-            if (has(6)) extensions.push('#11');
+            // Only treat interval 6 as #11 if there's also a perfect 5th (to distinguish from b5/diminished)
+            if (has(6) && has(7)) extensions.push('#11');
             
             if (has(9) && (baseChord === '7' || baseChord === 'maj7' || baseChord === 'm7')) {
                 extensions.push('13');
@@ -591,6 +609,25 @@
                         updateStatusMessage('Recording...', true);
                         announceCount('Recording started');
                         lastRecordedChord = null; // Reset on recording start
+                    }
+                    
+                    // Check if we've reached the end measure
+                    if (isRecording && !isCountingIn) {
+                        const endMeasure = parseInt(document.getElementById('endMeasure').value);
+                        const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
+                        
+                        if (endMeasure && actualMeasure > endMeasure) {
+                            // Stop recording automatically
+                            stopMetronome();
+                            isRecording = false;
+                            isCountingIn = false;
+                            updateStatusMessage('Recording stopped (end measure reached)', false);
+                            announceCount('Recording stopped - end measure reached');
+                            
+                            document.getElementById('startBtn').disabled = false;
+                            document.getElementById('stopBtn').disabled = true;
+                            document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
+                        }
                     }
                 }
             }, beatDuration);
@@ -1066,7 +1103,23 @@
             }
             
             initAudio();
-            recordedChords = [];
+            
+            // Handle overwrite mode: keep chords outside the recording range
+            const startMeasure = parseInt(document.getElementById('startMeasure').value) || 1;
+            const endMeasure = parseInt(document.getElementById('endMeasure').value);
+            
+            if (startMeasure > 1 || endMeasure) {
+                // Overwrite mode: keep existing chords outside the range
+                recordedChords = recordedChords.filter(chord => {
+                    if (chord.measure < startMeasure) return true; // Keep chords before start
+                    if (endMeasure && chord.measure > endMeasure) return true; // Keep chords after end
+                    return false; // Remove chords in the recording range
+                });
+            } else {
+                // Full re-record: clear everything
+                recordedChords = [];
+            }
+            
             lastRecordedChord = null;
             chordNotesPressed.clear();
             chordBeatPosition = null;

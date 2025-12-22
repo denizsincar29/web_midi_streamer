@@ -313,14 +313,14 @@
                 baseChord = '';  // Major triad - no suffix
             } else if (thirdType === 'minor' && !seventhType) {
                 baseChord = 'm';
-            } else if (has(3) && has(6) && has(10)) {
-                // Half-diminished: minor 3rd, diminished 5th, minor 7th
+            } else if (has(3) && has(6) && !has(7) && has(10)) {
+                // Half-diminished: minor 3rd, b5, minor 7th (no perfect 5th)
                 return { root, type: 'ø7' };
-            } else if (has(3) && has(6) && has(9)) {
-                // Diminished 7th
+            } else if (has(3) && has(6) && !has(7) && has(9)) {
+                // Diminished 7th: minor 3rd, b5, dim7 (no perfect 5th)
                 return { root, type: 'dim7' };
-            } else if (has(3) && has(6)) {
-                // Diminished triad
+            } else if (has(3) && has(6) && !has(7)) {
+                // Diminished triad: minor 3rd, b5 (no perfect 5th)
                 return { root, type: 'dim' };
             } else if (has(4) && has(8)) {
                 // Augmented
@@ -377,7 +377,8 @@
             }
             
             // Check for #11
-            if (has(6)) {
+            // Only treat interval 6 as #11 if there's also a perfect 5th (to distinguish from b5/diminished)
+            if (has(6) && has(7)) {
                 extensions.push('#11');
             }
             
