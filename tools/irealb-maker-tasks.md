@@ -64,72 +64,112 @@ When user presses **V key** at a measure (e.g., measure 7 in a 32-measure AABA p
 
 ## 2. Bug Fixes
 
-### Bug: Chord Recognition - Major Sixth Chords
-**Issue:** Major chords with sixth (e.g., C6) are not properly recognized.
+### Bug: Chord Recognition - Major Sixth Chords ✅ TESTED - WORKING
+**Status:** Already Fixed
 
-**Root Cause:** The sixth detection logic may have conflicts with other chord type checks.
+**Test Results (Dec 22, 2024):**
+- ✅ C6 chord correctly detected as `{ root: 'C', type: '6' }`
+- ✅ F6 chord correctly detected as `{ root: 'F', type: '6' }`
+- ✅ G6 chord correctly detected as `{ root: 'G', type: '6' }`
+- ✅ C6/9 chord correctly detected as `{ root: 'C', type: '6/9' }`
 
-**Fix Required:**
-- Review chord detection algorithm in `chord-utils.js`
-- Ensure major sixth (interval 9) is properly detected when:
-  - Has major third (interval 4)
-  - Has sixth (interval 9)
-  - No seventh present (intervals 10 or 11)
-- Add test cases for: C6, F6, G6, C6/9, etc.
+**Analysis:** The sixth detection logic in `chord-utils.js` (lines 109-122) correctly:
+- Checks for interval 9 (major sixth)
+- Verifies no seventh is present (intervals 10 or 11)
+- Differentiates between major and minor sixth chords
+- Handles sixth with ninth (6/9) properly
 
----
-
-### Bug: Multiple Chords Per Measure Still Missing Some
-**Issue:** Even after the fix in commit 359ce86, some chords are still not recorded when multiple chords are played in a measure.
-
-**Investigation Needed:**
-- Check if the position-based recording logic has edge cases
-- Verify beat quantization doesn't cause collisions
-- Test rapid chord changes within a beat
-- Review timing thresholds for chord detection
-
-**Possible Causes:**
-- Quantization snapping multiple chords to same beat
-- Insufficient delay between chord releases
-- Beat calculation rounding errors
+**Conclusion:** This bug has already been fixed. No further action required.
 
 ---
 
-### Bug: Metronome/Playback Timing Offset
-**Issue:** During playback, the metronome tick and beat announcement are not synchronized correctly. High tick (beat 1) plays on second beat instead of first beat.
+### Bug: Multiple Chords Per Measure Still Missing Some ✅ FIXED
+**Status:** Fixed on Dec 22, 2024
 
-**Symptoms:**
-- Metronome ticking one beat late
-- Beat announcements delayed or at wrong time
-- Should tick at start of beat, not end
+**Root Cause Identified:**
+The display logic in `tools/irealb-maker.html` (line 938) only showed the first chord in each measure:
+```javascript
+const item = chordsInMeasure[0]; // Use first chord for display
+```
+This meant additional chords in the same measure were recorded but invisible and inaccessible.
 
-**Root Cause Investigation:**
-- Review playback interval timing
-- Check when `playClick()` is called relative to chord playback
-- Verify beat counter initialization
-- Examine interval scheduling (setInterval vs. setTimeout with drift correction)
+**Fix Applied:**
+- Modified `updateChordList()` to display ALL chords in each measure
+- Each chord now gets its own cell in the grid
+- Added visual styling: orange left border for additional chords
+- Updated measure labels to show position: "M5(2)" for second chord in measure 5
+- All chords are now individually selectable, navigable, and deletable
 
-**Fix Required:**
-- Ensure metronome tick happens at beat start
-- Synchronize chord playback with beat clicks
-- Use high-resolution timing for accurate playback
-- Consider using Web Audio API scheduling for precise timing
+**Test Case:**
+Record two or more chords in the same measure (e.g., C at beat 1, F at beat 3). All chords should now be visible as separate cells with distinct styling.
 
 ---
 
-### Bug: deletion of some chords or marked positions fail at unknown places
-**Issue:** When deleting chords or marked positions, some entries are not removed as expected.
-**Investigation Needed:**
-- Review deletion logic in chord/position management code
-- Check for edge cases where references are not properly cleared
-- Add logging to track deletion attempts and failures
-**Possible Causes:**
-- Improper indexing in data structures
-- Race conditions during concurrent edits
-- UI not updating to reflect deletions
-**Fix Required:**
-- Ensure all references to deleted chords/positions are removed
-- Update UI state after deletions
-- Add test cases for deletion scenarios
+### Bug: Metronome/Playback Timing Offset ⚠️ NEEDS MANUAL TESTING
+**Status:** Code Review Complete - Appears Correct
 
+**Analysis (Dec 22, 2024):**
+Reviewed both recording metronome and playback timing logic:
+
+**Recording Metronome (`startMetronome`):**
+- Beat sequence: 0 → 1 (accent) → 2 → 3 → 4 → reset to 1 (accent)
+- Logic appears correct: accent plays on beat 1
+
+**Playback (`togglePlayback`):**
+- Initial: playbackBeat = 1, immediate accent click + first chord
+- Interval callbacks: increment beat, play click, play chord on beat 1
+- Logic appears correct: accent on beat 1 of each measure
+
+**Potential Issues:**
+- `setInterval` can drift over time (cumulative timing errors)
+- No compensation for callback execution time
+- Consider Web Audio API scheduling with `context.currentTime` for better precision
+
+**Recommendation:**
+Manual testing needed to verify if timing offset still exists. Test at various BPMs (60, 120, 180, 240) and compare with external metronome.
+
+---
+
+### Bug: deletion of some chords or marked positions fail at unknown places ✅ FIXED
+**Status:** Fixed on Dec 22, 2024
+
+**Root Causes Identified:**
+
+**Root Causes Identified:**
+
+1. **Empty Measure Deletion:**
+   - Empty measures have no `data-index` attribute
+   - Attempting to delete resulted in `deleteChord(parseInt(null))` → `deleteChord(NaN)`
+   - Accessing `recordedChords[NaN]` returns `undefined`
+   - Silent failure with no user feedback
+
+2. **Multiple Chords Per Measure:**
+   - Only first chord in measure was displayed (see Bug #2 above)
+   - Additional chords were recorded but hidden/inaccessible
+   - Could not delete chords that weren't visible
+
+**Fix Applied:**
+- Added validation in Backspace key handler (lines 1166-1182):
+  - Check if `data-index` is null or empty
+  - Validate `parseInt` result for NaN
+  - Provide clear user feedback: "Cannot delete: empty measure"
+- Multi-chord display fix (Bug #2) makes all chords accessible for deletion
+
+**Test Cases:**
+1. Try to delete empty measure → Should show "Cannot delete: empty measure"
+2. Record multiple chords in same measure → All should be deletable individually
+3. Delete chord with markers (START/END) → Should work correctly
+
+---
+
+## Summary of Bug Fixes (Dec 22, 2024)
+
+| Bug | Status | Fix Applied |
+|-----|--------|-------------|
+| Major Sixth Chords | ✅ Already Fixed | None needed - verified working correctly |
+| Multiple Chords Per Measure | ✅ Fixed | Display all chords; added visual styling |
+| Metronome Timing Offset | ⚠️ Needs Testing | Code looks correct; manual test required |
+| Deletion Failures | ✅ Fixed | Added validation; improved error messages |
+
+All code changes made to `tools/irealb-maker.html`. The `chord-utils.js` file required no changes as sixth chord detection was already working correctly.
 
