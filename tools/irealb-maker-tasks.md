@@ -2,7 +2,7 @@
 
 This document outlines future enhancements and features for the iReal Pro Maker tool.
 
-## 1. Volta/Repeat System (iRealPro Format)
+## Volta/Repeat System (iRealPro Format)
 
 ### Goal
 Implement a full repeat/volta system compatible with iRealPro format where pressing V creates proper repeat signs and volta endings.
@@ -59,77 +59,4 @@ When user presses **V key** at a measure (e.g., measure 7 in a 32-measure AABA p
 - Requires careful planning and testing
 - Must maintain backward compatibility with existing files
 - All screen reader announcements must reflect repeat structure
-
----
-
-## 2. Bug Fixes
-
-### Bug: Chord Recognition - Major Sixth Chords
-**Issue:** Major chords with sixth (e.g., C6) are not properly recognized.
-
-**Root Cause:** The sixth detection logic may have conflicts with other chord type checks.
-
-**Fix Required:**
-- Review chord detection algorithm in `chord-utils.js`
-- Ensure major sixth (interval 9) is properly detected when:
-  - Has major third (interval 4)
-  - Has sixth (interval 9)
-  - No seventh present (intervals 10 or 11)
-- Add test cases for: C6, F6, G6, C6/9, etc.
-
----
-
-### Bug: Multiple Chords Per Measure Still Missing Some
-**Issue:** Even after the fix in commit 359ce86, some chords are still not recorded when multiple chords are played in a measure.
-
-**Investigation Needed:**
-- Check if the position-based recording logic has edge cases
-- Verify beat quantization doesn't cause collisions
-- Test rapid chord changes within a beat
-- Review timing thresholds for chord detection
-
-**Possible Causes:**
-- Quantization snapping multiple chords to same beat
-- Insufficient delay between chord releases
-- Beat calculation rounding errors
-
----
-
-### Bug: Metronome/Playback Timing Offset
-**Issue:** During playback, the metronome tick and beat announcement are not synchronized correctly. High tick (beat 1) plays on second beat instead of first beat.
-
-**Symptoms:**
-- Metronome ticking one beat late
-- Beat announcements delayed or at wrong time
-- Should tick at start of beat, not end
-
-**Root Cause Investigation:**
-- Review playback interval timing
-- Check when `playClick()` is called relative to chord playback
-- Verify beat counter initialization
-- Examine interval scheduling (setInterval vs. setTimeout with drift correction)
-
-**Fix Required:**
-- Ensure metronome tick happens at beat start
-- Synchronize chord playback with beat clicks
-- Use high-resolution timing for accurate playback
-- Consider using Web Audio API scheduling for precise timing
-
----
-
-### Bug: deletion of some chords or marked positions fail at unknown places
-**Issue:** When deleting chords or marked positions, some entries are not removed as expected.
-**Investigation Needed:**
-- Review deletion logic in chord/position management code
-- Check for edge cases where references are not properly cleared
-- Add logging to track deletion attempts and failures
-**Possible Causes:**
-- Improper indexing in data structures
-- Race conditions during concurrent edits
-- UI not updating to reflect deletions
-**Fix Required:**
-- Ensure all references to deleted chords/positions are removed
-- Update UI state after deletions
-- Add test cases for deletion scenarios
-
 
