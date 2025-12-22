@@ -1038,7 +1038,7 @@
             // Determine the total measures to export
             const totalMeasuresInput = parseInt(document.getElementById('totalMeasures').value) || 32;
             const firstMeasure = measures.length > 0 ? measures[0] : 1;
-            const lastMeasure = Math.max(...measures, totalMeasuresInput);
+            const lastMeasure = measures.length > 0 ? Math.max(...measures, totalMeasuresInput) : totalMeasuresInput;
             
             // Iterate through all measures from first to last
             for (let measureNum = firstMeasure; measureNum <= lastMeasure; measureNum++) {
