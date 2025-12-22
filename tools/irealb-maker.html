@@ -526,10 +526,32 @@
                 <!-- Hidden file input for JSON upload -->
                 <input type="file" id="jsonFileInput" accept=".json" style="display: none;" aria-label="Load saved progress from JSON file">
 
+                <!-- Keyboard Shortcuts Help -->
+                <div class="keyboard-shortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
+                        <div><strong>R</strong>: Start/Stop Recording</div>
+                        <div><strong>E</strong>: Edit chord (MIDI)</div>
+                        <div><strong>Shift+E</strong>: Edit chord (keyboard)</div>
+                        <div><strong>S</strong>: Add section</div>
+                        <div><strong>Shift+S</strong>: Save to storage</div>
+                        <div><strong>Shift+O</strong>: Open from storage</div>
+                        <div><strong>Shift+D</strong>: Download iReal</div>
+                        <div><strong>Shift+J</strong>: Download/Load JSON</div>
+                        <div><strong>Shift+W</strong>: Close with save</div>
+                        <div><strong>←/→</strong>: Navigate chords</div>
+                        <div><strong>Ctrl+←/→</strong>: Jump measures</div>
+                        <div><strong>[</strong>: Set start marker</div>
+                        <div><strong>]</strong>: Set end marker</div>
+                        <div><strong>Delete</strong>: Delete chord</div>
+                        <div><strong>Esc</strong>: Cancel</div>
+                    </div>
+                </div>
+
                 <!-- Recorded Chord Sequence -->
-                <div class="chord-sequence" id="chordSequenceSection" style="display: none;">
+                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" aria-label="Chord workspace">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
-                    <div class="chord-list" id="chordList"></div>
+                    <div class="chord-list" id="chordList" role="grid" aria-label="Chord chart"></div>
                 </div>
             </div>
         </main>
@@ -893,11 +915,11 @@
                     
                 case 'e':
                 case 'E':
-                    // Edit chord
+                    // Edit chord (E = MIDI, Shift+E = keyboard)
                     e.preventDefault();
                     const dataIndex = cells[currentIndex].getAttribute('data-index');
                     if (dataIndex !== null) {
-                        editChord(parseInt(dataIndex));
+                        editChord(parseInt(dataIndex), e.shiftKey);
                     }
                     break;
                     
@@ -940,18 +962,15 @@
             }
         }
         
-        // Edit chord function - supports both prompt and MIDI editing
+        // Edit chord function - supports MIDI (default) and keyboard editing
         let editingChordIndex = -1;
         let editingChordNotes = new Set();
         
-        function editChord(index) {
+        function editChord(index, useKeyboard = false) {
             const item = recordedChords[index];
             
-            // Ask user for editing method
-            const editMethod = confirm(`Edit chord at measure ${item.measure}?\n\nClick OK to edit via keyboard, or Cancel to play new chord on your MIDI keyboard.`);
-            
-            if (editMethod) {
-                // Keyboard editing
+            if (useKeyboard) {
+                // Keyboard editing (Shift+E)
                 const newRoot = prompt(`Edit chord root (current: ${item.chord.root}):`, item.chord.root);
                 if (newRoot && newRoot.trim()) {
                     item.chord.root = newRoot.trim();
@@ -959,7 +978,7 @@
                     announceChange(`Chord at measure ${item.measure} updated to ${newRoot}`);
                 }
             } else {
-                // MIDI editing mode
+                // MIDI editing mode (E key - default)
                 editingChordIndex = index;
                 editingChordNotes.clear();
                 announceChange(`Edit mode: Play a chord on your MIDI keyboard to replace the chord at measure ${item.measure}. Press Escape to cancel.`);
@@ -1929,6 +1948,141 @@
             e.target.value = '';
         });
         
+        // LocalStorage functions for saving/loading songs
+        const STORAGE_KEY = 'irealb_maker_songs';
+        
+        function getSavedSongs() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                return saved ? JSON.parse(saved) : [];
+            } catch (error) {
+                console.error('Error loading saved songs:', error);
+                return [];
+            }
+        }
+        
+        function saveToLocalStorage() {
+            const songName = document.getElementById('songName').value || 'Untitled';
+            
+            if (recordedChords.length === 0) {
+                announceChange('No chords to save');
+                return;
+            }
+            
+            const songData = {
+                name: songName,
+                timestamp: Date.now(),
+                songInfo: {
+                    name: songName,
+                    author: document.getElementById('authorName').value,
+                    timeSignature: document.getElementById('timeSignature').value,
+                    musicStyle: document.getElementById('musicStyle').value,
+                    keySignature: document.getElementById('keySignature').value,
+                    bpm: document.getElementById('bpm').value,
+                    totalMeasures: document.getElementById('totalMeasures').value,
+                    startMeasure: document.getElementById('startMeasure').value,
+                    endMeasure: document.getElementById('endMeasure').value
+                },
+                recordedChords: recordedChords,
+                definedSections: definedSections
+            };
+            
+            try {
+                const songs = getSavedSongs();
+                // Check if song with same name exists
+                const existingIndex = songs.findIndex(s => s.name === songName);
+                if (existingIndex !== -1) {
+                    songs[existingIndex] = songData;
+                    announceChange(`Song "${songName}" updated in local storage`);
+                } else {
+                    songs.push(songData);
+                    announceChange(`Song "${songName}" saved to local storage`);
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+            } catch (error) {
+                announceChange('Error saving to local storage: ' + error.message);
+            }
+        }
+        
+        function loadFromLocalStorage() {
+            const songs = getSavedSongs();
+            
+            if (songs.length === 0) {
+                announceChange('No saved songs found in local storage');
+                return;
+            }
+            
+            // Create a selection dialog
+            let options = songs.map((song, index) => 
+                `${index + 1}. ${song.name} (${new Date(song.timestamp).toLocaleDateString()})`
+            ).join('\n');
+            
+            const selection = prompt(`Choose a song to load:\n\n${options}\n\nEnter number (1-${songs.length}):`);
+            
+            if (selection) {
+                const index = parseInt(selection) - 1;
+                if (index >= 0 && index < songs.length) {
+                    const songData = songs[index];
+                    
+                    // Restore song info
+                    document.getElementById('songName').value = songData.songInfo.name || '';
+                    document.getElementById('authorName').value = songData.songInfo.author || '';
+                    document.getElementById('timeSignature').value = songData.songInfo.timeSignature || '44';
+                    document.getElementById('musicStyle').value = songData.songInfo.musicStyle || 'Medium Swing';
+                    document.getElementById('keySignature').value = songData.songInfo.keySignature || 'C';
+                    document.getElementById('bpm').value = songData.songInfo.bpm || '120';
+                    document.getElementById('totalMeasures').value = songData.songInfo.totalMeasures || '32';
+                    document.getElementById('startMeasure').value = songData.songInfo.startMeasure || '1';
+                    document.getElementById('endMeasure').value = songData.songInfo.endMeasure || '';
+                    
+                    // Restore chords and sections
+                    recordedChords = songData.recordedChords || [];
+                    definedSections = songData.definedSections || [];
+                    
+                    // Update displays
+                    updateChordList();
+                    updateSectionList();
+                    
+                    announceChange(`Song "${songData.name}" loaded from local storage`);
+                }
+            }
+        }
+        
+        function closeWithSavePrompt() {
+            if (recordedChords.length > 0) {
+                if (confirm('Save current song to local storage before closing?')) {
+                    saveToLocalStorage();
+                }
+            }
+            // Reset the form
+            document.getElementById('resetBtn').click();
+            announceChange('Workspace cleared');
+        }
+        
+        // Section input mode
+        let sectionInputMode = false;
+        
+        function addSectionViaKey(sectionType) {
+            const sectionMap = {
+                'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D',
+                'q': 'Coda', 'i': 'Intro', 'o': 'Outro',
+                'v': 'Verse', 'h': 'Chorus', 'r': 'Bridge'
+            };
+            
+            const type = sectionMap[sectionType.toLowerCase()] || sectionType.toUpperCase();
+            
+            // Get the current measure from selection or use 1
+            const cells = document.querySelectorAll('.chord-cell');
+            const selectedCell = document.querySelector('.chord-cell.selected');
+            const measure = selectedCell ? parseInt(selectedCell.getAttribute('data-measure')) : 1;
+            
+            definedSections.push({ type, measure });
+            definedSections.sort((a, b) => a.measure - b.measure);
+            updateSectionList();
+            announceChange(`Section ${type} added at measure ${measure}`);
+            sectionInputMode = false;
+        }
+        
         // Update translations
         function updateTranslations() {
             document.querySelectorAll('[data-i18n]').forEach(element => {
@@ -1940,37 +2094,145 @@
         
         // Global keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // Ignore if typing in input field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            // Ignore if typing in input field (except for workspace)
+            if ((e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') && 
+                !e.target.classList.contains('workspace')) {
                 return;
             }
             
-            // R key - Record/Stop
-            if (e.key === 'r' || e.key === 'R') {
-                e.preventDefault();
-                if (isRecording || isCountingIn) {
-                    // Stop recording
-                    document.getElementById('stopBtn').click();
-                } else {
-                    // Start recording
-                    document.getElementById('startBtn').click();
+            // Handle section input mode
+            if (sectionInputMode) {
+                const key = e.key.toLowerCase();
+                if (['a', 'b', 'c', 'd', 'q', 'i', 'o', 'v', 'h', 'r'].includes(key)) {
+                    e.preventDefault();
+                    addSectionViaKey(key);
+                } else if (e.key === 'Escape') {
+                    sectionInputMode = false;
+                    announceChange('Section input cancelled');
                 }
+                return;
             }
             
-            // Escape key - Cancel edit mode
-            if (e.key === 'Escape') {
-                if (editingChordIndex !== -1) {
-                    editingChordIndex = -1;
-                    editingChordNotes.clear();
-                    announceChange('Edit mode cancelled');
-                    
-                    // Remove visual feedback
-                    const cells = document.querySelectorAll('.chord-cell');
-                    cells.forEach(cell => {
-                        cell.style.background = '';
-                        cell.style.animation = '';
-                    });
+            // Shift key combinations
+            if (e.shiftKey) {
+                switch(e.key.toUpperCase()) {
+                    case 'E':
+                        // Shift+E: Edit chord via keyboard
+                        e.preventDefault();
+                        const cells = document.querySelectorAll('.chord-cell');
+                        const selectedCell = document.querySelector('.chord-cell.selected');
+                        if (selectedCell) {
+                            const dataIndex = selectedCell.getAttribute('data-index');
+                            if (dataIndex !== null) {
+                                editChord(parseInt(dataIndex), true);
+                            }
+                        } else {
+                            announceChange('No chord selected. Use arrow keys to select a chord first.');
+                        }
+                        break;
+                        
+                    case 'S':
+                        // Shift+S: Save to localStorage
+                        e.preventDefault();
+                        saveToLocalStorage();
+                        break;
+                        
+                    case 'O':
+                        // Shift+O: Open from localStorage
+                        e.preventDefault();
+                        loadFromLocalStorage();
+                        break;
+                        
+                    case 'D':
+                        // Shift+D: Download iReal file
+                        e.preventDefault();
+                        if (!document.getElementById('downloadBtn').disabled) {
+                            document.getElementById('downloadBtn').click();
+                            announceChange('Downloading iReal Pro file');
+                        } else {
+                            announceChange('No chords to download');
+                        }
+                        break;
+                        
+                    case 'J':
+                        // Shift+J: Download JSON or load JSON
+                        e.preventDefault();
+                        if (recordedChords.length > 0) {
+                            // Download JSON
+                            document.getElementById('downloadJsonBtn').click();
+                            announceChange('Downloading progress as JSON');
+                        } else {
+                            // Load JSON
+                            document.getElementById('uploadJsonBtn').click();
+                            announceChange('Choose JSON file to load');
+                        }
+                        break;
+                        
+                    case 'W':
+                        // Shift+W: Close with save prompt
+                        e.preventDefault();
+                        closeWithSavePrompt();
+                        break;
                 }
+                return;
+            }
+            
+            // Regular key shortcuts (no shift)
+            switch(e.key.toLowerCase()) {
+                case 'r':
+                    // R key - Record/Stop
+                    e.preventDefault();
+                    if (isRecording || isCountingIn) {
+                        document.getElementById('stopBtn').click();
+                        announceChange('Recording stopped');
+                    } else {
+                        document.getElementById('startBtn').click();
+                        announceChange('Recording started');
+                    }
+                    break;
+                    
+                case 's':
+                    // S key - Add section (next key determines type)
+                    e.preventDefault();
+                    sectionInputMode = true;
+                    announceChange('Section input mode: Press A for section A, B, C, D, Q for Coda, I for Intro, etc.');
+                    break;
+                    
+                case 'e':
+                    // E key - Edit chord via MIDI
+                    e.preventDefault();
+                    const cells = document.querySelectorAll('.chord-cell');
+                    const selectedCell = document.querySelector('.chord-cell.selected');
+                    if (selectedCell) {
+                        const dataIndex = selectedCell.getAttribute('data-index');
+                        if (dataIndex !== null) {
+                            editChord(parseInt(dataIndex), false);
+                        }
+                    } else {
+                        announceChange('No chord selected. Use arrow keys to select a chord first.');
+                    }
+                    break;
+                    
+                case 'escape':
+                    // Escape - Cancel various modes
+                    e.preventDefault();
+                    if (editingChordIndex !== -1) {
+                        editingChordIndex = -1;
+                        editingChordNotes.clear();
+                        allEditNotes.clear();
+                        announceChange('Edit mode cancelled');
+                        
+                        // Remove visual feedback
+                        const cells = document.querySelectorAll('.chord-cell');
+                        cells.forEach(cell => {
+                            cell.style.background = '';
+                            cell.style.animation = '';
+                        });
+                    } else if (sectionInputMode) {
+                        sectionInputMode = false;
+                        announceChange('Section input cancelled');
+                    }
+                    break;
             }
         });
         
