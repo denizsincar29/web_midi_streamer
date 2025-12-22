@@ -109,12 +109,74 @@
             padding: 8px 16px;
             border-radius: 8px;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .chord-item .measure-num {
             opacity: 0.7;
             font-size: 0.8em;
             margin-right: 5px;
+        }
+        
+        .chord-item .chord-text {
+            flex: 1;
+        }
+        
+        .chord-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .chord-item-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        
+        .chord-item-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .inversion-selector {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .inversion-selector h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .inversion-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .inversion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.2s;
+        }
+        
+        .inversion-btn:hover, .inversion-btn.selected {
+            background: #667eea;
+            color: white;
         }
         
         .midi-status {
@@ -221,6 +283,20 @@
                         </select>
                         <div class="time-signature-help" data-i18n="irealbMaker.timeSignatureHelp">
                             Count-in will be announced for the first 2 measures
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bpm" data-i18n="irealbMaker.bpm">BPM (Tempo):</label>
+                        <input type="number" id="bpm" value="120" min="40" max="240" step="1" aria-label="Beats per minute">
+                        <div class="time-signature-help" data-i18n="irealbMaker.bpmHelp">
+                            Metronome tempo (40-240 beats per minute)
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="startMeasure" data-i18n="irealbMaker.startMeasure">Start Recording from Measure:</label>
+                        <input type="number" id="startMeasure" value="1" min="1" max="999" step="1" aria-label="Starting measure number">
+                        <div class="time-signature-help" data-i18n="irealbMaker.startMeasureHelp">
+                            Choose which measure to start recording from
                         </div>
                     </div>
                 </section>
@@ -462,12 +538,16 @@
         // Start metronome with count-in
         function startMetronome() {
             const { numerator } = getTimeSignatureInfo();
-            const bpm = 120; // Default tempo
+            const bpm = parseInt(document.getElementById('bpm').value) || 120;
+            const startMeasureNum = parseInt(document.getElementById('startMeasure').value) || 1;
             const beatDuration = 60000 / bpm;
             
             currentBeat = 0;
-            currentMeasure = 0;
+            currentMeasure = 0; // Count-in always starts at 0
             isCountingIn = true;
+            
+            // Store the actual start measure for later
+            window.actualStartMeasure = startMeasureNum;
             
             metronomeInterval = setInterval(() => {
                 currentBeat++;
@@ -510,9 +590,11 @@
                     
                     // Record chord at the end of each measure during recording
                     if (isRecording && !isCountingIn && currentChord) {
+                        const actualMeasure = window.actualStartMeasure + (currentMeasure - 2);
                         recordedChords.push({
-                            measure: currentMeasure - 1,
-                            chord: currentChord
+                            measure: actualMeasure,
+                            chord: currentChord,
+                            inversion: ''
                         });
                         updateChordList();
                     }
@@ -546,11 +628,23 @@
             
             if (recordedChords.length > 0) {
                 section.style.display = 'block';
-                chordList.innerHTML = recordedChords.map(item => {
+                chordList.innerHTML = recordedChords.map((item, index) => {
                     const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
-                    return `<div class="chord-item">
+                    const inversionText = item.inversion ? `/${item.inversion}` : '';
+                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure}">
                         <span class="measure-num">M${item.measure}:</span>
-                        ${chordText}
+                        <span class="chord-text">${chordText}${inversionText}</span>
+                        <div class="chord-item-actions">
+                            <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
+                                ✏️
+                            </button>
+                            <button class="chord-item-btn" onclick="addInversion(${index})" aria-label="Add inversion to chord at measure ${item.measure}">
+                                🔄
+                            </button>
+                            <button class="chord-item-btn" onclick="deleteChord(${index})" aria-label="Delete chord at measure ${item.measure}">
+                                ❌
+                            </button>
+                        </div>
                     </div>`;
                 }).join('');
             } else {
@@ -558,10 +652,102 @@
             }
         }
         
-        // Convert chord to iRealb format
-        function chordToIRealb(chord) {
-            if (!chord) return ' ';
+        // Edit chord function
+        function editChord(index) {
+            const item = recordedChords[index];
+            const newRoot = prompt(`Edit chord root (current: ${item.chord.root}):`, item.chord.root);
+            if (newRoot && newRoot.trim()) {
+                item.chord.root = newRoot.trim();
+                updateChordList();
+                announceChange(`Chord at measure ${item.measure} updated to ${newRoot}`);
+            }
+        }
+        
+        // Add inversion function
+        function addInversion(index) {
+            const item = recordedChords[index];
+            const chordRoot = item.chord.root;
             
+            // Create inversion selector dialog
+            const inversionDialog = document.createElement('div');
+            inversionDialog.className = 'inversion-selector';
+            inversionDialog.setAttribute('role', 'dialog');
+            inversionDialog.setAttribute('aria-label', 'Select chord inversion');
+            
+            const notes = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+            
+            inversionDialog.innerHTML = `
+                <h4>Select Bass Note for Inversion</h4>
+                <div class="inversion-options" role="group" aria-label="Available bass notes">
+                    ${notes.map(note => `
+                        <button class="inversion-btn" onclick="setInversion(${index}, '${note}')" 
+                                aria-label="Set bass note to ${note}">
+                            ${note}
+                        </button>
+                    `).join('')}
+                    <button class="inversion-btn" onclick="setInversion(${index}, '')" 
+                            aria-label="Remove inversion">
+                        Remove
+                    </button>
+                    <button class="inversion-btn" onclick="closeInversionDialog()" 
+                            style="background: #ff4444; color: white; border-color: #ff4444;"
+                            aria-label="Cancel inversion selection">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            // Insert after the chord item
+            const chordItem = document.querySelector(`.chord-item[data-index="${index}"]`);
+            if (chordItem) {
+                const existingDialog = chordItem.nextElementSibling;
+                if (existingDialog && existingDialog.classList.contains('inversion-selector')) {
+                    existingDialog.remove();
+                } else {
+                    chordItem.after(inversionDialog);
+                    inversionDialog.querySelector('.inversion-btn').focus();
+                }
+            }
+        }
+        
+        // Set inversion
+        function setInversion(index, bassNote) {
+            recordedChords[index].inversion = bassNote;
+            updateChordList();
+            closeInversionDialog();
+            const item = recordedChords[index];
+            const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+            const inversionText = bassNote ? ` with bass note ${bassNote}` : ' (inversion removed)';
+            announceChange(`Chord ${chordText} at measure ${item.measure} updated${inversionText}`);
+        }
+        
+        // Close inversion dialog
+        function closeInversionDialog() {
+            const dialogs = document.querySelectorAll('.inversion-selector');
+            dialogs.forEach(dialog => dialog.remove());
+        }
+        
+        // Delete chord function
+        function deleteChord(index) {
+            const item = recordedChords[index];
+            if (confirm(`Delete chord at measure ${item.measure}?`)) {
+                recordedChords.splice(index, 1);
+                updateChordList();
+                announceChange(`Chord at measure ${item.measure} deleted`);
+            }
+        }
+        
+        // Announce changes for screen reader
+        function announceChange(message) {
+            const announcements = document.getElementById('announcements');
+            announcements.textContent = message;
+        }
+        
+        // Convert chord to iRealb format
+        function chordToIRealb(chordItem) {
+            if (!chordItem || !chordItem.chord) return ' ';
+            
+            const chord = chordItem.chord;
             let result = chord.root;
             
             // Convert chord type to iRealb notation
@@ -583,6 +769,12 @@
             };
             
             result += typeMap[chord.type] || chord.type;
+            
+            // Add inversion (bass note)
+            if (chordItem.inversion) {
+                result += '/' + chordItem.inversion;
+            }
+            
             return result;
         }
         
@@ -595,7 +787,7 @@
             // Build chord string
             let chordString = '';
             for (let i = 0; i < recordedChords.length; i++) {
-                chordString += chordToIRealb(recordedChords[i].chord);
+                chordString += chordToIRealb(recordedChords[i]);
                 // Add measure separator
                 if ((i + 1) % 4 === 0) {
                     chordString += '|';
@@ -673,7 +865,8 @@
         <div class="chords">
             ${recordedChords.map(item => {
                 const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
-                return `<div class="chord-cell">${chordText}</div>`;
+                const inversionText = item.inversion ? `/${item.inversion}` : '';
+                return `<div class="chord-cell">${chordText}${inversionText}</div>`;
             }).join('')}
         </div>
         <div class="irealb-link">
