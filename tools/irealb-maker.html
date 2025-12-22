@@ -3365,8 +3365,11 @@
                             document.getElementById('stopBtn').click();
                             announceChange('Recording stopped');
                         } else {
-                            document.getElementById('startBtn').click();
-                            announceChange('Recording started');
+                            // Announce briefly and add delay before starting count-in
+                            announceChange('Recording');
+                            setTimeout(() => {
+                                document.getElementById('startBtn').click();
+                            }, 1000); // 1 second delay
                         }
                         break;
                         
