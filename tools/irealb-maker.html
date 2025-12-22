@@ -98,9 +98,84 @@
         }
         
         .chord-list {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .chord-cell {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .chord-cell:hover {
+            background: #f0f4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .chord-cell.selected {
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+        
+        .chord-cell.empty-measure {
+            background: #f5f5f5;
+            border-style: dashed;
+            border-color: #ccc;
+            color: #999;
+        }
+        
+        .chord-cell .measure-label {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+        
+        .chord-cell .chord-name {
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        
+        .chord-cell .beat-info {
+            font-size: 0.7em;
+            margin-top: 4px;
+            opacity: 0.8;
+        }
+        
+        .chord-cell .marker-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ffc107;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         
         .chord-item {
@@ -649,6 +724,9 @@
             }
         }
         
+        // Current selected chord index for keyboard navigation
+        let selectedChordIndex = -1;
+        
         // Update chord list display
         function updateChordList() {
             const chordList = document.getElementById('chordList');
@@ -656,73 +734,191 @@
             
             if (recordedChords.length > 0) {
                 section.style.display = 'block';
-                chordList.innerHTML = recordedChords.map((item, index) => {
-                    const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
-                    const inversionText = item.inversion ? `/${item.inversion}` : '';
-                    const beatInfo = item.beat ? `:${item.beat}` : '';
-                    // Don't show section in chord list UI - sections only visible in progression
-                    return `<div class="chord-item" data-index="${index}" role="group" aria-label="Chord ${chordText}${inversionText} at measure ${item.measure} beat ${item.beat}">
-                        <span class="measure-num">M${item.measure}${beatInfo}:</span>
-                        <span class="chord-text">${chordText}${inversionText}</span>
-                        <div class="chord-item-actions">
-                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'start')" aria-label="Set start recording marker at measure ${item.measure}" title="Set Start">
-                                ⏩
-                            </button>
-                            <button class="chord-item-btn" onclick="setRecordMarker(${index}, 'end')" aria-label="Set end recording marker at measure ${item.measure}" title="Set End">
-                                ⏹️
-                            </button>
-                            <button class="chord-item-btn" onclick="editChord(${index})" aria-label="Edit chord at measure ${item.measure}">
-                                ✏️
-                            </button>
-                            <button class="chord-item-btn" onclick="addInversion(${index})" aria-label="Add inversion to chord at measure ${item.measure}">
-                                🔄
-                            </button>
-                            <button class="chord-item-btn" onclick="deleteChord(${index})" aria-label="Delete chord at measure ${item.measure}">
-                                ❌
-                            </button>
-                        </div>
-                    </div>`;
-                }).join('');
+                
+                // Group chords by measure
+                const chordsByMeasure = {};
+                const totalMeasures = parseInt(document.getElementById('totalMeasures').value) || 32;
+                
+                recordedChords.forEach(item => {
+                    if (!chordsByMeasure[item.measure]) {
+                        chordsByMeasure[item.measure] = [];
+                    }
+                    chordsByMeasure[item.measure].push(item);
+                });
+                
+                // Generate cells for all measures
+                let html = '';
+                for (let m = 1; m <= totalMeasures; m++) {
+                    const chordsInMeasure = chordsByMeasure[m] || [];
+                    
+                    if (chordsInMeasure.length > 0) {
+                        // Measure has chords
+                        const item = chordsInMeasure[0]; // Use first chord for display
+                        const chordText = item.chord.type ? `${item.chord.root}${item.chord.type}` : item.chord.root;
+                        const inversionText = item.inversion ? `/${item.inversion}` : '';
+                        const beatInfo = item.beat ? `:${item.beat}` : '';
+                        
+                        // Find the actual index in recordedChords array
+                        const actualIndex = recordedChords.findIndex(c => c === item);
+                        
+                        // Check if this is a marker
+                        const startMarker = parseInt(document.getElementById('startMeasure').value) === m;
+                        const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
+                        const markerBadge = startMarker ? '<span class="marker-badge">START</span>' : 
+                                          endMarker ? '<span class="marker-badge">END</span>' : '';
+                        
+                        html += `<div class="chord-cell" data-index="${actualIndex}" data-measure="${m}" 
+                                     tabindex="0" role="button" 
+                                     aria-label="Measure ${m}, ${chordText}${inversionText}${beatInfo ? ', beat ' + item.beat : ''}">
+                            ${markerBadge}
+                            <div class="measure-label">M${m}</div>
+                            <div class="chord-name">${chordText}${inversionText}</div>
+                            ${beatInfo ? `<div class="beat-info">${beatInfo}</div>` : ''}
+                        </div>`;
+                    } else {
+                        // Empty measure
+                        html += `<div class="chord-cell empty-measure" data-measure="${m}" 
+                                     tabindex="0" role="button"
+                                     aria-label="Measure ${m}, empty">
+                            <div class="measure-label">M${m}</div>
+                            <div class="chord-name" style="opacity: 0.5;">—</div>
+                        </div>`;
+                    }
+                }
+                
+                chordList.innerHTML = html;
+                
+                // Add click and keyboard event listeners to cells
+                document.querySelectorAll('.chord-cell').forEach((cell, index) => {
+                    cell.addEventListener('click', () => selectChord(index));
+                    cell.addEventListener('keydown', handleChordCellKeydown);
+                });
+                
             } else {
                 section.style.display = 'none';
             }
             
-            // Show "Copy from Previous Section" buttons for empty sections (when not recording)
-            if (!isRecording && definedSections.length > 1) {
-                let emptySectionsHTML = '';
-                
-                for (let i = 1; i < definedSections.length; i++) {
-                    const sectionType = definedSections[i].type;
-                    const sectionRange = getSectionRange(sectionType);
-                    
-                    if (sectionRange) {
-                        // Check if section has any chords
-                        const hasChords = recordedChords.some(chord => 
-                            chord.measure >= sectionRange.start && chord.measure <= sectionRange.end
-                        );
-                        
-                        if (!hasChords) {
-                            const prevSection = definedSections[i - 1];
-                            emptySectionsHTML += `<div class="chord-item" role="group" aria-label="Empty section ${sectionType}">
-                                <span class="measure-num">Section ${sectionType} (M${sectionRange.start}-${sectionRange.end}):</span>
-                                <span class="chord-text" style="opacity: 0.6;">Empty</span>
-                                <div class="chord-item-actions">
-                                    <button class="chord-item-btn" onclick="copyFromPreviousSection('${sectionType}')" aria-label="Copy chords from ${prevSection.type} to ${sectionType}" title="Copy from ${prevSection.type}">
-                                        📋 Copy from ${prevSection.type}
-                                    </button>
-                                </div>
-                            </div>`;
-                        }
-                    }
-                }
-                
-                if (emptySectionsHTML) {
-                    chordList.innerHTML += '<div style="margin-top: 20px; padding-top: 20px; border-top: 2px dashed #ddd;">' + emptySectionsHTML + '</div>';
-                }
-            }
-            
             // Update download button states
             updateDownloadButtonStates();
+        }
+        
+        // Select a chord cell
+        function selectChord(index) {
+            // Remove previous selection
+            document.querySelectorAll('.chord-cell.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Select new cell
+            const cells = document.querySelectorAll('.chord-cell');
+            if (index >= 0 && index < cells.length) {
+                selectedChordIndex = index;
+                cells[index].classList.add('selected');
+                cells[index].focus();
+                
+                // Announce to screen reader
+                const measure = cells[index].getAttribute('data-measure');
+                const chordName = cells[index].querySelector('.chord-name')?.textContent || 'Empty';
+                const beatInfo = cells[index].querySelector('.beat-info')?.textContent || '';
+                
+                if (chordName === '—') {
+                    announceChange(`Measure ${measure}, empty measure`);
+                } else {
+                    announceChange(`Measure ${measure}, ${chordName}${beatInfo ? ', ' + beatInfo : ''}`);
+                }
+            }
+        }
+        
+        // Handle keyboard navigation in chord cells
+        function handleChordCellKeydown(e) {
+            const cells = Array.from(document.querySelectorAll('.chord-cell'));
+            const currentIndex = cells.indexOf(e.target);
+            
+            let handled = true;
+            
+            switch(e.key) {
+                case 'ArrowRight':
+                    if (e.ctrlKey) {
+                        // Ctrl+Right: Next measure with chord
+                        const nextChordIndex = cells.findIndex((cell, idx) => 
+                            idx > currentIndex && !cell.classList.contains('empty-measure')
+                        );
+                        if (nextChordIndex !== -1) {
+                            selectChord(nextChordIndex);
+                        }
+                    } else {
+                        // Right: Next chord
+                        if (currentIndex < cells.length - 1) {
+                            selectChord(currentIndex + 1);
+                        }
+                    }
+                    break;
+                    
+                case 'ArrowLeft':
+                    if (e.ctrlKey) {
+                        // Ctrl+Left: Previous measure with chord
+                        const prevChordIndex = cells.slice(0, currentIndex).reverse().findIndex(
+                            cell => !cell.classList.contains('empty-measure')
+                        );
+                        if (prevChordIndex !== -1) {
+                            selectChord(currentIndex - prevChordIndex - 1);
+                        }
+                    } else {
+                        // Left: Previous chord
+                        if (currentIndex > 0) {
+                            selectChord(currentIndex - 1);
+                        }
+                    }
+                    break;
+                    
+                case '[':
+                    // Set start marker
+                    e.preventDefault();
+                    const startMeasure = cells[currentIndex].getAttribute('data-measure');
+                    document.getElementById('startMeasure').value = startMeasure;
+                    announceChange(`Start marker set at measure ${startMeasure}`);
+                    updateChordList(); // Refresh to show marker
+                    selectChord(currentIndex); // Reselect after refresh
+                    break;
+                    
+                case ']':
+                    // Set end marker
+                    e.preventDefault();
+                    const endMeasure = cells[currentIndex].getAttribute('data-measure');
+                    document.getElementById('endMeasure').value = endMeasure;
+                    announceChange(`End marker set at measure ${endMeasure}`);
+                    updateChordList(); // Refresh to show marker
+                    selectChord(currentIndex); // Reselect after refresh
+                    break;
+                    
+                case 'e':
+                case 'E':
+                    // Edit chord
+                    e.preventDefault();
+                    const dataIndex = cells[currentIndex].getAttribute('data-index');
+                    if (dataIndex !== null) {
+                        editChord(parseInt(dataIndex));
+                    }
+                    break;
+                    
+                case 'Delete':
+                case 'Backspace':
+                    // Delete chord
+                    e.preventDefault();
+                    const deleteIndex = cells[currentIndex].getAttribute('data-index');
+                    if (deleteIndex !== null) {
+                        deleteChord(parseInt(deleteIndex));
+                    }
+                    break;
+                    
+                default:
+                    handled = false;
+            }
+            
+            if (handled) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
         }
         
         // Update download button states based on whether we have chords
@@ -744,15 +940,81 @@
             }
         }
         
-        // Edit chord function
+        // Edit chord function - supports both prompt and MIDI editing
+        let editingChordIndex = -1;
+        let editingChordNotes = new Set();
+        
         function editChord(index) {
             const item = recordedChords[index];
-            const newRoot = prompt(`Edit chord root (current: ${item.chord.root}):`, item.chord.root);
-            if (newRoot && newRoot.trim()) {
-                item.chord.root = newRoot.trim();
-                updateChordList();
-                announceChange(`Chord at measure ${item.measure} updated to ${newRoot}`);
+            
+            // Ask user for editing method
+            const editMethod = confirm(`Edit chord at measure ${item.measure}?\n\nClick OK to edit via keyboard, or Cancel to play new chord on your MIDI keyboard.`);
+            
+            if (editMethod) {
+                // Keyboard editing
+                const newRoot = prompt(`Edit chord root (current: ${item.chord.root}):`, item.chord.root);
+                if (newRoot && newRoot.trim()) {
+                    item.chord.root = newRoot.trim();
+                    updateChordList();
+                    announceChange(`Chord at measure ${item.measure} updated to ${newRoot}`);
+                }
+            } else {
+                // MIDI editing mode
+                editingChordIndex = index;
+                editingChordNotes.clear();
+                announceChange(`Edit mode: Play a chord on your MIDI keyboard to replace the chord at measure ${item.measure}. Press Escape to cancel.`);
+                
+                // Show visual feedback
+                const cells = document.querySelectorAll('.chord-cell');
+                const cellIndex = Array.from(cells).findIndex(cell => 
+                    parseInt(cell.getAttribute('data-index')) === index
+                );
+                if (cellIndex !== -1) {
+                    cells[cellIndex].style.background = '#ffc107';
+                    cells[cellIndex].style.animation = 'pulse 1s infinite';
+                }
             }
+        }
+        
+        // Handle MIDI editing
+        let allEditNotes = new Set(); // Track all notes pressed during edit
+        
+        function handleMIDIEdit(midiNote, isNoteOn) {
+            if (editingChordIndex === -1) return false;
+            
+            if (isNoteOn) {
+                editingChordNotes.add(midiNote);
+                allEditNotes.add(midiNote); // Remember this note was part of the chord
+            } else {
+                editingChordNotes.delete(midiNote);
+                
+                // When all notes released, analyze and update chord
+                if (editingChordNotes.size === 0 && allEditNotes.size > 0) {
+                    const noteNames = Array.from(allEditNotes)
+                        .sort((a, b) => a - b)
+                        .map(midiNoteToName);
+                    
+                    const chordInfo = detectChord(noteNames);
+                    if (chordInfo) {
+                        recordedChords[editingChordIndex].chord = chordInfo;
+                        updateChordList();
+                        announceChange(`Chord updated to ${chordInfo.root}${chordInfo.type || ''}`);
+                    }
+                    
+                    // Exit edit mode
+                    editingChordIndex = -1;
+                    allEditNotes.clear();
+                    
+                    // Remove visual feedback
+                    const cells = document.querySelectorAll('.chord-cell');
+                    cells.forEach(cell => {
+                        cell.style.background = '';
+                        cell.style.animation = '';
+                    });
+                }
+            }
+            
+            return true;
         }
         
         // Add inversion function
@@ -1237,9 +1499,26 @@
             background: #e7f3ff;
             border-radius: 5px;
         }
+        .irealb-link {
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 5px;
+            text-align: center;
+        }
         .irealb-link a {
-            color: #667eea;
-            word-break: break-all;
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: background 0.3s;
+        }
+        .irealb-link a:hover {
+            background: #5568d3;
         }
     </style>
 </head>
@@ -1249,6 +1528,12 @@
         <div class="meta">
             <p><strong>Composer:</strong> ${document.getElementById('authorName').value || 'Unknown'}</p>
             <p><strong>Time Signature:</strong> ${getTimeSignatureInfo().numerator}/${getTimeSignatureInfo().denominator}</p>
+        </div>
+        <div class="irealb-link">
+            <a href="${irealbUrl}" target="_blank">🎵 Export to iReal Pro</a>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                Click to open in iRealPro app (if installed)
+            </p>
         </div>
         <div class="chords">
             ${(() => {
@@ -1272,13 +1557,6 @@
                     return `<div class="chord-cell">${chordTexts}</div>`;
                 }).join('');
             })()}
-        </div>
-        <div class="irealb-link">
-            <p><strong>iRealPro Link:</strong></p>
-            <p><a href="${irealbUrl}" target="_blank">${irealbUrl}</a></p>
-            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                Click the link above to open in iRealPro app (if installed)
-            </p>
         </div>
     </div>
 </body>
@@ -1350,6 +1628,13 @@
         function handleMIDIMessage(event) {
             const [status, note, velocity] = event.data;
             const command = status & 0xF0;
+            
+            // Check if in edit mode first
+            if (command === 0x90 && velocity > 0) {
+                if (handleMIDIEdit(note, true)) return;
+            } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+                if (handleMIDIEdit(note, false)) return;
+            }
             
             // Handle Control Change messages (CC)
             if (command === 0xB0) {
@@ -1652,6 +1937,42 @@
             });
             document.documentElement.lang = getCurrentLanguage();
         }
+        
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            // R key - Record/Stop
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                if (isRecording || isCountingIn) {
+                    // Stop recording
+                    document.getElementById('stopBtn').click();
+                } else {
+                    // Start recording
+                    document.getElementById('startBtn').click();
+                }
+            }
+            
+            // Escape key - Cancel edit mode
+            if (e.key === 'Escape') {
+                if (editingChordIndex !== -1) {
+                    editingChordIndex = -1;
+                    editingChordNotes.clear();
+                    announceChange('Edit mode cancelled');
+                    
+                    // Remove visual feedback
+                    const cells = document.querySelectorAll('.chord-cell');
+                    cells.forEach(cell => {
+                        cell.style.background = '';
+                        cell.style.animation = '';
+                    });
+                }
+            }
+        });
         
         // Expose functions to global scope for inline onclick handlers
         window.setRecordMarker = setRecordMarker;
