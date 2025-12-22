@@ -673,6 +673,56 @@
         let chordNotesPressed = new Set(); // Notes that were pressed for current chord
         let chordBeatPosition = null; // Beat when first note of chord was pressed
         let chordMeasurePosition = null; // Measure when first note of chord was pressed
+        let noteOnTimestamp = null; // Timestamp when first note was pressed (for quantization)
+        let lastBeatTimestamp = null; // Timestamp of the last beat click (for quantization)
+        let nextBeatTimestamp = null; // Timestamp when next beat will occur (for quantization)
+        
+        // Quantization settings
+        let quantizationEnabled = true; // Enable quantization by default
+        let quantizationTolerance = 0.25; // Quantize if within 25% of beat duration
+        
+        // Quantize beat position based on timing
+        function quantizeBeat(timestamp, currentBeatPos, currentMeasurePos) {
+            if (!quantizationEnabled || !lastBeatTimestamp || !nextBeatTimestamp) {
+                return { beat: currentBeatPos, measure: currentMeasurePos };
+            }
+            
+            const { numerator } = getTimeSignatureInfo();
+            const bpm = parseInt(document.getElementById('bpm').value) || 120;
+            const beatDuration = 60000 / bpm;
+            
+            // Calculate time difference from last beat and to next beat
+            const timeSinceLastBeat = timestamp - lastBeatTimestamp;
+            const timeToNextBeat = nextBeatTimestamp - timestamp;
+            
+            // Calculate quantization thresholds
+            const quantizeThreshold = beatDuration * quantizationTolerance;
+            
+            let quantizedBeat = currentBeatPos;
+            let quantizedMeasure = currentMeasurePos;
+            
+            // If very close to previous beat (within tolerance), snap to previous beat
+            if (timeSinceLastBeat < quantizeThreshold && timeSinceLastBeat >= 0) {
+                // Snap to the beat that just happened
+                quantizedBeat = currentBeatPos === 0 ? numerator : currentBeatPos;
+                // If we're at beat 0 (just rolled over), need to adjust measure
+                if (currentBeatPos === 0) {
+                    quantizedMeasure = currentMeasurePos - 1;
+                }
+            }
+            // If very close to next beat (within tolerance), snap to next beat
+            else if (timeToNextBeat < quantizeThreshold && timeToNextBeat >= 0) {
+                // Snap to the next beat
+                quantizedBeat = currentBeatPos + 1;
+                // Handle measure rollover
+                if (quantizedBeat > numerator) {
+                    quantizedBeat = 1;
+                    quantizedMeasure = currentMeasurePos + 1;
+                }
+            }
+            
+            return { beat: quantizedBeat, measure: quantizedMeasure };
+        }
         
         // Volta (repeat endings) tracking - stores endings like {measure: 8, type: 1} or {measure: 16, type: 2}
         let voltaEndings = [];
@@ -733,6 +783,10 @@
             currentMeasure = 0; // Count-in always starts at 0
             isCountingIn = true;
             
+            // Initialize beat timestamps for quantization
+            lastBeatTimestamp = Date.now();
+            nextBeatTimestamp = lastBeatTimestamp + beatDuration;
+            
             // Store the actual start measure for later
             window.actualStartMeasure = startMeasureNum;
             
@@ -740,6 +794,10 @@
                 currentBeat++;
                 const isAccent = currentBeat === 1;
                 playClick(isAccent);
+                
+                // Update beat timestamps for quantization
+                lastBeatTimestamp = Date.now();
+                nextBeatTimestamp = lastBeatTimestamp + beatDuration;
                 
                 // Announce counts during count-in
                 if (isCountingIn) {
@@ -1767,10 +1825,16 @@
             
             if (command === 0x90 && velocity > 0) {
                 // Note ON
-                // If this is the first note pressed, capture the beat position
+                // If this is the first note pressed, capture the beat position and timestamp
                 if (activeNotes.size === 0 && isRecording && !isCountingIn) {
-                    chordBeatPosition = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
-                    chordMeasurePosition = window.actualStartMeasure + (currentMeasure - 2);
+                    const rawBeat = currentBeat === 0 ? getTimeSignatureInfo().numerator : currentBeat;
+                    const rawMeasure = window.actualStartMeasure + (currentMeasure - 2);
+                    noteOnTimestamp = Date.now();
+                    
+                    // Apply quantization
+                    const quantized = quantizeBeat(noteOnTimestamp, rawBeat, rawMeasure);
+                    chordBeatPosition = quantized.beat;
+                    chordMeasurePosition = quantized.measure;
                     chordNotesPressed.clear(); // Start fresh for new chord
                 }
                 
