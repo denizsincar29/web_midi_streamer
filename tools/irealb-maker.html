@@ -430,6 +430,11 @@
 
                 <!-- Hidden div for screen reader announcements -->
                 <div class="sr-only" role="status" aria-live="assertive" aria-atomic="true" id="announcements"></div>
+                
+                <!-- Input Help Mode Indicator -->
+                <div id="inputHelpIndicator" style="display: none; background: #ff9800; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: bold;">
+                    <span data-i18n="inputHelp.active">Input help mode active. Press any key to hear its function, or press H or Escape to exit.</span>
+                </div>
 
                 <!-- Controls -->
                 <div class="controls">
@@ -458,9 +463,10 @@
 
                 <!-- Keyboard Shortcuts Help -->
                 <div class="keyboard-shortcuts" id="keyboardShortcuts" style="background: #f0f4ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts <span style="font-size: 0.8em; opacity: 0.8;">(Press H for help)</span></h3>
+                    <h3 style="color: #667eea; margin-bottom: 10px;">⌨️ Keyboard Shortcuts <span style="font-size: 0.8em; opacity: 0.8;">(Press Shift+H to toggle)</span></h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; font-size: 0.9em;">
-                        <div><strong>H</strong>: Show/hide help</div>
+                        <div><strong>H</strong>: Input help mode</div>
+                        <div><strong>Shift+H</strong>: Show/hide shortcuts</div>
                         <div><strong>N</strong>: Focus workspace</div>
                         <div><strong>T</strong>: Tempo settings</div>
                         <div><strong>M</strong>: MIDI devices</div>
@@ -2138,6 +2144,77 @@
         // Section input mode
         let sectionInputMode = false;
         
+        // Input help mode (H key - announces key functions without executing them)
+        let isInputHelpMode = false;
+        
+        // Get help text for a key in input help mode
+        function getInputHelpText(e) {
+            const key = e.key.toLowerCase();
+            const isShift = e.shiftKey;
+            const isCtrl = e.ctrlKey;
+            
+            // Build the i18n key based on modifiers and key
+            let i18nKey = 'inputHelp.';
+            
+            if (isCtrl && isShift) {
+                // No Ctrl+Shift combinations currently
+                return null;
+            } else if (isCtrl) {
+                if (key === ',') i18nKey += 'ctrlComma';
+                else if (key === 'x') i18nKey += 'ctrlX';
+                else if (key === 'c') i18nKey += 'ctrlC';
+                else if (key === 'v') i18nKey += 'ctrlV';
+                else if (key === 'arrowleft') i18nKey += 'ctrlArrowLeft';
+                else if (key === 'arrowright') i18nKey += 'ctrlArrowRight';
+                else return null;
+            } else if (isShift) {
+                if (key === 'H') i18nKey += 'shiftH';
+                else if (key === 'E') i18nKey += 'shiftE';
+                else if (key === 'BACKSPACE') i18nKey += 'shiftBackspace';
+                else if (key === 'S') i18nKey += 'shiftS';
+                else if (key === 'O') i18nKey += 'shiftO';
+                else if (key === 'D') i18nKey += 'shiftD';
+                else if (key === 'J') i18nKey += 'shiftJ';
+                else if (key === 'W') i18nKey += 'shiftW';
+                else return null;
+            } else {
+                // Regular keys
+                if (key === 'h') i18nKey += 'h';
+                else if (key === 'n') i18nKey += 'n';
+                else if (key === 't') i18nKey += 't';
+                else if (key === 'm') i18nKey += 'm';
+                else if (key === ' ') i18nKey += 'space';
+                else if (key === 'r') i18nKey += 'r';
+                else if (key === 'e') i18nKey += 'e';
+                else if (key === 's') i18nKey += 's';
+                else if (key === 'v') i18nKey += 'v';
+                else if (key === 'backspace') i18nKey += 'backspace';
+                else if (key === 'delete') i18nKey += 'delete';
+                else if (key === 'arrowleft') i18nKey += 'arrowLeft';
+                else if (key === 'arrowright') i18nKey += 'arrowRight';
+                else if (key === '[') i18nKey += 'bracketLeft';
+                else if (key === ']') i18nKey += 'bracketRight';
+                else if (key === 'escape') i18nKey += 'escape';
+                else return null;
+            }
+            
+            return t(i18nKey);
+        }
+        
+        // Toggle input help mode
+        function toggleInputHelpMode() {
+            isInputHelpMode = !isInputHelpMode;
+            const indicator = document.getElementById('inputHelpIndicator');
+            
+            if (isInputHelpMode) {
+                indicator.style.display = 'block';
+                announceChange(t('inputHelp.active'));
+            } else {
+                indicator.style.display = 'none';
+                announceChange(t('inputHelp.deactivated'));
+            }
+        }
+        
         function addSectionViaKey(sectionType) {
             const sectionMap = {
                 'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D',
@@ -2391,8 +2468,28 @@
                 return;
             }
             
+            // Input help mode - intercept all keys and announce their function
+            if (isInputHelpMode) {
+                const helpText = getInputHelpText(e);
+                if (helpText) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    announceChange(helpText);
+                }
+                
+                // Allow H and Escape to exit help mode
+                if (e.key.toLowerCase() === 'h' && !e.shiftKey && !e.ctrlKey) {
+                    // Will be handled by the regular handler below
+                } else if (e.key === 'Escape') {
+                    // Will be handled by the regular handler below
+                } else {
+                    // Block all other keys from executing
+                    return;
+                }
+            }
+            
             // Handle section input mode
-            if (sectionInputMode) {
+            if (sectionInputMode && !isInputHelpMode) {
                 const key = e.key.toLowerCase();
                 if (['a', 'b', 'c', 'd', 'q', 'i', 'o', 'v', 'h', 'r'].includes(key)) {
                     e.preventDefault();
@@ -2444,6 +2541,21 @@
             // Shift key combinations (without Ctrl)
             if (e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toUpperCase()) {
+                    case 'H':
+                        // Shift+H: Toggle keyboard shortcuts visibility
+                        e.preventDefault();
+                        const helpSection = document.getElementById('keyboardShortcuts');
+                        if (helpSection) {
+                            if (helpSection.style.display === 'none') {
+                                helpSection.style.display = 'block';
+                                announceChange('Keyboard shortcuts help shown');
+                            } else {
+                                helpSection.style.display = 'none';
+                                announceChange('Keyboard shortcuts help hidden');
+                            }
+                        }
+                        break;
+                    
                     case 'E':
                         // Shift+E: Edit chord via keyboard
                         e.preventDefault();
@@ -2515,18 +2627,9 @@
             if (!e.shiftKey && !e.ctrlKey) {
                 switch(e.key.toLowerCase()) {
                     case 'h':
-                        // H key - Toggle help visibility
+                        // H key - Toggle input help mode
                         e.preventDefault();
-                        const helpSection = document.getElementById('keyboardShortcuts');
-                        if (helpSection) {
-                            if (helpSection.style.display === 'none') {
-                                helpSection.style.display = 'block';
-                                announceChange('Keyboard shortcuts help shown');
-                            } else {
-                                helpSection.style.display = 'none';
-                                announceChange('Keyboard shortcuts help hidden');
-                            }
-                        }
+                        toggleInputHelpMode();
                         break;
                     
                     case 'r':
@@ -2602,7 +2705,9 @@
                     case 'escape':
                         // Escape - Cancel various modes
                         e.preventDefault();
-                        if (editingChordIndex !== -1) {
+                        if (isInputHelpMode) {
+                            toggleInputHelpMode();
+                        } else if (editingChordIndex !== -1) {
                             editingChordIndex = -1;
                             editingChordNotes.clear();
                             allEditNotes.clear();
