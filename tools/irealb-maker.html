@@ -1046,9 +1046,10 @@
                     e.preventDefault();
                     const startMeasure = cells[currentIndex].getAttribute('data-measure');
                     document.getElementById('startMeasure').value = startMeasure;
-                    announceChange(`Start marker set at measure ${startMeasure}`);
                     updateChordList(); // Refresh to show marker
                     selectChord(currentIndex); // Reselect after refresh
+                    // Announce marker after selection to override the measure announcement
+                    setTimeout(() => announceChange(`Start marker set at measure ${startMeasure}`), 100);
                     break;
                     
                 case ']':
@@ -1056,9 +1057,10 @@
                     e.preventDefault();
                     const endMeasure = cells[currentIndex].getAttribute('data-measure');
                     document.getElementById('endMeasure').value = endMeasure;
-                    announceChange(`End marker set at measure ${endMeasure}`);
                     updateChordList(); // Refresh to show marker
                     selectChord(currentIndex); // Reselect after refresh
+                    // Announce marker after selection to override the measure announcement
+                    setTimeout(() => announceChange(`End marker set at measure ${endMeasure}`), 100);
                     break;
                     
                 case 'e':
@@ -1253,6 +1255,11 @@
         // Delete chord function
         function deleteChord(index) {
             const item = recordedChords[index];
+            if (!item) {
+                // No chord at this index (empty measure or invalid index)
+                announceChange('No chord to delete at this position');
+                return;
+            }
             if (confirm(`Delete chord at measure ${item.measure}?`)) {
                 recordedChords.splice(index, 1);
                 updateChordList();
