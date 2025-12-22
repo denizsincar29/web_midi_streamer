@@ -903,8 +903,23 @@
                         </div>`;
                     } else {
                         // Empty measure
+                        // Check for markers even on empty measures
+                        const startMarker = parseInt(document.getElementById('startMeasure').value) === m;
+                        const endMarker = parseInt(document.getElementById('endMeasure').value) === m;
+                        const voltaEnding = voltaEndings.find(v => v.measure === m);
+                        
+                        let markerBadge = '';
+                        if (voltaEnding) {
+                            markerBadge = `<span class="marker-badge" style="background: #28a745;">VOLTA ${voltaEnding.type}</span>`;
+                        } else if (startMarker) {
+                            markerBadge = '<span class="marker-badge">START</span>';
+                        } else if (endMarker) {
+                            markerBadge = '<span class="marker-badge">END</span>';
+                        }
+                        
                         html += `<div class="chord-cell empty-measure" data-measure="${m}" 
                                      tabindex="-1" role="button" aria-hidden="true">
+                            ${markerBadge}
                             <div class="measure-label">M${m}</div>
                             <div class="chord-name" style="opacity: 0.5;">—</div>
                         </div>`;
