@@ -1008,6 +1008,25 @@
                     cell.addEventListener('keydown', handleChordCellKeydown);
                 });
                 
+                // Auto-restore focus to previously selected chord or first chord
+                // This prevents focus loss after operations like delete, add volta, etc.
+                if (selectedChordIndex >= 0) {
+                    const cells = document.querySelectorAll('.chord-cell');
+                    // If selected index is beyond the updated list, select last chord
+                    const targetIndex = Math.min(selectedChordIndex, cells.length - 1);
+                    if (targetIndex >= 0 && targetIndex < cells.length) {
+                        // Use setTimeout to ensure DOM is fully updated
+                        setTimeout(() => {
+                            selectChord(targetIndex);
+                        }, 0);
+                    }
+                } else if (recordedChords.length > 0) {
+                    // If no selection but chords exist, select first chord
+                    setTimeout(() => {
+                        selectChord(0);
+                    }, 0);
+                }
+                
             } else {
                 section.style.display = 'none';
             }
