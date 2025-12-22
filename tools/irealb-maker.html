@@ -571,9 +571,9 @@
                 </div>
 
                 <!-- Recorded Chord Sequence -->
-                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="region" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
+                <div class="chord-sequence workspace" id="chordSequenceSection" style="display: none;" tabindex="0" role="application" aria-label="Chord editing workspace - Press N to focus here, use arrow keys to navigate chords">
                     <h3 data-i18n="irealbMaker.recordedChords">Recorded Chord Sequence</h3>
-                    <div class="chord-list" id="chordList" role="grid" aria-label="Chord chart - navigate with arrow keys"></div>
+                    <div class="chord-list" id="chordList" aria-hidden="true"></div>
                 </div>
             </div>
         </main>
@@ -811,8 +811,8 @@
                                           endMarker ? '<span class="marker-badge">END</span>' : '';
                         
                         html += `<div class="chord-cell" data-index="${actualIndex}" data-measure="${m}" 
-                                     tabindex="0" role="button" 
-                                     aria-label="Measure ${m}, ${chordText}${inversionText}${beatInfo ? ', beat ' + item.beat : ''}">
+                                     tabindex="-1" role="button" aria-hidden="true"
+                                     data-beat="${item.beat || ''}">
                             ${markerBadge}
                             <div class="measure-label">M${m}</div>
                             <div class="chord-name">${chordText}${inversionText}</div>
@@ -821,8 +821,7 @@
                     } else {
                         // Empty measure
                         html += `<div class="chord-cell empty-measure" data-measure="${m}" 
-                                     tabindex="0" role="button"
-                                     aria-label="Measure ${m}, empty">
+                                     tabindex="-1" role="button" aria-hidden="true">
                             <div class="measure-label">M${m}</div>
                             <div class="chord-name" style="opacity: 0.5;">—</div>
                         </div>`;
@@ -859,23 +858,45 @@
                 cells[index].classList.add('selected');
                 cells[index].focus();
                 
-                // Announce to screen reader
+                // Announce to screen reader with internationalization
                 const measure = cells[index].getAttribute('data-measure');
-                const chordName = cells[index].querySelector('.chord-name')?.textContent || 'Empty';
-                const beatInfo = cells[index].querySelector('.beat-info')?.textContent || '';
+                const chordName = cells[index].querySelector('.chord-name')?.textContent || '';
+                const beatAttr = cells[index].getAttribute('data-beat');
+                const isEmptyMeasure = cells[index].classList.contains('empty-measure');
                 
-                if (chordName === '—') {
-                    announceChange(`Measure ${measure}, empty measure`);
+                let announcement = '';
+                if (isEmptyMeasure || chordName === '—') {
+                    // Empty measure announcement
+                    announcement = `${t('irealbMaker.emptyMeasure')} ${measure}`;
                 } else {
-                    announceChange(`Measure ${measure}, ${chordName}${beatInfo ? ', ' + beatInfo : ''}`);
+                    // Chord announcement with optional beat information
+                    // Format: "Bb major measure 4" or "Bb major measure 4, beat 2"
+                    const chordText = chordName.trim();
+                    announcement = `${chordText} ${t('irealbMaker.measure').toLowerCase()} ${measure}`;
+                    
+                    // Add beat information if the chord is not the only one in the measure
+                    if (beatAttr && beatAttr !== '') {
+                        announcement += `, ${t('irealbMaker.beat')} ${beatAttr}`;
+                    }
                 }
+                
+                announceChange(announcement);
             }
         }
         
         // Handle keyboard navigation in chord cells
         function handleChordCellKeydown(e) {
             const cells = Array.from(document.querySelectorAll('.chord-cell'));
-            const currentIndex = cells.indexOf(e.target);
+            let currentIndex;
+            
+            // Determine current index based on event target or selected index
+            if (e.target.classList && e.target.classList.contains('chord-cell')) {
+                currentIndex = cells.indexOf(e.target);
+            } else {
+                currentIndex = selectedChordIndex;
+            }
+            
+            if (currentIndex === -1) return;
             
             let handled = true;
             
@@ -2227,7 +2248,38 @@
             const workspace = document.getElementById('chordSequenceSection');
             if (workspace) {
                 workspace.focus();
-                announceChange('Workspace focused. Use keyboard shortcuts to navigate and edit chords.');
+                // Select first chord if nothing is selected
+                const cells = document.querySelectorAll('.chord-cell');
+                if (cells.length > 0 && selectedChordIndex === -1) {
+                    selectChord(0);
+                } else if (selectedChordIndex >= 0) {
+                    // Re-announce current selection
+                    selectChord(selectedChordIndex);
+                } else {
+                    announceChange(t('irealbMaker.recordedChords'));
+                }
+            }
+        }
+        
+        // Add keyboard navigation to workspace
+        function handleWorkspaceKeydown(e) {
+            const cells = document.querySelectorAll('.chord-cell');
+            if (cells.length === 0) return;
+            
+            // Initialize selection if needed
+            if (selectedChordIndex === -1 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                e.preventDefault();
+                selectChord(0);
+                return;
+            }
+            
+            // Delegate to chord cell handler if a chord is selected
+            if (selectedChordIndex >= 0 && selectedChordIndex < cells.length) {
+                const selectedCell = cells[selectedChordIndex];
+                if (selectedCell) {
+                    // Create a synthetic event on the selected cell
+                    handleChordCellKeydown.call(selectedCell, e);
+                }
             }
         }
         
@@ -2451,6 +2503,12 @@
         window.addEventListener('DOMContentLoaded', () => {
             updateTranslations();
             initMIDI();
+            
+            // Add keyboard handler to workspace
+            const workspace = document.getElementById('chordSequenceSection');
+            if (workspace) {
+                workspace.addEventListener('keydown', handleWorkspaceKeydown);
+            }
         });
     </script>
 </body>

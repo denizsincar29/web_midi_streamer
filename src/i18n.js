@@ -200,6 +200,9 @@ export const translations = {
         'irealbMaker.reset': '🔄 Reset',
         'irealbMaker.recordedChords': 'Recorded Chord Sequence',
         'irealbMaker.enterSongName': 'Please enter a song name before starting.',
+        'irealbMaker.measure': 'Measure',
+        'irealbMaker.emptyMeasure': 'Empty measure',
+        'irealbMaker.beat': 'beat',
     },
     
     ru: {
@@ -402,6 +405,9 @@ export const translations = {
         'irealbMaker.reset': '🔄 Сбросить',
         'irealbMaker.recordedChords': 'Записанная последовательность аккордов',
         'irealbMaker.enterSongName': 'Пожалуйста, введите название песни перед началом.',
+        'irealbMaker.measure': 'Такт',
+        'irealbMaker.emptyMeasure': 'Пустой такт',
+        'irealbMaker.beat': 'доля',
     }
 };
 
