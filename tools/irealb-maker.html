@@ -639,18 +639,23 @@
                 // Announce counts during count-in
                 if (isCountingIn) {
                     if (currentMeasure === 0) {
-                        // First measure: announce beats
-                        if (numerator === 4 && currentBeat <= 2) {
-                            announceCount(currentBeat === 1 ? 'one' : 'two');
+                        // First measure: announce on beats 1 and 3 for 4/4 (jazz convention)
+                        if (numerator === 4) {
+                            if (currentBeat === 1) {
+                                announceCount('one');
+                            } else if (currentBeat === 3) {
+                                announceCount('two');
+                            }
                         } else {
+                            // For other time signatures, announce beat numbers
                             announceCount(currentBeat.toString());
                         }
                     } else if (currentMeasure === 1) {
                         // Second measure: announce all beats
                         if (numerator === 4) {
-                            // For 4/4, use beat names
+                            // For 4/4, use beat names only (no numbers)
                             const beatNames = ['', 'one', 'two', 'three', 'four'];
-                            announceCount(beatNames[currentBeat] || currentBeat.toString());
+                            announceCount(beatNames[currentBeat]);
                         } else {
                             // For other time signatures, use numbers
                             announceCount(currentBeat.toString());
@@ -848,9 +853,15 @@
                 item.section = newSection.trim().toUpperCase();
                 updateChordList();
                 if (item.section) {
-                    announceChange(`Section ${item.section} marked at measure ${item.measure}`);
+                    // For single letter sections, say "Section X"
+                    if (item.section.length === 1) {
+                        announceChange(`Section ${item.section}`);
+                    } else {
+                        // For longer names (like "Intro", "Verse"), just say the name
+                        announceChange(item.section);
+                    }
                 } else {
-                    announceChange(`Section marker removed from measure ${item.measure}`);
+                    announceChange(`Section marker removed`);
                 }
             }
         }
@@ -1164,7 +1175,9 @@
                 recordedChords.push(chordEntry);
                 lastRecordedChord = chordEntry;
                 updateChordList();
-                announceChange(`Chord ${chordText} recorded at measure ${chordMeasurePosition} beat ${chordBeatPosition}`);
+                
+                // Simple announcement: just chord name
+                announceChange(chordText);
             }
         }
         
