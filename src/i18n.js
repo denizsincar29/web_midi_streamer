@@ -204,6 +204,23 @@ export const translations = {
         'irealbMaker.emptyMeasure': 'Empty measure',
         'irealbMaker.beat': 'beat',
         
+        // Modal titles and labels
+        'modal.songSetup': 'Song Setup',
+        'modal.tempoSettings': 'Tempo Settings',
+        'modal.midiDevices': 'MIDI Devices',
+        'modal.done': 'Done',
+        'modal.cancel': 'Cancel',
+        'modal.startEditing': 'Start Editing',
+        'modal.songName': 'Song Name:',
+        'modal.authorComposer': 'Author/Composer:',
+        'modal.timeSignature': 'Time Signature:',
+        'modal.musicStyle': 'Music Style:',
+        'modal.keySignature': 'Key Signature:',
+        'modal.totalMeasures': 'Total Measures in Song:',
+        'modal.bpm': 'BPM (Tempo):',
+        'modal.midiInputDevice': 'MIDI Input Device:',
+        'modal.midiOutputDevice': 'MIDI Output Device (for playback):',
+        
         // Input Help Mode
         'inputHelp.active': 'Input help mode active. Press any key to hear its function, or press H or Escape to exit.',
         'inputHelp.deactivated': 'Input help mode deactivated',
@@ -444,6 +461,23 @@ export const translations = {
         'irealbMaker.measure': 'Такт',
         'irealbMaker.emptyMeasure': 'Пустой такт',
         'irealbMaker.beat': 'доля',
+        
+        // Modal titles and labels
+        'modal.songSetup': 'Настройка песни',
+        'modal.tempoSettings': 'Настройки темпа',
+        'modal.midiDevices': 'MIDI устройства',
+        'modal.done': 'Готово',
+        'modal.cancel': 'Отмена',
+        'modal.startEditing': 'Начать редактирование',
+        'modal.songName': 'Название песни:',
+        'modal.authorComposer': 'Автор/Композитор:',
+        'modal.timeSignature': 'Тактовый размер:',
+        'modal.musicStyle': 'Музыкальный стиль:',
+        'modal.keySignature': 'Тональность:',
+        'modal.totalMeasures': 'Всего тактов в песне:',
+        'modal.bpm': 'BPM (Темп):',
+        'modal.midiInputDevice': 'Входное MIDI-устройство:',
+        'modal.midiOutputDevice': 'Выходное MIDI-устройство (для воспроизведения):',
         
         // Input Help Mode
         'inputHelp.active': 'Режим помощи по вводу активен. Нажмите любую клавишу, чтобы услышать её функцию, или нажмите H или Escape для выхода.',

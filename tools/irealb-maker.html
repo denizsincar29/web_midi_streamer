@@ -511,21 +511,21 @@
             <div id="setupWizardModal" class="modal-overlay">
                 <div class="modal-dialog">
                     <div class="modal-header">
-                        <h2>Song Setup</h2>
+                        <h2 data-i18n="modal.songSetup">Song Setup</h2>
                     </div>
                     <div class="modal-body">
                         <div id="wizardContent">
                             <!-- Song Information -->
                             <div class="form-group">
-                                <label for="wizard-songName">Song Name:</label>
+                                <label for="wizard-songName" data-i18n="modal.songName">Song Name:</label>
                                 <input type="text" id="wizard-songName" placeholder="Enter song name" required>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-authorName">Author/Composer:</label>
+                                <label for="wizard-authorName" data-i18n="modal.authorComposer">Author/Composer:</label>
                                 <input type="text" id="wizard-authorName" placeholder="Enter author name">
                             </div>
                             <div class="form-group">
-                                <label for="wizard-timeSignature">Time Signature:</label>
+                                <label for="wizard-timeSignature" data-i18n="modal.timeSignature">Time Signature:</label>
                                 <select id="wizard-timeSignature">
                                     <option value="44">4/4 (Common Time)</option>
                                     <option value="34">3/4 (Waltz)</option>
@@ -537,7 +537,7 @@
                                 <div class="time-signature-help">Count-in will be announced for the first 2 measures</div>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-musicStyle">Music Style:</label>
+                                <label for="wizard-musicStyle" data-i18n="modal.musicStyle">Music Style:</label>
                                 <select id="wizard-musicStyle">
                                     <option value="Medium Swing">Medium Swing</option>
                                     <option value="Up Tempo Swing">Up Tempo Swing</option>
@@ -563,7 +563,7 @@
                                 <div class="time-signature-help">Select the music style for your song</div>
                             </div>
                             <div class="form-group">
-                                <label for="wizard-keySignature">Key Signature:</label>
+                                <label for="wizard-keySignature" data-i18n="modal.keySignature">Key Signature:</label>
                                 <select id="wizard-keySignature">
                                     <option value="C">C Major</option>
                                     <option value="Db">Db Major</option>
@@ -595,7 +595,7 @@
                             
                             <!-- Song Length -->
                             <div class="form-group">
-                                <label for="wizard-totalMeasures">Total Measures in Song:</label>
+                                <label for="wizard-totalMeasures" data-i18n="modal.totalMeasures">Total Measures in Song:</label>
                                 <input type="number" id="wizard-totalMeasures" value="32" min="1" max="999" step="1">
                                 <div class="time-signature-help">Set the total length of your song</div>
                             </div>
@@ -606,8 +606,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="wizardCancelBtn" class="btn btn-secondary">Cancel</button>
-                        <button id="wizardDoneBtn" class="btn btn-primary">Start Editing</button>
+                        <button id="wizardCancelBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancel</button>
+                        <button id="wizardDoneBtn" class="btn btn-primary" data-i18n="modal.startEditing">Start Editing</button>
                     </div>
                 </div>
             </div>
@@ -616,17 +616,17 @@
             <div id="tempoModal" class="modal-overlay">
                 <div class="modal-dialog" style="max-width: 400px;">
                     <div class="modal-header">
-                        <h2>Tempo Settings</h2>
+                        <h2 data-i18n="modal.tempoSettings">Tempo Settings</h2>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="modalBpm">BPM (Tempo):</label>
+                            <label for="modalBpm" data-i18n="modal.bpm">BPM (Tempo):</label>
                             <input type="number" id="modalBpm" min="40" max="240" value="120" aria-label="Beats per minute">
                             <div class="time-signature-help">Metronome tempo (40-240 beats per minute)</div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="tempoCloseBtn" class="btn btn-primary">Done</button>
+                        <button id="tempoCloseBtn" class="btn btn-primary" data-i18n="modal.done">Done</button>
                     </div>
                 </div>
             </div>
@@ -635,24 +635,24 @@
             <div id="midiDeviceModal" class="modal-overlay">
                 <div class="modal-dialog" style="max-width: 400px;">
                     <div class="modal-header">
-                        <h2>MIDI Devices</h2>
+                        <h2 data-i18n="modal.midiDevices">MIDI Devices</h2>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label for="modalMidiInput">MIDI Input Device:</label>
+                            <label for="modalMidiInput" data-i18n="modal.midiInputDevice">MIDI Input Device:</label>
                             <select id="modalMidiInput" aria-label="Select MIDI input device">
                                 <option value="">No device selected</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="modalMidiOutput">MIDI Output Device (for playback):</label>
+                            <label for="modalMidiOutput" data-i18n="modal.midiOutputDevice">MIDI Output Device (for playback):</label>
                             <select id="modalMidiOutput" aria-label="Select MIDI output device for chord playback">
                                 <option value="">No device selected</option>
                             </select>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="midiDeviceCloseBtn" class="btn btn-primary">Done</button>
+                        <button id="midiDeviceCloseBtn" class="btn btn-primary" data-i18n="modal.done">Done</button>
                     </div>
                 </div>
             </div>
