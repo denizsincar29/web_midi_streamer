@@ -449,7 +449,7 @@
                 </div>
                 
                 <!-- Hidden file input for JSON upload -->
-                <input type="file" id="jsonFileInput" accept=".json" style="display: none;" aria-label="Upload JSON file">
+                <input type="file" id="jsonFileInput" accept=".json" style="display: none;" aria-label="Load saved progress from JSON file">
 
                 <!-- Recorded Chord Sequence -->
                 <div class="chord-sequence" id="chordSequenceSection" style="display: none;">
@@ -1611,13 +1611,9 @@
                     recordedChords = progressData.recordedChords || [];
                     definedSections = progressData.definedSections || [];
                     
-                    // Update displays
+                    // Update displays (this will also update button states)
                     updateChordList();
                     updateSectionList();
-                    
-                    // Enable download button if we have chords
-                    document.getElementById('downloadBtn').disabled = recordedChords.length === 0;
-                    document.getElementById('downloadJsonBtn').disabled = recordedChords.length === 0;
                     
                     announceChange('Progress loaded from JSON file');
                 } catch (error) {
