@@ -1958,14 +1958,17 @@
         // Repeat/Volta syntax:
         // { = Repeat start (left repeat bar line)
         // } = Repeat end (right repeat bar line) 
-        // N = First ending (volta 1)
-        // Q = Second ending (volta 2)
+        // N1 = First ending (volta 1)
+        // N2 = Second ending (volta 2)
+        // N3 = Third ending (volta 3)
+        // Q = Coda symbol
+        // S = Segno symbol
         // T44 = Time signature (4/4)
         // *A = Section marker
         // | = Measure separator
         // Z = Final bar line
         //
-        // Example with repeat: T44{C|F|G|C}N|Am|DmQ|Em|Z
+        // Example with repeat: T44{C|F|G|C}N1|Am|DmN2|Em|Z
         // This creates: reprise (C F G C) with first ending (Am Dm) and second ending (Em)
         function generateIRealbFormat() {
             const songName = document.getElementById('songName').value || 'Untitled';
@@ -1999,8 +2002,8 @@
                     if (measureNum === region.repriseStart) {
                         return { type: 'repriseStart', region };
                     }
-                    if (measureNum === region.repriseEnd + 1) {
-                        return { type: 'repriseEnd', region };
+                    if (measureNum === region.volta1End) {
+                        return { type: 'volta1End', region };
                     }
                     if (measureNum === region.volta1Start) {
                         return { type: 'volta1Start', region };
@@ -2042,30 +2045,45 @@
                     chordString += '{'; // Repeat start marker
                 }
                 
-                // Add repeat end marker if this is right before volta 1
-                if (repeatContext && repeatContext.type === 'repriseEnd') {
-                    chordString += '}'; // Repeat end marker
-                }
-                
-                // Check for volta ending markers (use existing logic but enhanced)
+                // Check for volta ending markers (only add at the START of volta)
                 const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
                 if (voltaEnding) {
-                    if (voltaEnding.type === 1) {
-                        chordString += 'N'; // First ending
-                    } else if (voltaEnding.type === 2) {
-                        chordString += 'Q'; // Second ending
+                    // Only add N1/N2/N3 at the first measure of a volta region
+                    // Check if previous measure has the same volta type - if not, this is the start
+                    const isVoltaStart = !voltaEndings.find(v => 
+                        v.measure === measureNum - 1 && v.type === voltaEnding.type
+                    );
+                    
+                    if (isVoltaStart) {
+                        if (voltaEnding.type === 1) {
+                            chordString += 'N1'; // First ending
+                        } else if (voltaEnding.type === 2) {
+                            chordString += 'N2'; // Second ending
+                        } else if (voltaEnding.type === 3) {
+                            chordString += 'N3'; // Third ending
+                        }
                     }
                 }
+                
+                // Check if this measure starts a defined section
+                const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
                 
                 if (chordsInMeasure && chordsInMeasure.length > 0) {
                     // Sort chords by beat within the measure
                     chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
                     
-                    // Check if this measure starts a new section
-                    const firstChordSection = chordsInMeasure[0].section;
-                    if (firstChordSection && firstChordSection !== lastSection) {
-                        chordString += '*' + firstChordSection;
-                        lastSection = firstChordSection;
+                    // Always output section marker for defined sections, even if same type as previous
+                    if (sectionAtMeasure) {
+                        chordString += '*' + sectionAtMeasure.type;
+                        lastSection = sectionAtMeasure.type;
+                    } else {
+                        // Fallback: Check if chord has different section than last
+                        // (for backward compatibility with older saved data)
+                        const firstChordSection = chordsInMeasure[0].section;
+                        if (firstChordSection && firstChordSection !== lastSection) {
+                            chordString += '*' + firstChordSection;
+                            lastSection = firstChordSection;
+                        }
                     }
                     
                     // Add chords with spacing based on beats
@@ -2078,8 +2096,19 @@
                         }
                     });
                 } else {
-                    // No chord in this measure - add repeat symbol
+                    // No chord in this measure - check if it's a defined section start
+                    if (sectionAtMeasure) {
+                        chordString += '*' + sectionAtMeasure.type;
+                        lastSection = sectionAtMeasure.type;
+                    }
+                    // Add repeat symbol for empty measure
                     chordString += 'x';
+                }
+                
+                // Add repeat end marker AFTER chords but BEFORE bar separator (at the end of volta1)
+                // Also add space after closing repeat for proper IReal Pro formatting
+                if (repeatContext && repeatContext.type === 'volta1End') {
+                    chordString += ' } '; // Space before and after closing repeat
                 }
                 
                 // Add measure separator
@@ -2441,7 +2470,18 @@
             chordMeasurePosition = null;
             activeNotes.clear();
             window.lastAnnouncedSectionId = null; // Reset section announcement tracker
-            window.volta2ReachedFlag = false; // Reset volta2 pause flag for new recording
+            
+            // Reset volta2 pause flag, but set it to true if starting from or after volta2
+            // This prevents the auto-pause when user intentionally starts from volta2 or beyond
+            let startingFromOrAfterVolta2 = false;
+            for (const region of repeatRegions) {
+                if (startMeasure >= region.volta2Start) {
+                    startingFromOrAfterVolta2 = true;
+                    break;
+                }
+            }
+            window.volta2ReachedFlag = startingFromOrAfterVolta2; // Set to true if starting from or after volta2
+            
             updateChordList();
             updateStatusMessage('Count-in...', false);
             startMetronome();
