@@ -2048,7 +2048,8 @@
                 // Check for volta ending markers (only add at the START of volta)
                 const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
                 if (voltaEnding) {
-                    // Check if this is the start of a volta region (first measure with this volta type)
+                    // Only add N1/N2/N3 at the first measure of a volta region
+                    // Check if previous measure has the same volta type - if not, this is the start
                     const isVoltaStart = !voltaEndings.find(v => 
                         v.measure === measureNum - 1 && v.type === voltaEnding.type
                     );
@@ -2090,13 +2091,9 @@
                 }
                 
                 // Add repeat end marker AFTER chords but BEFORE bar separator (at the end of volta1)
+                // Also add space after closing repeat for proper IReal Pro formatting
                 if (repeatContext && repeatContext.type === 'volta1End') {
-                    chordString += ' }'; // Repeat end marker with space before
-                }
-                
-                // Add space before measure separator if we just added a closing repeat
-                if (repeatContext && repeatContext.type === 'volta1End') {
-                    chordString += ' '; // Space after closing repeat
+                    chordString += ' } '; // Space before and after closing repeat
                 }
                 
                 // Add measure separator
