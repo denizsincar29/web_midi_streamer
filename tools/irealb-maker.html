@@ -2019,7 +2019,23 @@
                 return null;
             }
 
+            function isHiddenRepriseMeasure(measureNum) {
+                for (const region of repeatRegions) {
+                    const repriseLength = region.repriseEnd - region.repriseStart + 1;
+                    const hiddenStart = region.volta2Start - repriseLength;
+                    const hiddenEnd = region.volta2Start - 1;
+                    if (measureNum >= hiddenStart && measureNum <= hiddenEnd) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
             for (let measureNum = 1; measureNum <= totalMeasures; measureNum++) {
+                if (isHiddenRepriseMeasure(measureNum)) {
+                    continue;
+                }
+
                 const chordsInMeasure = chordsByMeasure[measureNum];
                 const repeatContext = getRepeatContext(measureNum);
                 
