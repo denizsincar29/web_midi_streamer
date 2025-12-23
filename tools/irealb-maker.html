@@ -2065,13 +2065,14 @@
                     }
                 }
                 
+                // Check if this measure starts a defined section
+                const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
+                
                 if (chordsInMeasure && chordsInMeasure.length > 0) {
                     // Sort chords by beat within the measure
                     chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
                     
-                    // Check if this measure starts a defined section
                     // Always output section marker for defined sections, even if same type as previous
-                    const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
                     if (sectionAtMeasure) {
                         chordString += '*' + sectionAtMeasure.type;
                         lastSection = sectionAtMeasure.type;
@@ -2096,7 +2097,6 @@
                     });
                 } else {
                     // No chord in this measure - check if it's a defined section start
-                    const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
                     if (sectionAtMeasure) {
                         chordString += '*' + sectionAtMeasure.type;
                         lastSection = sectionAtMeasure.type;
