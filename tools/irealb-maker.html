@@ -1958,14 +1958,17 @@
         // Repeat/Volta syntax:
         // { = Repeat start (left repeat bar line)
         // } = Repeat end (right repeat bar line) 
-        // N = First ending (volta 1)
-        // Q = Second ending (volta 2)
+        // N1 = First ending (volta 1)
+        // N2 = Second ending (volta 2)
+        // N3 = Third ending (volta 3)
+        // Q = Coda symbol
+        // S = Segno symbol
         // T44 = Time signature (4/4)
         // *A = Section marker
         // | = Measure separator
         // Z = Final bar line
         //
-        // Example with repeat: T44{C|F|G|C}N|Am|DmQ|Em|Z
+        // Example with repeat: T44{C|F|G|C}N1|Am|DmN2|Em|Z
         // This creates: reprise (C F G C) with first ending (Am Dm) and second ending (Em)
         function generateIRealbFormat() {
             const songName = document.getElementById('songName').value || 'Untitled';
@@ -2051,9 +2054,11 @@
                 const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
                 if (voltaEnding) {
                     if (voltaEnding.type === 1) {
-                        chordString += 'N'; // First ending
+                        chordString += 'N1'; // First ending
                     } else if (voltaEnding.type === 2) {
-                        chordString += 'Q'; // Second ending
+                        chordString += 'N2'; // Second ending
+                    } else if (voltaEnding.type === 3) {
+                        chordString += 'N3'; // Third ending
                     }
                 }
                 
