@@ -1,0 +1,464 @@
+{
+  "version": "1.1",
+  "songInfo": {
+    "name": "Ded Moroz is coming to town",
+    "author": "Sincar Deniz",
+    "timeSignature": "44",
+    "musicStyle": "Medium Swing",
+    "keySignature": "Bb",
+    "bpm": "120",
+    "totalMeasures": "32",
+    "startMeasure": "1",
+    "endMeasure": "16"
+  },
+  "recordedChords": [
+    {
+      "measure": 1,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "maj7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 2,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "maj7(9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 3,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "maj7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 4,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "maj7(9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 4,
+      "beat": 3,
+      "chord": {
+        "root": "Eb",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 5,
+      "beat": 1,
+      "chord": {
+        "root": "D",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 5,
+      "beat": 3,
+      "chord": {
+        "root": "G",
+        "type": "7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 6,
+      "beat": 1,
+      "chord": {
+        "root": "C",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 6,
+      "beat": 3,
+      "chord": {
+        "root": "F",
+        "type": "7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 7,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "6"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 8,
+      "beat": 1,
+      "chord": {
+        "root": "C",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 8,
+      "beat": 3,
+      "chord": {
+        "root": "F",
+        "type": "13(b9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 16,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "7(b13)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 17,
+      "beat": 1,
+      "chord": {
+        "root": "F",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 17,
+      "beat": 3,
+      "chord": {
+        "root": "Bb",
+        "type": "13"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 18,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "maj7(9)"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 18,
+      "beat": 3,
+      "chord": {
+        "root": "C",
+        "type": "7(#9)"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 19,
+      "beat": 1,
+      "chord": {
+        "root": "F",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 19,
+      "beat": 3,
+      "chord": {
+        "root": "Bb",
+        "type": "9"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 20,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "6"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 21,
+      "beat": 1,
+      "chord": {
+        "root": "G",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 21,
+      "beat": 3,
+      "chord": {
+        "root": "C",
+        "type": "7(b9)"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 22,
+      "beat": 1,
+      "chord": {
+        "root": "F",
+        "type": "maj7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 22,
+      "beat": 3,
+      "chord": {
+        "root": "D",
+        "type": "7(#9,b13)"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 23,
+      "beat": 1,
+      "chord": {
+        "root": "G",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 23,
+      "beat": 3,
+      "chord": {
+        "root": "C",
+        "type": "7(b9)"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 24,
+      "beat": 1,
+      "chord": {
+        "root": "F",
+        "type": ""
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 24,
+      "beat": 3,
+      "chord": {
+        "root": "F",
+        "type": "7"
+      },
+      "inversion": "",
+      "section": "B"
+    },
+    {
+      "measure": 25,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "maj7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 26,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "maj7(9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 27,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "maj7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 28,
+      "beat": 1,
+      "chord": {
+        "root": "Eb",
+        "type": "maj7(9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 28,
+      "beat": 3,
+      "chord": {
+        "root": "Eb",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 29,
+      "beat": 1,
+      "chord": {
+        "root": "D",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 29,
+      "beat": 3,
+      "chord": {
+        "root": "G",
+        "type": "7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 30,
+      "beat": 1,
+      "chord": {
+        "root": "C",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 30,
+      "beat": 3,
+      "chord": {
+        "root": "F",
+        "type": "7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 31,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "6"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 32,
+      "beat": 1,
+      "chord": {
+        "root": "C",
+        "type": "m7"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 32,
+      "beat": 3,
+      "chord": {
+        "root": "F",
+        "type": "13(b9)"
+      },
+      "inversion": "",
+      "section": "A"
+    },
+    {
+      "measure": 40,
+      "beat": 1,
+      "chord": {
+        "root": "Bb",
+        "type": "7(b13)"
+      },
+      "inversion": "",
+      "section": "A"
+    }
+  ],
+  "definedSections": [
+    {
+      "type": "A",
+      "measure": 1
+    },
+    {
+      "type": "A",
+      "measure": 9
+    },
+    {
+      "type": "B",
+      "measure": 17
+    },
+    {
+      "type": "A",
+      "measure": 25
+    }
+  ],
+  "voltaEndings": [
+    {
+      "measure": 8,
+      "type": 1
+    },
+    {
+      "measure": 16,
+      "type": 2
+    }
+  ],
+  "repeatRegions": [
+    {
+      "repriseStart": 1,
+      "repriseEnd": 7,
+      "volta1Start": 8,
+      "volta1End": 8,
+      "volta2Start": 16,
+      "volta2End": 16
+    }
+  ]
+}
