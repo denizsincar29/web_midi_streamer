@@ -2069,11 +2069,20 @@
                     // Sort chords by beat within the measure
                     chordsInMeasure.sort((a, b) => (a.beat || numerator) - (b.beat || numerator));
                     
-                    // Check if this measure starts a new section
-                    const firstChordSection = chordsInMeasure[0].section;
-                    if (firstChordSection && firstChordSection !== lastSection) {
-                        chordString += '*' + firstChordSection;
-                        lastSection = firstChordSection;
+                    // Check if this measure starts a defined section
+                    // Always output section marker for defined sections, even if same type as previous
+                    const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
+                    if (sectionAtMeasure) {
+                        chordString += '*' + sectionAtMeasure.type;
+                        lastSection = sectionAtMeasure.type;
+                    } else {
+                        // Fallback: Check if chord has different section than last
+                        // (for backward compatibility with older saved data)
+                        const firstChordSection = chordsInMeasure[0].section;
+                        if (firstChordSection && firstChordSection !== lastSection) {
+                            chordString += '*' + firstChordSection;
+                            lastSection = firstChordSection;
+                        }
                     }
                     
                     // Add chords with spacing based on beats
@@ -2086,7 +2095,13 @@
                         }
                     });
                 } else {
-                    // No chord in this measure - add repeat symbol
+                    // No chord in this measure - check if it's a defined section start
+                    const sectionAtMeasure = definedSections.find(s => s.measure === measureNum);
+                    if (sectionAtMeasure) {
+                        chordString += '*' + sectionAtMeasure.type;
+                        lastSection = sectionAtMeasure.type;
+                    }
+                    // Add repeat symbol for empty measure
                     chordString += 'x';
                 }
                 
