@@ -2002,8 +2002,8 @@
                     if (measureNum === region.repriseStart) {
                         return { type: 'repriseStart', region };
                     }
-                    if (measureNum === region.repriseEnd + 1) {
-                        return { type: 'repriseEnd', region };
+                    if (measureNum === region.volta1End) {
+                        return { type: 'volta1End', region };
                     }
                     if (measureNum === region.volta1Start) {
                         return { type: 'volta1Start', region };
@@ -2045,20 +2045,22 @@
                     chordString += '{'; // Repeat start marker
                 }
                 
-                // Add repeat end marker if this is right before volta 1
-                if (repeatContext && repeatContext.type === 'repriseEnd') {
-                    chordString += '}'; // Repeat end marker
-                }
-                
-                // Check for volta ending markers (use existing logic but enhanced)
+                // Check for volta ending markers (only add at the START of volta)
                 const voltaEnding = voltaEndings.find(v => v.measure === measureNum);
                 if (voltaEnding) {
-                    if (voltaEnding.type === 1) {
-                        chordString += 'N1'; // First ending
-                    } else if (voltaEnding.type === 2) {
-                        chordString += 'N2'; // Second ending
-                    } else if (voltaEnding.type === 3) {
-                        chordString += 'N3'; // Third ending
+                    // Check if this is the start of a volta region (first measure with this volta type)
+                    const isVoltaStart = !voltaEndings.find(v => 
+                        v.measure === measureNum - 1 && v.type === voltaEnding.type
+                    );
+                    
+                    if (isVoltaStart) {
+                        if (voltaEnding.type === 1) {
+                            chordString += 'N1'; // First ending
+                        } else if (voltaEnding.type === 2) {
+                            chordString += 'N2'; // Second ending
+                        } else if (voltaEnding.type === 3) {
+                            chordString += 'N3'; // Third ending
+                        }
                     }
                 }
                 
@@ -2085,6 +2087,16 @@
                 } else {
                     // No chord in this measure - add repeat symbol
                     chordString += 'x';
+                }
+                
+                // Add repeat end marker AFTER chords but BEFORE bar separator (at the end of volta1)
+                if (repeatContext && repeatContext.type === 'volta1End') {
+                    chordString += ' }'; // Repeat end marker with space before
+                }
+                
+                // Add space before measure separator if we just added a closing repeat
+                if (repeatContext && repeatContext.type === 'volta1End') {
+                    chordString += ' '; // Space after closing repeat
                 }
                 
                 // Add measure separator
