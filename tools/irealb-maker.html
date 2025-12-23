@@ -2458,10 +2458,9 @@
             
             // Reset volta2 pause flag, but set it to true if starting from or after volta2
             // This prevents the auto-pause when user intentionally starts from volta2 or beyond
-            const startMeasureNum = parseInt(document.getElementById('startMeasure').value) || 1;
             let startingFromOrAfterVolta2 = false;
             for (const region of repeatRegions) {
-                if (startMeasureNum >= region.volta2Start) {
+                if (startMeasure >= region.volta2Start) {
                     startingFromOrAfterVolta2 = true;
                     break;
                 }
