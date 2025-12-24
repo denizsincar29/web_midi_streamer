@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Web MIDI Streamer</title>
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Real-time MIDI streaming over WebRTC">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512x512.png">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1 data-i18n="app.title">Web MIDI Streamer</h1>
+                    <p data-i18n="app.subtitle">Real-time MIDI streaming over WebRTC</p>
+                </div>
+                <div class="header-actions">
+                    <a href="/" class="btn btn-secondary" data-i18n="back-to-home">← Back to Home</a>
+                    <button id="helpBtn" class="btn btn-secondary" data-i18n="footer.help">Help</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Room Information -->
+            <section class="room-info">
+                <h2><span data-i18n="status.title">Status:</span> <span id="roomName" data-i18n="status.notConnected">Not connected</span></h2>
+                <div class="status-container">
+                    <span class="status-indicator" id="statusIndicator" aria-hidden="true"></span>
+                    <span id="connectionStatus" data-i18n="status.disconnected">Disconnected</span>
+                </div>
+            </section>
+
+            <!-- Screen Reader Status Bar -->
+            <div id="statusBar" class="sr-only" role="status" aria-live="polite" aria-atomic="false"></div>
+
+            <!-- MIDI Devices -->
+            <section class="midi-devices">
+                <h2 data-i18n="midi.title">MIDI Devices</h2>
+
+                <div class="device-group">
+                    <label for="midiInput" data-i18n="midi.inputDevice">Input Device:</label>
+                    <select id="midiInput" aria-label="Select MIDI input device">
+                        <option value="" data-i18n="midi.noDevice">No device selected</option>
+                    </select>
+                </div>
+
+                <div class="device-group">
+                    <label for="midiOutput" data-i18n="midi.outputDevice">Output Device:</label>
+                    <select id="midiOutput" aria-label="Select MIDI output device">
+                        <option value="" data-i18n="midi.noDevice">No device selected</option>
+                    </select>
+                </div>
+
+                <button id="refreshDevices" class="btn btn-secondary" data-i18n="midi.refreshDevices">Refresh Devices</button>
+            </section>
+
+            <!-- Connection Controls -->
+            <section class="controls">
+                <h2 data-i18n="connection.title">Connection</h2>
+                <div class="room-input-group">
+                    <label for="roomNameInput" data-i18n="connection.roomName">Room Name:</label>
+                    <input type="text" id="roomNameInput" data-i18n-placeholder="connection.roomPlaceholder" placeholder="Enter room name" value="">
+                    <p class="description" data-i18n="connection.roomDescription">Both peers must enter the same room name to connect</p>
+                </div>
+                <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Connect to Room</button>
+                <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
+            </section>
+
+            <!-- Settings (formerly Advanced) -->
+            <details class="advanced">
+                <summary><h2 data-i18n="settings.title">Settings</h2></summary>
+                <div class="advanced-content">
+                    <h3 data-i18n="settings.settings">Settings</h3>
+
+                    <!-- Language Selector -->
+                    <div class="setting-group">
+                        <label for="languageSelect" data-i18n="settings.language">Language</label>
+                        <select id="languageSelect" aria-label="Select language">
+                            <option value="en">English</option>
+                            <option value="ru">Русский</option>
+                        </select>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="sysexEnabled" aria-describedby="sysex-desc">
+                            <span data-i18n="settings.sysex">Enable SysEx Support</span>
+                        </label>
+                        <p id="sysex-desc" class="description" data-i18n="settings.sysexDesc">Allow System Exclusive messages (required for advanced keyboard features)</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="timestampEnabled" aria-describedby="timestamp-desc">
+                            <span data-i18n="settings.timestamp">Enable Timestamp Sync (Experimental)</span>
+                        </label>
+                        <p id="timestamp-desc" class="description" data-i18n="settings.timestampDesc">Send MIDI data with timestamps for better timing on slow connections</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="showMidiActivity" aria-describedby="midi-activity-desc">
+                            <span data-i18n="settings.midiActivity">Show MIDI Activity</span>
+                        </label>
+                        <p id="midi-activity-desc" class="description" data-i18n="settings.midiActivityDesc">Display and announce MIDI events via screen reader</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="ipv6Enabled" aria-describedby="ipv6-desc">
+                            <span data-i18n="settings.ipv6">Enable IPv6 P2P (Experimental)</span>
+                        </label>
+                        <p id="ipv6-desc" class="description" data-i18n="settings.ipv6Desc">Attempt IPv6 connections for peer-to-peer communication. If disabled, only IPv4 will be used.</p>
+                    </div>
+
+                    <h3 data-i18n="settings.debugTools">Debug Tools</h3>
+                    <button id="sendTestNoteBtn" class="btn btn-secondary" disabled data-i18n="debug.testNote">Send Test Note (C4)</button>
+                    <button id="sendPingBtn" class="btn btn-secondary" disabled data-i18n="debug.ping">Send Ping</button>
+                    <label>
+                        <input type="checkbox" id="midiEchoEnabled">
+                        <span data-i18n="debug.midiEcho">MIDI Echo (send back all received MIDI)</span>
+                    </label>
+                    <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
+
+                    <h3 data-i18n="settings.messages">Messages</h3>
+                    <button id="copyMessagesBtn" class="btn btn-secondary" data-i18n="debug.copyMessages">Copy All Messages</button>
+                    <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
+                </div>
+            </details>
+
+            <!-- Chat -->
+            <details class="chat-section">
+                <summary><h2 data-i18n="chat.title">Chat</h2></summary>
+                <div class="chat-content">
+                    <div id="chatLog" class="chat-log" role="log" aria-live="polite" aria-atomic="false"></div>
+                    <div class="chat-input-group">
+                        <input type="text" id="chatInput" data-i18n-placeholder="chat.placeholder" placeholder="Type a message..." disabled>
+                        <button id="sendChatBtn" class="btn btn-primary" disabled data-i18n="chat.send">Send</button>
+                    </div>
+                </div>
+            </details>
+
+            <!-- MIDI Activity (for accessibility) -->
+            <div id="midiActivity" role="status" aria-atomic="true" class="sr-only" aria-live="off"></div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Use relative path to work in subdirectories
+                const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                const swPath = baseUrl + 'service-worker.js';
+
+                navigator.serviceWorker.register(swPath, { scope: baseUrl })
+                    .then(registration => console.log('ServiceWorker registered:', registration.scope))
+                    .catch(error => console.log('ServiceWorker registration failed:', error));
+            });
+        }
+    </script>
+</body>
+</html>

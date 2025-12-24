@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nord Effects Controller - MIDI Tools</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../../favicon.ico">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>
+                        <span data-i18n="nordEffects.title">🎚️ Nord Effects Controller</span>
+                        <span data-i18n="tools.nordEffectsBeta">(BETA)</span>
+                    </h1>
+                    <p data-i18n="nordEffects.subtitle">Control your Nord keyboard effects via MIDI CC</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <a href="/" class="btn btn-secondary" data-i18n="tools.backToHome">← Back to Home</a>
+            </div>
+
+            <div class="midi-status" id="midiStatus">
+                <strong data-i18n="nordEffects.midiStatus">MIDI Status:</strong> <span id="statusText" data-i18n="nordEffects.initializing">Initializing...</span>
+            </div>
+
+            <div class="controls-section">
+                <section class="device-group">
+                    <label for="midiOutput" data-i18n="nordEffects.outputDevice">MIDI Output Device:</label>
+                    <select id="midiOutput" aria-label="Select MIDI output device">
+                        <option value="" data-i18n="nordEffects.noDeviceSelected">No device selected</option>
+                    </select>
+                </section>
+
+                <!-- Rotary Speaker -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.rotarySpeaker">🔄 Rotary Speaker</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.speed">Speed:</label>
+                        <button class="toggle-button" id="rotarySpeed" data-cc="3" data-off="0" data-on="127" aria-label="Rotary speaker speed control">
+                            Slow
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reverb -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.reverb">✨ Reverb</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
+                        <button class="toggle-button" id="reverbToggle" data-cc="105" data-off="0" data-on="127">
+                            Off
+                        </button>
+                    </div>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.amount">Amount:</label>
+                        <input type="range" id="reverbAmount" min="0" max="127" value="64" data-cc="85">
+                        <span class="value-display" id="reverbValue">64</span>
+                    </div>
+                </div>
+
+                <!-- Delay -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.delay">🔁 Delay</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
+                        <button class="toggle-button" id="delayToggle" data-cc="104" data-off="0" data-on="127">
+                            Off
+                        </button>
+                    </div>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.amount">Amount:</label>
+                        <input type="range" id="delayAmount" min="0" max="127" value="64" data-cc="19">
+                        <span class="value-display" id="delayValue">64</span>
+                    </div>
+                </div>
+
+                <!-- Effect 1 (Tremolo/Pan) -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.effect1">🌊 Effect 1 (Tremolo/Pan)</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
+                        <button class="toggle-button" id="effect1Toggle" data-cc="102" data-off="0" data-on="127">
+                            Off
+                        </button>
+                    </div>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.depth">Depth:</label>
+                        <input type="range" id="effect1Amount" min="0" max="127" value="64" data-cc="17">
+                        <span class="value-display" id="effect1Value">64</span>
+                    </div>
+                </div>
+
+                <!-- Effect 2 (Phaser/Flanger/Chorus) -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.effect2">〰️ Effect 2 (Phaser/Flanger/Chorus)</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.onOff">On/Off:</label>
+                        <button class="toggle-button" id="effect2Toggle" data-cc="103" data-off="0" data-on="127">
+                            Off
+                        </button>
+                    </div>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.depth">Depth:</label>
+                        <input type="range" id="effect2Amount" min="0" max="127" value="64" data-cc="18">
+                        <span class="value-display" id="effect2Value">64</span>
+                    </div>
+                </div>
+
+                <!-- Piano String Resonance -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.resonance">🎹 Piano String Resonance</h3>
+                    <div class="control-row">
+                        <label data-i18n="nordEffects.amount">Amount:</label>
+                        <input type="range" id="resonanceAmount" min="0" max="127" value="64" data-cc="86">
+                        <span class="value-display" id="resonanceValue">64</span>
+                    </div>
+                </div>
+
+                <!-- Presets -->
+                <div class="effect-group">
+                    <h3 data-i18n="nordEffects.presets">💾 Quick Presets</h3>
+                    <div class="preset-buttons">
+                        <button class="preset-btn" data-preset="clean" data-i18n="nordEffects.cleanPiano">Clean Piano</button>
+                        <button class="preset-btn" data-preset="jazz" data-i18n="nordEffects.jazzCombo">Jazz Combo</button>
+                        <button class="preset-btn" data-preset="ambient" data-i18n="nordEffects.ambientPad">Ambient Pad</button>
+                        <button class="preset-btn" data-preset="rock" data-i18n="nordEffects.rockOrgan">Rock Organ</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

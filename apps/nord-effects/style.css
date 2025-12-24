@@ -1,0 +1,144 @@
+.controls-section {
+    padding: 20px;
+}
+
+.device-group {
+    margin-bottom: 20px;
+}
+
+.device-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.device-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+}
+
+.effect-group {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.effect-group h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.control-row label {
+    min-width: 120px;
+    font-weight: 500;
+}
+
+.control-row input[type="range"] {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: #ddd;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.control-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+}
+
+.control-row input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: none;
+}
+
+.control-row .value-display {
+    min-width: 40px;
+    text-align: right;
+    font-weight: 600;
+    color: #667eea;
+}
+
+.toggle-button {
+    padding: 8px 16px;
+    border: 2px solid #667eea;
+    background: white;
+    color: #667eea;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+}
+
+.toggle-button.active {
+    background: #667eea;
+    color: white;
+}
+
+.toggle-button:hover {
+    transform: scale(1.05);
+}
+
+.midi-status {
+    padding: 15px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 6px;
+    margin: 20px;
+}
+
+.midi-status.connected {
+    background: #d4edda;
+    border-color: #28a745;
+}
+
+.preset-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.preset-btn {
+    padding: 10px;
+    border: 2px solid #667eea;
+    background: white;
+    color: #667eea;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 500;
+}
+
+.preset-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+.back-navigation {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
