@@ -1,5 +1,5 @@
 // Service Worker for Web MIDI Streamer PWA
-const CACHE_NAME = 'midi-streamer-v1.2.0';
+const CACHE_NAME = 'midi-streamer-v1.2.1';
 
 // Get the base path from the service worker's own URL
 const getBasePath = () => {
@@ -14,21 +14,25 @@ const urlsToCache = [
   basePath,
   basePath + 'index.html',
   basePath + 'style.css',
-  basePath + 'src/main.js',
-  basePath + 'src/webrtc.js',
-  basePath + 'src/midi.js',
-  basePath + 'src/ui.js',
-  basePath + 'src/utils.js',
-  basePath + 'src/config.js',
-  basePath + 'src/i18n.js',
-  basePath + 'src/chord-utils.js',
   basePath + 'manifest.json',
   basePath + 'favicon.ico',
-  basePath + 'tools/index.html',
-  basePath + 'tools/nord-effects.html',
-  basePath + 'tools/chord-display.html',
-  basePath + 'tools/irealb-maker.html',
-  basePath + 'tools/help.html'
+  basePath + 'js/i18n.js',
+  basePath + 'js/chord-utils.js',
+  basePath + 'js/webrtc.js',
+  basePath + 'js/midi.js',
+  basePath + 'js/ui.js',
+  basePath + 'js/utils.js',
+  basePath + 'js/config.js',
+  basePath + 'apps/midi-streamer/index.html',
+  basePath + 'apps/midi-streamer/main.js',
+  basePath + 'apps/nord-effects/index.html',
+  basePath + 'apps/nord-effects/main.js',
+  basePath + 'apps/chord-display/index.html',
+  basePath + 'apps/chord-display/main.js',
+  basePath + 'apps/irealb-maker/index.html',
+  basePath + 'apps/irealb-maker/main.js',
+  basePath + 'i18n/english.json',
+  basePath + 'i18n/russian.json'
 ];
 
 // Install event - cache resources
