@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iRealPro Maker - MIDI Mini Apps</title>
-    <link rel="stylesheet" href="../style.css">
-    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="icon" type="image/x-icon" href="../../favicon.ico">
     
     <style>
         .irealb-maker-section {
@@ -683,8 +683,8 @@
     </div>
 
     <script type="module">
-        import { t, getCurrentLanguage } from '../src/i18n.js';
-        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord, chordToMIDINotes } from '../src/chord-utils.js';
+        import { t, getCurrentLanguage } from '../../src/i18n.js';
+        import { midiNoteToName, getPitchClass, noteNameToSemitone, detectChord, chordToMIDINotes } from '../../src/chord-utils.js';
         
         let midiAccess = null;
         let selectedInput = null;
@@ -2500,7 +2500,7 @@
         });
         
         document.getElementById('backBtn').addEventListener('click', () => {
-            window.location.href = 'index.html';
+            window.location.href = '../index.html';
         });
         
         // JSON Export: Save current progress
