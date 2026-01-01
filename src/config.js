@@ -27,9 +27,11 @@ export async function getTurnCredentials() {
     }
     
     try {
-        // Use relative path so it works in subdirectories (e.g., /midi/)
-        const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-        const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
+        // Find the application root by removing everything after the first directory level
+        // This handles both root deployment (/) and subdirectory deployment (/midi/)
+        const pathParts = window.location.pathname.split('/').filter(p => p);
+        const appRoot = pathParts.length > 0 && !pathParts[0].includes('.') ? `/${pathParts[0]}/` : '/';
+        const credentialsUrl = `${window.location.origin}${appRoot}get-turn-credentials.php`;
         
         console.log('Fetching fresh TURN credentials from:', credentialsUrl);
         const response = await fetch(credentialsUrl);
