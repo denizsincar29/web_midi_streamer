@@ -114,9 +114,15 @@
 
                 <!-- iRealPro Maker -->
                 <div class="tool-card" role="article" aria-labelledby="irealb-title">
-                    <h3 id="irealb-title" data-i18n="tools.irealbMaker">🎵 iRealPro Maker</h3>
+                    <h3 id="irealb-title">
+                        <span data-i18n="tools.irealbMaker">🎵 iRealPro Maker</span>
+                        <span style="color: #dc3545; font-size: 0.8em;">(DEPRECATED)</span>
+                    </h3>
                     <p data-i18n="tools.irealbMakerDesc">Create iRealPro chord charts by recording your chord progressions with metronome count-in.</p>
-                    <button class="btn btn-primary" onclick="window.location.href='irealb-maker.html'" data-i18n="tools.openTool" aria-label="Open iRealPro Maker mini app">Open Mini App</button>
+                    <div class="tool-warning">
+                        ⚠️ This tool is deprecated and will be rewritten in Go. It remains functional but no new features will be added. See the documentation in the deprecated folder for more details.
+                    </div>
+                    <button class="btn btn-primary" onclick="window.location.href='deprecated/irealb-maker.html'" data-i18n="tools.openTool" aria-label="Open iRealPro Maker mini app (deprecated)">Open Mini App</button>
                 </div>
             </div>
         </main>

@@ -27,9 +27,12 @@ export async function getTurnCredentials() {
     }
     
     try {
-        // Use relative path so it works in subdirectories (e.g., /midi/)
-        const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-        const credentialsUrl = `${baseUrl}get-turn-credentials.php`;
+        // Calculate relative path to root based on current depth
+        // Count directory levels by filtering out the filename (anything with an extension)
+        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.includes('.'));
+        const levelsDeep = pathSegments.length;
+        const relativePath = levelsDeep > 0 ? '../'.repeat(levelsDeep) : './';
+        const credentialsUrl = `${relativePath}get-turn-credentials.php`;
         
         console.log('Fetching fresh TURN credentials from:', credentialsUrl);
         const response = await fetch(credentialsUrl);
