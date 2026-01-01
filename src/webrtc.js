@@ -83,8 +83,8 @@ export class WebRTCManager {
         this.isInitiator = false; // Will be determined by who's already in the room
         
         // Set up signaling URL using relative path
-        // Count how many levels deep we are from root
-        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.endsWith('.html') && !p.endsWith('.php'));
+        // Count directory levels by filtering out the filename (anything with an extension)
+        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.includes('.'));
         const levelsDeep = pathSegments.length;
         const relativePath = levelsDeep > 0 ? '../'.repeat(levelsDeep) : './';
         this.signalingUrl = `${relativePath}signaling.php`;

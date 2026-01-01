@@ -28,8 +28,8 @@ export async function getTurnCredentials() {
     
     try {
         // Calculate relative path to root based on current depth
-        // Count how many levels deep we are from root
-        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.endsWith('.html'));
+        // Count directory levels by filtering out the filename (anything with an extension)
+        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.includes('.'));
         const levelsDeep = pathSegments.length;
         const relativePath = levelsDeep > 0 ? '../'.repeat(levelsDeep) : './';
         const credentialsUrl = `${relativePath}get-turn-credentials.php`;
