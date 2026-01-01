@@ -82,12 +82,12 @@ export class WebRTCManager {
         this.roomId = roomName; // Use room name directly as room ID
         this.isInitiator = false; // Will be determined by who's already in the room
         
-        // Set up signaling URL
-        let baseUrl = window.location.pathname;
-        if (!baseUrl.endsWith('/')) {
-            baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
-        }
-        this.signalingUrl = `${window.location.origin}${baseUrl}signaling.php`;
+        // Set up signaling URL using relative path
+        // Count how many levels deep we are from root
+        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.endsWith('.html') && !p.endsWith('.php'));
+        const levelsDeep = pathSegments.length;
+        const relativePath = levelsDeep > 0 ? '../'.repeat(levelsDeep) : './';
+        this.signalingUrl = `${relativePath}signaling.php`;
         
         // Join the room via signaling server
         this.onStatusUpdate('🔗 Connecting to signaling server...', 'info');

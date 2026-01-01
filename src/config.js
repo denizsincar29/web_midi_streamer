@@ -27,11 +27,12 @@ export async function getTurnCredentials() {
     }
     
     try {
-        // Find the application root by removing everything after the first directory level
-        // This handles both root deployment (/) and subdirectory deployment (/midi/)
-        const pathParts = window.location.pathname.split('/').filter(p => p);
-        const appRoot = pathParts.length > 0 && !pathParts[0].includes('.') ? `/${pathParts[0]}/` : '/';
-        const credentialsUrl = `${window.location.origin}${appRoot}get-turn-credentials.php`;
+        // Calculate relative path to root based on current depth
+        // Count how many levels deep we are from root
+        const pathSegments = window.location.pathname.split('/').filter(p => p && !p.endsWith('.html'));
+        const levelsDeep = pathSegments.length;
+        const relativePath = levelsDeep > 0 ? '../'.repeat(levelsDeep) : './';
+        const credentialsUrl = `${relativePath}get-turn-credentials.php`;
         
         console.log('Fetching fresh TURN credentials from:', credentialsUrl);
         const response = await fetch(credentialsUrl);
