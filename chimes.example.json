@@ -1,0 +1,45 @@
+{
+  "info": {
+    "type": "notes",
+    "notes": "A4",
+    "velocity": 90,
+    "duration": 150,
+    "comment": "Single note for info messages"
+  },
+  "success": {
+    "type": "notes",
+    "notes": "C5 E5",
+    "velocity": 100,
+    "duration": 100,
+    "comment": "Cheerful ascending notes for successful connection"
+  },
+  "connecting": {
+    "type": "notes",
+    "notes": "E4 G4",
+    "velocity": 85,
+    "duration": 80,
+    "comment": "Quick ascending notes while connecting"
+  },
+  "warning": {
+    "type": "notes",
+    "notes": "G4 F4",
+    "velocity": 100,
+    "duration": 100,
+    "comment": "Descending notes for warnings"
+  },
+  "error": {
+    "type": "notes",
+    "notes": "F4 D4",
+    "velocity": 110,
+    "duration": 200,
+    "comment": "Lower descending notes for errors"
+  },
+  "_example_midi_file": {
+    "type": "midi",
+    "file": "./chimes/custom-success.mid",
+    "comment": "MIDI file playback is a future feature - currently falls back to default note"
+  },
+  "_instructions": {
+    "comment": "See CHIMES.md for full documentation on customizing chimes"
+  }
+}

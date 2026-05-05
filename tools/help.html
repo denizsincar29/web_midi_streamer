@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help - MIDI Tools</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    
+    <style>
+        .help-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .help-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .help-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .help-section h3 {
+            color: #4a5568;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .help-section p, .help-section li {
+            line-height: 1.6;
+            color: #666;
+        }
+        
+        .help-section ul {
+            margin-left: 20px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .warning-box strong {
+            color: #856404;
+        }
+        
+        .back-navigation {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container help-page">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>📖 MIDI Tools Help</h1>
+                    <p>Documentation for Nord Effects Controller and Chord Display</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="back-navigation">
+                <button id="backBtn" class="btn btn-secondary">← Back to Tools</button>
+            </div>
+
+            <div class="help-content">
+                <!-- Nord Effects Controller -->
+                <section class="help-section">
+                    <h2>🎚️ Nord Effects Controller (BETA)</h2>
+                    
+                    <div class="warning-box">
+                        <strong>⚠️ EXPERIMENTAL TOOL</strong>
+                        <p>This tool is in beta and may be unstable. CC (Control Change) mappings are based on common Nord keyboard specifications but may not work with all models. Always test carefully before using in a performance setting.</p>
+                    </div>
+                    
+                    <h3>What is it?</h3>
+                    <p>The Nord Effects Controller allows you to control various effects on your Nord keyboard in real-time using MIDI CC (Control Change) messages. This is useful for adjusting effects without reaching for physical controls on your keyboard.</p>
+                    
+                    <h3>How to Use:</h3>
+                    <ol>
+                        <li>Connect your Nord keyboard to your computer via MIDI</li>
+                        <li>Select your Nord keyboard as the MIDI Output Device</li>
+                        <li>Use the sliders and buttons to control:
+                            <ul>
+                                <li><strong>Rotary Speaker</strong> - Toggle between slow and fast speeds (CC 3)</li>
+                                <li><strong>Reverb</strong> - Turn on/off (CC 105) and adjust amount (CC 85)</li>
+                                <li><strong>Delay</strong> - Turn on/off (CC 104) and adjust amount (CC 19)</li>
+                                <li><strong>Effect 1</strong> - Tremolo/Pan on/off (CC 102) and depth (CC 17)</li>
+                                <li><strong>Effect 2</strong> - Phaser/Flanger/Chorus on/off (CC 103) and depth (CC 18)</li>
+                                <li><strong>Piano String Resonance</strong> - Adjust amount (CC 86)</li>
+                            </ul>
+                        </li>
+                        <li>Try the Quick Presets for common setups: Clean Piano, Jazz Combo, Ambient Pad, Rock Organ</li>
+                    </ol>
+                    
+                    <h3>Compatibility Notes:</h3>
+                    <p>This tool is designed for Nord keyboards (Nord Stage, Nord Piano, Nord Electro series). CC mappings may vary between models. Consult your keyboard's manual for specific CC assignments.</p>
+                </section>
+
+                <!-- Chord Display -->
+                <section class="help-section">
+                    <h2>🎼 Chord Display</h2>
+                    
+                    <h3>What is it?</h3>
+                    <p>The Chord Display tool detects and displays the chords you're playing on your MIDI keyboard in real-time. It uses advanced jazz chord detection algorithms to identify complex chord voicings.</p>
+                    
+                    <h3>How to Use:</h3>
+                    <ol>
+                        <li>Connect your MIDI keyboard to your computer</li>
+                        <li>Select your keyboard as the MIDI Input Device</li>
+                        <li>Play chords on your keyboard - the detected chord name will appear in large text</li>
+                        <li>The chord remains visible even after releasing the keys, so you can check what you played</li>
+                        <li>The screen reader will announce the final chord after you finish playing</li>
+                    </ol>
+                    
+                    <h3>Supported Chord Types:</h3>
+                    <ul>
+                        <li><strong>Basic Chords:</strong> Major, Minor, Diminished, Augmented, Sus2, Sus4</li>
+                        <li><strong>Seventh Chords:</strong> Dominant 7, Major 7, Minor 7, Half-diminished 7, Diminished 7</li>
+                        <li><strong>Extended Chords:</strong> 9th, 11th, 13th chords</li>
+                        <li><strong>Altered Chords:</strong> 7(b9), 7(#9), 7(#11), 7(b13), and combinations</li>
+                        <li><strong>Other Voicings:</strong> 6, 6/9, Minor 6/9, 7sus4, and more</li>
+                    </ul>
+                    
+                    <h3>Features:</h3>
+                    <ul>
+                        <li><strong>Flat Notation:</strong> Uses jazz-standard flat notation (Bb, Eb, Ab) instead of sharps</li>
+                        <li><strong>Flexible Voicings:</strong> Recognizes chords with or without the fifth</li>
+                        <li><strong>No Root Guessing:</strong> The bass note (lowest note played) is always the root</li>
+                        <li><strong>Screen Reader Support:</strong> Announces chord names with debouncing to avoid spam</li>
+                    </ul>
+                    
+                    <h3>Settings:</h3>
+                    <ul>
+                        <li><strong>Show all possible chord interpretations:</strong> When enabled, shows alternative interpretations of the same notes</li>
+                        <li><strong>Simplify chord names:</strong> Prefers simpler chord names when multiple interpretations exist</li>
+                    </ul>
+                    
+                    <h3>Examples:</h3>
+                    <ul>
+                        <li>C E G → <strong>C Major</strong></li>
+                        <li>C E Bb → <strong>C7</strong></li>
+                        <li>C E Bb Db → <strong>C7(b9)</strong></li>
+                        <li>C E B F# → <strong>Cmaj7(#11)</strong></li>
+                        <li>C E Bb D A → <strong>C13</strong></li>
+                    </ul>
+                </section>
+
+                <!-- General Tips -->
+                <section class="help-section">
+                    <h2>💡 General Tips</h2>
+                    <ul>
+                        <li>Both tools work independently and can be used without being connected to the MIDI Streamer</li>
+                        <li>For best results, connect your MIDI device before opening the tool</li>
+                        <li>If your device doesn't appear, try refreshing the browser</li>
+                        <li>The tools are cached for offline use once loaded</li>
+                        <li>All settings and language preferences sync with the main app</li>
+                    </ul>
+                </section>
+
+                <!-- Troubleshooting -->
+                <section class="help-section">
+                    <h2>🔧 Troubleshooting</h2>
+                    
+                    <h3>No MIDI devices showing:</h3>
+                    <ul>
+                        <li>Make sure your MIDI device is connected before opening the page</li>
+                        <li>Check that your browser supports Web MIDI API (Chrome, Edge, Opera recommended)</li>
+                        <li>Grant MIDI permissions when prompted by the browser</li>
+                        <li>Try refreshing the page</li>
+                    </ul>
+                    
+                    <h3>Nord Effects not working:</h3>
+                    <ul>
+                        <li>Verify that your keyboard model supports the CC messages used by this tool</li>
+                        <li>Check your keyboard's MIDI settings and ensure CC messages are enabled</li>
+                        <li>Some effects may only work when the corresponding effect type is selected on your keyboard</li>
+                        <li>Consult your keyboard's manual for CC compatibility</li>
+                    </ul>
+                    
+                    <h3>Chord Display not detecting chords:</h3>
+                    <ul>
+                        <li>Make sure you've selected the correct MIDI input device</li>
+                        <li>Try playing notes more slowly to ensure they're all registered</li>
+                        <li>The algorithm uses the lowest note as the root - play chords in root position for best results</li>
+                        <li>Some very complex voicings may not be recognized</li>
+                    </ul>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

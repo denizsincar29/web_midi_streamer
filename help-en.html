@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help - Web MIDI Streamer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
+</head>
+<body>
+    <div class="container help-page">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1>How to Use Web MIDI Streamer</h1>
+                    <p>Step-by-step guide for streaming MIDI over WebRTC</p>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="help-navigation">
+                <button id="backBtn" class="btn btn-primary">← Back to App</button>
+            </div>
+
+            <article class="help-content">
+                <section class="help-step">
+                    <h2>1. Connect Your MIDI Keyboard First</h2>
+                    <p><strong>IMPORTANT:</strong> Connect your MIDI keyboard or controller to your computer <strong>BEFORE</strong> opening this website or clicking any connection buttons. This prevents the need to refresh the page.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>2. Open the Website</h2>
+                    <p>After connecting your MIDI device, open the website or reload if you already had it open. Firefox will automatically download the MIDI component when you grant permission.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>3. Select MIDI Devices</h2>
+                    <p>Choose your MIDI input device (the keyboard you play) and output device (where you hear the other participant's notes).</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>4. Create or Join a Room</h2>
+                    <p>Enter a room name and click "Connect to Room". You can save this URL with the room name to use the same room with the same people every time.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>5. Share the URL</h2>
+                    <p>Copy and share the generated URL with the other participant. They should open it to connect automatically.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>6. Start Playing</h2>
+                    <p>Once connected, you can play your MIDI keyboard and hear each other in real-time! The browser tab can be in the background while playing.</p>
+                </section>
+
+                <section class="help-tip">
+                    <strong>💡 Tip</strong>
+                    <p>You can bookmark the URL with your room name to quickly reconnect with the same people next time.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>Supported Browsers</h2>
+                    <ul>
+                        <li><strong>Google Chrome</strong> (Recommended)</li>
+                        <li><strong>Microsoft Edge</strong></li>
+                        <li><strong>Opera</strong></li>
+                        <li><strong>Firefox</strong> (Auto-downloads MIDI component on first use)</li>
+                    </ul>
+                </section>
+
+                <section class="help-step">
+                    <h2>🎛️ MIDI Mini Apps</h2>
+                    <p>Web MIDI Streamer now includes professional tools for pianists and keyboard players, accessible via the "🎹 Tools" button in the header.</p>
+                    
+                    <h3>Nord Effects Controller (BETA)</h3>
+                    <p>Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker speed, and more in real-time.</p>
+                    <p><strong>⚠️ EXPERIMENTAL:</strong> This tool is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.</p>
+                    
+                    <h3>Chord Display</h3>
+                    <p>Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.</p>
+                    
+                    <p>For detailed documentation, see the <a href="tools/help.html">Tools Help Page</a>.</p>
+                </section>
+
+                <section class="help-step">
+                    <h2>Troubleshooting</h2>
+                    
+                    <h3>Connection Issues</h3>
+                    <ul>
+                        <li><strong>Long connection wait:</strong> WebRTC may take 5-10 seconds. Please be patient.</li>
+                        <li><strong>Cannot connect:</strong> Make sure both participants use the same room URL and check your internet connection.</li>
+                        <li><strong>Connection drops:</strong> Check your firewall settings and network stability.</li>
+                    </ul>
+
+                    <h3>MIDI Issues</h3>
+                    <ul>
+                        <li><strong>MIDI access denied:</strong> Make sure your MIDI device is connected BEFORE opening the website.</li>
+                        <li><strong>No sound:</strong> Check your MIDI output device selection and speaker/headphone connection.</li>
+                        <li><strong>Devices not showing:</strong> Click "Refresh Devices" or reconnect your MIDI device.</li>
+                        <li><strong>Firefox users:</strong> Allow the automatic MIDI component download when prompted.</li>
+                    </ul>
+                </section>
+
+                <section class="help-step">
+                    <h2>Tips for Best Experience</h2>
+                    <ul>
+                        <li>Connect MIDI keyboard first, then open the website</li>
+                        <li>Use a wired internet connection for lowest latency</li>
+                        <li>Close unnecessary applications to free up system resources</li>
+                        <li>Bookmark your room URL to quickly reconnect</li>
+                        <li>Browser tabs can work in the background</li>
+                    </ul>
+                </section>
+
+                <section class="help-step">
+                    <h2>Version Information</h2>
+                    <p><strong>Version 1.2.0</strong> - December 2025</p>
+                    <p>Latest release with new features and improvements!</p>
+                    
+                                        <h3>Version 1.2.0 - December 2025</h3>
+<p>Added IRealPro tool creator tool.<br/>
+It allowes you to enter chord progressions on your midi keyboard, edit them and instantly convert to IRealPro format!</p>
+                    
+                    <h3>Version 1.1.0 - December 2025</h3>
+                    <h3>🎛️ MIDI Mini Apps Added</h3>
+                    <ul>
+                        <li><strong>Nord Effects Controller (BETA):</strong> Control Nord keyboard effects via MIDI CC messages
+                            <ul>
+                                <li>Rotary speaker speed, reverb, delay, effects, and piano string resonance controls</li>
+                                <li>Four quick presets: Clean Piano, Jazz Combo, Ambient Pad, Rock Organ</li>
+                                <li>⚠️ <strong>EXPERIMENTAL:</strong> Beta feature, may be unstable with some Nord models</li>
+                            </ul>
+                        </li>
+                        <li><strong>Chord Display:</strong> Real-time jazz chord detection from MIDI input
+                            <ul>
+                                <li>Custom structured algorithm recognizing 70+ chord types</li>
+                                <li>Extended and altered voicings (9ths, 11ths, 13ths, alterations)</li>
+                                <li>Jazz-standard flat notation (Bb, Eb, Ab)</li>
+                                <li>Screen reader accessible with debounced announcements</li>
+                                <li>No inversion guessing - bass note is always root</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    
+                    <h3>🌐 Internationalization &amp; Documentation</h3>
+                    <ul>
+                        <li>Full i18n integration with main app (English/Russian)</li>
+                        <li>Dedicated tools help page with comprehensive documentation</li>
+                        <li>Tools cached by service worker for offline use</li>
+                    </ul>
+                    
+                    <h3>What's New in v1.0</h3>
+                    <ul>
+                        <li><strong>Real-time Chat</strong>: Send text messages to your peer during sessions</li>
+                        <li><strong>Message Export</strong>: Copy all debug messages for troubleshooting</li>
+                        <li><strong>Improved Caching</strong>: Better offline support and faster loading</li>
+                        <li><strong>Enhanced Documentation</strong>: Comprehensive help and changelog</li>
+                    </ul>
+                    
+                    <h3>Core Features</h3>
+                    <ul>
+                        <li>Real-time MIDI streaming over WebRTC</li>
+                        <li>Room-based connections with shareable URLs</li>
+                        <li>Multi-language support (English and Russian)</li>
+                        <li>SysEx support for professional keyboards</li>
+                        <li>IPv6 connectivity support</li>
+                        <li>Debug tools and connection testing</li>
+                        <li>Progressive Web App (PWA) capabilities</li>
+                        <li>Full accessibility features</li>
+                        <li><strong>MIDI Mini Apps:</strong> Nord Effects Controller (BETA) and Chord Display</li>
+                    </ul>
+                </section>
+            </article>
+
+            <div class="help-navigation">
+                <button id="backBtn2" class="btn btn-primary">← Back to App</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>For issues or questions, visit: <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub Repository</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Handle back button clicks
+        document.getElementById('backBtn').addEventListener('click', goBack);
+        document.getElementById('backBtn2').addEventListener('click', goBack);
+
+        function goBack() {
+            // Get the return URL from query parameter or go to index
+            const params = new URLSearchParams(window.location.search);
+            const returnUrl = params.get('return') || './index.html';
+            window.location.href = returnUrl;
+        }
+
+        // Focus the main content for screen readers
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainContent = document.querySelector('main');
+            if (mainContent) {
+                mainContent.setAttribute('tabindex', '-1');
+                mainContent.focus();
+            }
+        });
+    </script>
+</body>
+</html>
