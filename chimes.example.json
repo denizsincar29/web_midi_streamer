@@ -1,38 +1,52 @@
 {
   "info": {
     "type": "notes",
-    "notes": "A4",
-    "velocity": 90,
+    "notes": "A7",
+    "velocity": 40,
     "duration": 150,
     "comment": "Single note for info messages"
   },
   "success": {
     "type": "notes",
-    "notes": "C5 E5",
-    "velocity": 100,
-    "duration": 100,
+    "notes": "Db7 F7",
+    "velocity": 60,
+    "duration": 60,
     "comment": "Cheerful ascending notes for successful connection"
   },
   "connecting": {
     "type": "notes",
-    "notes": "E4 G4",
+    "notes": "F7 Ab7",
     "velocity": 85,
     "duration": 80,
     "comment": "Quick ascending notes while connecting"
   },
+  "room_connection": {
+    "type": "notes",
+    "notes": "C#7 F7",
+    "velocity": 100,
+    "duration": 50,
+    "comment": "Very fast dual notes for room connection chime"
+  },
+  "peer_connection": {
+    "type": "notes",
+    "notes": "Ab6 Db6 F6 Db7",
+    "velocity": 95,
+    "duration": 60,
+    "comment": "Fast ascending sequence for peer connection chime"
+  },
   "warning": {
     "type": "notes",
-    "notes": "G4 F4",
+    "notes": "Bb2 Bb2 Bb2",
     "velocity": 100,
     "duration": 100,
     "comment": "Descending notes for warnings"
   },
   "error": {
     "type": "notes",
-    "notes": "F4 D4",
+    "notes": "F#6+C6 C#6+A6",
     "velocity": 110,
-    "duration": 200,
-    "comment": "Lower descending notes for errors"
+    "duration": 150,
+    "comment": "Two simultaneous interval chords for error notifications"
   },
   "_example_midi_file": {
     "type": "midi",
@@ -40,6 +54,6 @@
     "comment": "MIDI file playback is a future feature - currently falls back to default note"
   },
   "_instructions": {
-    "comment": "See CHIMES.md for full documentation on customizing chimes"
+    "comment": "See CHIMES.md for full documentation on customizing chimes. Use + to play simultaneous notes."
   }
 }
