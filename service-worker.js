@@ -1,5 +1,5 @@
 // Service Worker for Web MIDI Streamer PWA
-const CACHE_NAME = 'midi-streamer-v1.2.2';
+const CACHE_NAME = 'midi-streamer-v1.2.3';
 
 // Get the base path from the service worker's own URL
 const getBasePath = () => {
@@ -24,12 +24,7 @@ const urlsToCache = [
   basePath + 'src/i18n.js',
   basePath + 'src/chord-utils.js',
   basePath + 'manifest.json',
-  basePath + 'favicon.ico',
-  basePath + 'tools/index.html',
-  basePath + 'tools/nord-effects.html',
-  basePath + 'tools/chord-display.html',
-  basePath + 'tools/deprecated/irealb-maker.html',
-  basePath + 'tools/help.html'
+  basePath + 'favicon.ico'
 ];
 
 // Install event - cache resources
@@ -60,7 +55,6 @@ self.addEventListener('fetch', (event) => {
   // Skip signaling and dynamic API requests so they always hit the network.
   if (requestUrl.pathname.endsWith('/rooms') ||
       requestUrl.pathname.endsWith('/signal') ||
-      event.request.url.includes('signaling.php') ||
       event.request.url.includes('get-turn-credentials.php')) {
     return;
   }

@@ -76,7 +76,6 @@ mkdir -p signaling_data
 
 - **[Help Guide](help-en.html)** - Step-by-step usage instructions (includes version history)
 - **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
-- **[Mini Apps Help](tools/help.html)** - Documentation for MIDI Mini Apps (Nord Effects & Chord Display)
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
 
 ## 🎛️ MIDI Mini Apps
@@ -91,17 +90,14 @@ Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary
 ### 🎼 Chord Display
 Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.
 
-Access mini apps via the "🎹 Mini Apps" button in the main app header.
-
 ## 🏗️ Architecture
 
 ```
 ┌─────────┐     WebRTC P2P      ┌─────────┐
 │ User 1  │◄──────────────────►│ User 2  │
 └─────────┘                     └─────────┘
-     │                               │
-     └───── signaling.php ───────────┘
-           (HTTP polling)
+      │                               │
+      └───── signaler/ (WebSocket) ───┘
 ```
 
 - **Frontend**: ES6 modules, Web MIDI API, WebRTC
@@ -117,9 +113,9 @@ Access mini apps via the "🎹 Mini Apps" button in the main app header.
 - `src/midi.js` - MIDI device handling
 - `src/ui.js` - User interface updates
 - `src/i18n.js` - Internationalization translations
-- `signaling.php` - WebRTC signaling server
+- `signaler/` - WebSocket-based signaling server (recommended)
+- `signaling.php` - Deprecated HTTP-polling signaler (legacy)
 - `service-worker.js` - PWA offline support
-- `tools/` - MIDI mini apps (Nord Effects Controller, Chord Display, iRealPro Maker)
 
 ## 🌐 Deployment
 
