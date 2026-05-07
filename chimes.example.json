@@ -16,35 +16,35 @@
   "connecting": {
     "type": "notes",
     "notes": "F7 Ab7",
-    "velocity": 85,
+    "velocity": 70,
     "duration": 80,
     "comment": "Quick ascending notes while connecting"
   },
   "room_connection": {
     "type": "notes",
     "notes": "C#7 F7",
-    "velocity": 100,
+    "velocity": 70,
     "duration": 50,
     "comment": "Very fast dual notes for room connection chime"
   },
   "peer_connection": {
     "type": "notes",
     "notes": "Ab6 Db6 F6 Db7",
-    "velocity": 95,
+    "velocity": 70,
     "duration": 60,
     "comment": "Fast ascending sequence for peer connection chime"
   },
   "warning": {
     "type": "notes",
     "notes": "Bb2 Bb2 Bb2",
-    "velocity": 100,
+    "velocity": 70,
     "duration": 100,
     "comment": "Descending notes for warnings"
   },
   "error": {
     "type": "notes",
     "notes": "F#6+C6 C#6+A6",
-    "velocity": 110,
+    "velocity": 70,
     "duration": 150,
     "comment": "Two simultaneous interval chords for error notifications"
   },
