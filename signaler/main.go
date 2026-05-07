@@ -16,6 +16,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -28,6 +29,12 @@ type Client struct {
 	conn *websocket.Conn
 	send chan []byte
 }
+
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = (pongWait * 9) / 10
+)
 
 type Hub struct {
 	mu    sync.RWMutex
@@ -108,11 +115,30 @@ var upgrader = websocket.Upgrader{
 // ── Per-client goroutines ─────────────────────────────────────────────────────
 
 func (h *Hub) writePump(c *Client) {
-	defer c.conn.Close()
-	for msg := range c.send {
-		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-			log.Printf("write err peer=%s: %v", c.id, err)
-			return
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+
+	for {
+		select {
+		case msg, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				log.Printf("write err peer=%s: %v", c.id, err)
+				return
+			}
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("ping err peer=%s: %v", c.id, err)
+				return
+			}
 		}
 	}
 }
@@ -125,6 +151,10 @@ func (h *Hub) readPump(c *Client) {
 	}()
 
 	c.conn.SetReadLimit(64 * 1024) // 64 KB max message (plenty for SDP)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 
 	for {
 		_, msg, err := c.conn.ReadMessage()
@@ -183,6 +213,9 @@ func main() {
 	})
 	mux.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		rooms := hub.listRooms()
 		json.NewEncoder(w).Encode(rooms)
 	})

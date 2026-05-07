@@ -34,8 +34,12 @@ export class MIDIStreamer {
             this.ui.updateButtonStates(true, connected);
             this.ui.enableChat(connected);
             if (connected) {
+                this.stopRoomAutoRefresh();
                 this.midi.playStatusChime('peer_connection');
                 this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
+            } else {
+                this.startRoomAutoRefresh();
+                this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
             }
         };
 
@@ -45,6 +49,7 @@ export class MIDIStreamer {
     async init() {
         this.initI18n();
         this.setupEventListeners();
+        this.startRoomAutoRefresh();
         document.getElementById('ipv6Enabled').checked = this.settings.ipv6Enabled;
 
         const roomNameInput = document.getElementById('roomNameInput');
@@ -238,7 +243,21 @@ export class MIDIStreamer {
     }
 
     startRoomAutoRefresh(intervalMs = 5000) {
-        return intervalMs;
+        if (this.roomRefreshIntervalId) {
+            clearInterval(this.roomRefreshIntervalId);
+            this.roomRefreshIntervalId = null;
+        }
+
+        if (this.webrtc.isConnected()) {
+            return;
+        }
+
+        this.refreshAvailableRooms();
+        this.roomRefreshIntervalId = setInterval(() => {
+            if (!this.webrtc.isConnected()) {
+                this.refreshAvailableRooms();
+            }
+        }, intervalMs);
     }
 
     stopRoomAutoRefresh() {
@@ -256,6 +275,7 @@ export class MIDIStreamer {
             const shareUrl = await this.webrtc.connect(roomName);
             if (shareUrl) {
                 this.currentRoomName = roomName;
+                this.stopRoomAutoRefresh();
                 this.ui.updateRoomName(`${t('status.title')} ${roomName}`);
                 this.ui.addMessage(`${t('connection.connectedToRoom')} '${roomName}'`, 'success');
                 this.ui.addMessage(`${t('connection.shareUrl')} ${shareUrl}`, 'info');
@@ -284,6 +304,7 @@ export class MIDIStreamer {
         this.currentRoomName = '';
         this.setRoomsVisibility(true);
         this.midi.refreshDevices();
+        this.startRoomAutoRefresh();
         this.refreshAvailableRooms();
     }
 

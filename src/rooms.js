@@ -31,6 +31,7 @@ export class RoomManager {
         try {
             const response = await fetch(`${this.getSignalerUrl()}/rooms`, {
                 method: 'GET',
+                cache: 'no-store',
                 headers: {
                     'Accept': 'application/json',
                 },

@@ -55,8 +55,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip signaling and API requests
-  if (event.request.url.includes('signaling.php') || 
+  const requestUrl = new URL(event.request.url);
+
+  // Skip signaling and dynamic API requests so they always hit the network.
+  if (requestUrl.pathname.endsWith('/rooms') ||
+      requestUrl.pathname.endsWith('/signal') ||
+      event.request.url.includes('signaling.php') ||
       event.request.url.includes('get-turn-credentials.php')) {
     return;
   }
