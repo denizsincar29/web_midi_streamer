@@ -52,6 +52,9 @@ export class WebRTCManager {
         this.hasConnection = false;
         this.manualDisconnect = false;
         this.pingStats = this._resetPing();
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 6;
+        this.reconnectTimer = null;
     }
 
     _resetPing() {
@@ -132,6 +135,9 @@ export class WebRTCManager {
             ws.onopen = () => {
                 clearTimeout(timer);
                 this.onStatusUpdate('✅ Signaling server connected', 'success');
+                // reset reconnect attempts on successful open
+                this.reconnectAttempts = 0;
+                if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
                 resolve();
             };
 
@@ -148,10 +154,37 @@ export class WebRTCManager {
             };
 
             ws.onclose = () => {
-                if (!this.manualDisconnect)
-                    this.onStatusUpdate('⚠️ Signaling disconnected', 'warning');
+                if (!this.manualDisconnect) {
+                    // Notify softly (no chime) and begin reconnect attempts
+                    this.onStatusUpdate('Signaling disconnected — retrying…', 'info', false);
+                    this._scheduleReconnect();
+                }
             };
         });
+    }
+
+    _scheduleReconnect() {
+        if (this.manualDisconnect) return;
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            this.onStatusUpdate('Unable to reconnect to signaling server', 'error');
+            return;
+        }
+
+        const attempt = ++this.reconnectAttempts;
+        const delay = Math.min(30_000, 1000 * Math.pow(2, attempt)); // exponential backoff up to 30s
+        console.log(`Signaling reconnect attempt ${attempt} in ${delay}ms`);
+
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = setTimeout(async () => {
+            try {
+                await this._wsOpen();
+                // Reconnected: if we already have a PeerConnection, rejoin step may be needed by higher layer
+                this.onStatusUpdate('Reconnected to signaling server', 'success');
+            } catch (err) {
+                console.warn('Reconnect failed:', err);
+                this._scheduleReconnect();
+            }
+        }, delay);
     }
 
     // Send a signaling message via WebSocket (broadcast to room peers by server)

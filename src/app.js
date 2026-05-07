@@ -22,7 +22,7 @@ export class MIDIStreamer {
         this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
             (msg) => this.handleWebRTCMessage(msg),
-            (text, type) => this.ui.addMessage(text, type)
+            (text, type, announce) => this.ui.addMessage(text, type, announce)
         );
 
         this.roomManager = new RoomManager(location.hostname);
