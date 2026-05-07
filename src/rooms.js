@@ -11,6 +11,7 @@ export class RoomManager {
         this.signalerProto = location.protocol === 'https:' ? 'https' : 'http';
         this.rooms = [];
         this.isLoading = false;
+        this.lastRoomNames = new Set();
     }
 
     /**
@@ -58,31 +59,35 @@ export class RoomManager {
     /**
      * Display rooms in the UI
      */
-    displayRooms(rooms, onRoomClick) {
+    displayRooms(rooms, onRoomClick, options = {}) {
         const roomsList = document.getElementById('roomsList');
         const roomsStatus = document.getElementById('roomsStatus');
+        const excludedRoomName = options.excludedRoomName || '';
+        const announceRoom = options.announceRoom || null;
 
         if (!roomsList) return;
 
         roomsList.innerHTML = '';
 
-        if (!rooms || rooms.length === 0) {
+        const visibleRooms = (rooms || []).filter((room) => room && room.name && room.name !== excludedRoomName);
+
+        if (!visibleRooms.length) {
             roomsStatus.textContent = t('rooms.noActive');
             roomsStatus.className = 'rooms-status empty';
             return;
         }
 
-        if (rooms.length === 1) {
+        if (visibleRooms.length === 1) {
             roomsStatus.textContent = t('rooms.availableCount_singular');
         } else {
-            roomsStatus.textContent = t('rooms.availableCount_plural').replace('{n}', rooms.length);
+            roomsStatus.textContent = t('rooms.availableCount_plural').replace('{n}', visibleRooms.length);
         }
         roomsStatus.className = 'rooms-status';
 
         const ul = document.createElement('ul');
         ul.className = 'rooms-items';
 
-        rooms.forEach((room) => {
+        visibleRooms.forEach((room) => {
             const li = document.createElement('li');
             li.className = 'room-item';
 
@@ -112,8 +117,13 @@ export class RoomManager {
             li.appendChild(peerCountSpan);
             li.appendChild(joinBtn);
             ul.appendChild(li);
+
+            if (announceRoom && this.lastRoomNames.size > 0 && !this.lastRoomNames.has(room.name)) {
+                announceRoom(room.name, room.peerCount || 0);
+            }
         });
 
         roomsList.appendChild(ul);
+        this.lastRoomNames = new Set(visibleRooms.map((room) => room.name));
     }
 }

@@ -147,6 +147,12 @@ export class UIManager {
         this.elements.roomName.textContent = text;
     }
 
+    announceStatus(text) {
+        if (this.elements.statusBar) {
+            this.elements.statusBar.textContent = text;
+        }
+    }
+
     updateButtonStates(connected, debugEnabled = false) {
         this.elements.connectBtn.disabled = connected;
         this.elements.disconnectBtn.disabled = !connected;

@@ -28,6 +28,7 @@ export class MIDIStreamer {
         this.roomManager = new RoomManager(location.hostname);
         this.webrtc.ipv6Enabled = this.settings.ipv6Enabled;
         this.roomRefreshIntervalId = null;
+        this.currentRoomName = '';
 
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
@@ -173,8 +174,6 @@ export class MIDIStreamer {
         const refreshRoomsBtn = document.getElementById('refreshRoomsBtn');
         if (refreshRoomsBtn) refreshRoomsBtn.addEventListener('click', () => this.refreshAvailableRooms());
 
-        this.startRoomAutoRefresh();
-
         const helpBtn = document.getElementById('helpBtn');
         helpBtn.addEventListener('click', () => {
             const currentLang = getCurrentLanguage();
@@ -210,15 +209,28 @@ export class MIDIStreamer {
     }
 
     async refreshAvailableRooms() {
+        if (this.webrtc.isConnected()) {
+            this.setRoomsVisibility(false);
+            return;
+        }
+
         try {
             const rooms = await this.roomManager.fetchRooms();
-            this.roomManager.displayRooms(rooms, (roomName) => {
+            const visibleRooms = rooms.filter((room) => room.name !== this.currentRoomName);
+            this.roomManager.displayRooms(visibleRooms, (roomName) => {
                 const roomNameInput = document.getElementById('roomNameInput');
                 if (roomNameInput) {
                     roomNameInput.value = roomName;
                 }
                 this.connect();
+            }, {
+                excludedRoomName: this.currentRoomName,
+                announceRoom: (roomName, peerCount) => {
+                    const countText = peerCount === 1 ? t('rooms.peerCount_singular') : t('rooms.peerCount_plural').replace('{n}', peerCount);
+                    this.ui.announceStatus(t('rooms.newRoomAvailable').replace('{room}', roomName).replace('{count}', countText));
+                }
             });
+            this.setRoomsVisibility(true);
         } catch (err) {
             console.error('Failed to refresh rooms:', err);
             this.ui.addMessage(t('rooms.refreshFailed') || 'Failed to refresh rooms', 'error');
@@ -226,9 +238,7 @@ export class MIDIStreamer {
     }
 
     startRoomAutoRefresh(intervalMs = 5000) {
-        if (this.roomRefreshIntervalId) return; // already running
-        this.refreshAvailableRooms();
-        this.roomRefreshIntervalId = setInterval(() => this.refreshAvailableRooms(), intervalMs);
+        return intervalMs;
     }
 
     stopRoomAutoRefresh() {
@@ -245,10 +255,12 @@ export class MIDIStreamer {
             if (!roomName) { this.ui.addMessage(t('connection.enterRoomNamePrompt'), 'error'); return; }
             const shareUrl = await this.webrtc.connect(roomName);
             if (shareUrl) {
+                this.currentRoomName = roomName;
                 this.ui.updateRoomName(`${t('status.title')} ${roomName}`);
                 this.ui.addMessage(`${t('connection.connectedToRoom')} '${roomName}'`, 'success');
                 this.ui.addMessage(`${t('connection.shareUrl')} ${shareUrl}`, 'info');
                 this.midi.playStatusChime('room_connection');
+                this.setRoomsVisibility(false);
                 this.ui.displayShareableUrl(shareUrl, (url) => {
                     copyToClipboard(url).then(() => this.ui.addMessage(t('connection.urlCopied'), 'success'))
                         .catch(() => this.ui.addMessage(t('connection.copyUrlFailed'), 'error'));
@@ -265,11 +277,21 @@ export class MIDIStreamer {
         this.midi.allNotesOff();
         this.webrtc.disconnect();
         this.ui.addMessage(t('status.disconnected'), 'info');
-        this.ui.updateConnectionStatus('Disconnected', 'disconnected');
+        this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
         this.ui.updateButtonStates(false, false);
         this.ui.enableChat(false);
         this.webrtc.manualDisconnect = false;
+        this.currentRoomName = '';
+        this.setRoomsVisibility(true);
         this.midi.refreshDevices();
+        this.refreshAvailableRooms();
+    }
+
+    setRoomsVisibility(visible) {
+        const section = document.querySelector('.available-rooms');
+        if (section) {
+            section.hidden = !visible;
+        }
     }
 
     handleMIDIInput(data) {

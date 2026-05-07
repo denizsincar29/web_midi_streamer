@@ -73,6 +73,7 @@ export const translations = {
         'rooms.join': 'Join',
         'rooms.peerCount_singular': '1 peer',
         'rooms.peerCount_plural': '{n} peers',
+        'rooms.newRoomAvailable': 'New room available: {room} ({count})',
         
         // Settings (formerly Advanced)
         'settings.title': 'Settings',
@@ -375,6 +376,7 @@ export const translations = {
         'rooms.join': 'Войти',
         'rooms.peerCount_singular': '1 участник',
         'rooms.peerCount_plural': '{n} участников',
+        'rooms.newRoomAvailable': 'Новая комната: {room} ({count})',
         
         // Settings (formerly Advanced)
         'settings.title': 'Настройки',
