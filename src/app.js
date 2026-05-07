@@ -27,6 +27,7 @@ export class MIDIStreamer {
 
         this.roomManager = new RoomManager(location.hostname);
         this.webrtc.ipv6Enabled = this.settings.ipv6Enabled;
+        this.roomRefreshIntervalId = null;
 
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
@@ -206,6 +207,34 @@ export class MIDIStreamer {
                 this.ui.addMessage(t('chat.notConnected'), 'error');
             }
         };
+    }
+
+    async refreshAvailableRooms() {
+        try {
+            const rooms = await this.roomManager.fetchRooms();
+            this.roomManager.displayRooms(rooms, (roomName) => {
+                const roomNameInput = document.getElementById('roomNameInput');
+                if (roomNameInput) {
+                    roomNameInput.value = roomName;
+                }
+                this.connect();
+            });
+        } catch (err) {
+            console.error('Failed to refresh rooms:', err);
+            this.ui.addMessage(t('rooms.refreshFailed') || 'Failed to refresh rooms', 'error');
+        }
+    }
+
+    startRoomAutoRefresh(intervalMs = 5000) {
+        if (this.roomRefreshIntervalId) return; // already running
+        this.refreshAvailableRooms();
+        this.roomRefreshIntervalId = setInterval(() => this.refreshAvailableRooms(), intervalMs);
+    }
+
+    stopRoomAutoRefresh() {
+        if (!this.roomRefreshIntervalId) return;
+        clearInterval(this.roomRefreshIntervalId);
+        this.roomRefreshIntervalId = null;
     }
 
     async connect() {
