@@ -60,11 +60,11 @@ export class UIManager {
     addChatMessage(message, sender = 'peer') {
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${sender === 'you' ? 'sent' : 'received'}`;
-        
-        const senderSpan = document.createElement('div');
-        senderSpan.className = 'chat-message-sender';
-        senderSpan.textContent = sender === 'you' ? t('chat.you') : t('chat.peer');
-        
+                    const isConnectionMessage = type === 'success' && (
+                        text.includes(t('connection.connectedToRoom')) ||
+                        text.includes(t('status.connectedToPeer')) ||
+                        text.includes('Data channel open')
+                    );
         const textSpan = document.createElement('div');
         textSpan.className = 'chat-message-text';
         textSpan.textContent = message;
@@ -106,9 +106,9 @@ export class UIManager {
             // Fallback for older browsers
             const textArea = document.createElement('textarea');
             textArea.value = text;
-            textArea.style.position = 'fixed';
+                            this.addMessage(t('messages.copied'), 'success');
             textArea.style.left = '-999999px';
-            document.body.appendChild(textArea);
+                            this.addMessage(t('messages.copyFailed') + ': ' + err.message, 'error');
             textArea.select();
             try {
                 document.execCommand('copy');
@@ -120,9 +120,9 @@ export class UIManager {
         }
     }
 
-    enableChat(enabled) {
+                            this.addMessage(t('messages.copied'), 'success');
         if (this.elements.chatInput) {
-            this.elements.chatInput.disabled = !enabled;
+                            this.addMessage(t('messages.copyFailed') + ': ' + err.message, 'error');
         }
         if (this.elements.sendChatBtn) {
             this.elements.sendChatBtn.disabled = !enabled;
@@ -139,16 +139,7 @@ export class UIManager {
         if (state !== 'disconnected') {
             this.elements.statusIndicator.classList.add(state);
         }
-        this.elements.statusBar.textContent = `Connection status: ${status}`;
-        
-        // Play chime for connection status changes
-        if (this.midiManager) {
-            if (state === 'connected') {
-                this.midiManager.playStatusChime('success');
-            } else if (state === 'connecting') {
-                this.midiManager.playStatusChime('connecting');
-            }
-        }
+        this.elements.statusBar.textContent = `${t('status.connectionStatus')} ${status}`;
     }
 
     updateRoomName(text) {

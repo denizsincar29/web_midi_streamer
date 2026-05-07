@@ -2,6 +2,7 @@ import { getRoomNameFromURL, copyToClipboard } from './utils.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
+import { RoomManager } from './rooms.js';
 import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 
 class MIDIStreamer {
@@ -28,6 +29,9 @@ class MIDIStreamer {
             (text, type) => this.ui.addMessage(text, type)
         );
         
+        // Initialize room manager with signaler host
+        this.roomManager = new RoomManager(location.hostname);
+        
         // Pass initial IPv6 setting to WebRTC manager
         this.webrtc.ipv6Enabled = this.settings.ipv6Enabled;
         
@@ -35,6 +39,8 @@ class MIDIStreamer {
             this.ui.updateButtonStates(true, connected);
             this.ui.enableChat(connected);
             if (connected) {
+                // Play peer connection chime
+                this.midi.playStatusChime('peer_connection');
                 this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
             }
         };
@@ -60,31 +66,32 @@ class MIDIStreamer {
         // Check if TURN relay mode is enabled
         const params = new URLSearchParams(window.location.search);
         if (params.get('forceTurn') === 'true') {
-            this.ui.addMessage('⚠️ TURN RELAY MODE: All connections will use TURN server (no direct P2P)', 'warning');
+            this.ui.addMessage(t('warning.turnRelay'), 'warning');
         }
         
         // Add cleanup on page unload
         window.addEventListener('beforeunload', () => {
+            this.midi.allNotesOff(); // Release all MIDI notes before unload
             this.disconnect();
         });
         
         try {
             await this.midi.init();
-            this.ui.addMessage('MIDI access granted', 'success');
+            this.ui.addMessage(t('midi.accessGranted'), 'success');
             this.midi.refreshDevices();
         } catch (error) {
-            this.ui.addMessage(`MIDI access failed: ${error.message}`, 'error');
+            this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
         }
         
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
         
         if (this.roomName) {
             this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
-            this.ui.addMessage(`Auto-connecting to room '${this.roomName}'...`, 'info');
+            this.ui.addMessage(`${t('connection.autoConnecting')} '${this.roomName}'...`, 'info');
             this.connect();
         } else {
             this.ui.updateRoomName(t('status.enterRoomName'));
-            this.ui.addMessage('Enter a room name and click "Connect" to join', 'info');
+            this.ui.addMessage(t('connection.enterAndConnect'), 'info');
         }
     }
 
@@ -99,8 +106,9 @@ class MIDIStreamer {
             document.documentElement.lang = e.target.value;
         });
         
-        // Initial translation update
+        // Initial translation update and set document language
         this.updatePageTranslations();
+        document.documentElement.lang = getCurrentLanguage();
     }
 
     updatePageTranslations() {
@@ -157,12 +165,12 @@ class MIDIStreamer {
     setupEventListeners() {
         document.getElementById('sysexEnabled').addEventListener('change', (e) => {
             this.settings.sysexEnabled = e.target.checked;
-            this.ui.addMessage(`SysEx ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            this.ui.addMessage(e.target.checked ? t('settings.sysexEnabledMsg') : t('settings.sysexDisabledMsg'), 'info');
         });
         
         document.getElementById('timestampEnabled').addEventListener('change', (e) => {
             this.settings.timestampEnabled = e.target.checked;
-            this.ui.addMessage(`Timestamp sync ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            this.ui.addMessage(e.target.checked ? t('settings.timestampEnabledMsg') : t('settings.timestampDisabledMsg'), 'info');
             
             // Send settings sync to remote peer (only if not updating from remote)
             if (!this.isUpdatingFromRemote && this.webrtc && this.webrtc.isConnected()) {
@@ -178,7 +186,7 @@ class MIDIStreamer {
         document.getElementById('showMidiActivity').addEventListener('change', (e) => {
             this.settings.showMidiActivity = e.target.checked;
             this.ui.toggleMidiActivity(e.target.checked);
-            this.ui.addMessage(`MIDI activity display ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            this.ui.addMessage(e.target.checked ? t('settings.midiActivityEnabledMsg') : t('settings.midiActivityDisabledMsg'), 'info');
         });
         
         document.getElementById('midiInput').addEventListener('change', (e) => {
@@ -191,8 +199,17 @@ class MIDIStreamer {
         
         document.getElementById('refreshDevices').addEventListener('click', () => {
             this.midi.refreshDevices();
-            this.ui.addMessage('MIDI devices refreshed', 'info');
+            this.ui.addMessage(t('midi.devicesRefreshed'), 'info');
         });
+        
+        // Room management listeners
+        const refreshRoomsBtn = document.getElementById('refreshRoomsBtn');
+        if (refreshRoomsBtn) {
+            refreshRoomsBtn.addEventListener('click', () => this.refreshAvailableRooms());
+        }
+        
+        // Start auto-refreshing available rooms
+        this.startRoomAutoRefresh();
         
         // Help button event listener - navigate to help page
         const helpBtn = document.getElementById('helpBtn');
@@ -215,12 +232,12 @@ class MIDIStreamer {
         
         document.getElementById('midiEchoEnabled').addEventListener('change', (e) => {
             this.settings.midiEchoEnabled = e.target.checked;
-            this.ui.addMessage(`MIDI echo ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            this.ui.addMessage(e.target.checked ? t('settings.midiEchoEnabledMsg') : t('settings.midiEchoDisabledMsg'), 'info');
         });
         
         document.getElementById('ipv6Enabled').addEventListener('change', (e) => {
             this.settings.ipv6Enabled = e.target.checked;
-            this.ui.addMessage(`IPv6 P2P ${e.target.checked ? 'enabled' : 'disabled'}`, 'info');
+            this.ui.addMessage(e.target.checked ? t('settings.ipv6EnabledMsg') : t('settings.ipv6DisabledMsg'), 'info');
             // Pass the setting to WebRTC manager if it exists
             if (this.webrtc) {
                 this.webrtc.ipv6Enabled = e.target.checked;
@@ -233,7 +250,7 @@ class MIDIStreamer {
                 this.webrtc.send({ type: 'chat', data: message });
                 this.ui.addChatMessage(message, 'you');
             } else {
-                this.ui.addMessage('Not connected - cannot send chat message', 'error');
+                this.ui.addMessage(t('chat.notConnected'), 'error');
             }
         };
     }
@@ -244,47 +261,53 @@ class MIDIStreamer {
             const roomNameInput = document.getElementById('roomNameInput');
             
             if (!roomNameInput) {
-                this.ui.addMessage('Room name input not found', 'error');
+                this.ui.addMessage(t('connection.roomInputNotFound'), 'error');
                 return;
             }
             
             const roomName = roomNameInput.value.trim();
             
             if (!roomName) {
-                this.ui.addMessage('Please enter a room name', 'error');
+                this.ui.addMessage(t('connection.enterRoomNamePrompt'), 'error');
                 return;
             }
             
             const shareUrl = await this.webrtc.connect(roomName);
             
             if (shareUrl) {
-                this.ui.updateRoomName(`Room: ${roomName}`);
-                this.ui.addMessage(`Connected to room '${roomName}'`, 'success');
-                this.ui.addMessage(`Share this URL: ${shareUrl}`, 'info');
+                this.ui.updateRoomName(`${t('status.title')} ${roomName}`);
+                this.ui.addMessage(`${t('connection.connectedToRoom')} '${roomName}'`, 'success');
+                this.ui.addMessage(`${t('connection.shareUrl')} ${shareUrl}`, 'info');
+                
+                // Play room connection chime
+                this.midi.playStatusChime('room_connection');
                 
                 // Display shareable link
                 this.ui.displayShareableUrl(shareUrl, (url) => {
                     copyToClipboard(url)
-                        .then(() => this.ui.addMessage('URL copied to clipboard!', 'success'))
-                        .catch(() => this.ui.addMessage('Failed to copy URL. Please copy manually.', 'error'));
+                        .then(() => this.ui.addMessage(t('connection.urlCopied'), 'success'))
+                        .catch(() => this.ui.addMessage(t('connection.copyUrlFailed'), 'error'));
                 });
             }
             
             this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
         } catch (error) {
-            this.ui.addMessage(`Connection failed: ${error.message}`, 'error');
+            this.ui.addMessage(`${t('connection.failed')}: ${error.message}`, 'error');
         }
     }
 
     disconnect() {
+        this.midi.allNotesOff(); // Release all MIDI notes on disconnect
         this.webrtc.disconnect();
-        this.ui.addMessage('Disconnected', 'info');
+        this.ui.addMessage(t('status.disconnected'), 'info');
         this.ui.updateConnectionStatus('Disconnected', 'disconnected');
         this.ui.updateButtonStates(false, false);
         this.ui.enableChat(false);
         // Re-enable automatic reconnection for future connections
         this.webrtc.manualDisconnect = false;
+        // Refresh MIDI devices to restore saved selections
+        this.midi.refreshDevices();
     }
 
     handleMIDIInput(data) {
@@ -302,7 +325,7 @@ class MIDIStreamer {
 
     handleWebRTCMessage(msg) {
         if (msg.type === 'test_note') {
-            this.ui.addMessage(`Received test note via WebRTC: ${msg.data}`, 'success');
+            this.ui.addMessage(`${t('debug.receivedTestNote') || 'Received test note via WebRTC:'} ${msg.data}`, 'success');
             this.midi.send(msg.data);
         } else if (msg.type === 'settings_sync') {
             // Remote peer changed their timestamp sync setting - sync ours
@@ -310,7 +333,7 @@ class MIDIStreamer {
                 this.isUpdatingFromRemote = true;
                 this.settings.timestampEnabled = msg.data.timestampEnabled;
                 document.getElementById('timestampEnabled').checked = msg.data.timestampEnabled;
-                this.ui.addMessage(`Timestamp sync ${msg.data.timestampEnabled ? 'enabled' : 'disabled'} by remote peer`, 'info');
+                this.ui.addMessage(msg.data.timestampEnabled ? t('settings.timestampEnabledByRemote') : t('settings.timestampDisabledByRemote'), 'info');
                 this.isUpdatingFromRemote = false;
             }
         } else if (msg.type === 'midi') {
@@ -357,13 +380,13 @@ class MIDIStreamer {
 
     sendTestNote() {
         if (!this.webrtc.isConnected()) {
-            this.ui.addMessage('Data channel not open', 'error');
+            this.ui.addMessage(t('debug.pingNotOpen'), 'error');
             return;
         }
         
         const noteOnData = [0x90, 60, 100];
         this.webrtc.send({ type: 'test_note', data: noteOnData });
-        this.ui.addMessage('Sent test note (C4) via WebRTC', 'info');
+        this.ui.addMessage(t('debug.sentTestNote'), 'info');
         
         setTimeout(() => {
             const noteOffData = [0x80, 60, 0];

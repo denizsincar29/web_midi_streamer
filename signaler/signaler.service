@@ -1,0 +1,30 @@
+[Unit]
+Description=WebRTC Signaling Server (web-midi-streamer)
+After=network.target
+Documentation=https://github.com/denizsincar29/web_midi_streamer
+
+[Service]
+Type=simple
+User=denizsincar29
+Group=deniz
+WorkingDirectory=/home/deniz/signaler
+ExecStart=/home/deniz/signaler/signaler -addr :8765
+
+# Restart on crash, but not on intentional stop
+Restart=on-failure
+RestartSec=5
+
+# Logging — journalctl -u signaler -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=signaler
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/deniz/signaler
+
+[Install]
+WantedBy=multi-user.target

@@ -9,6 +9,10 @@ export class MIDIManager {
         this.chimes = null; // Loaded from chimes.json
         this.chimesLoaded = false;
         this.chimesLoading = this.loadChimes(); // Start loading immediately
+        
+        // Storage keys for device persistence
+        this.STORAGE_KEY_INPUT = 'webmidi_selectedInputId';
+        this.STORAGE_KEY_OUTPUT = 'webmidi_selectedOutputId';
     }
 
     async loadChimes() {
@@ -41,15 +45,27 @@ export class MIDIManager {
                 },
                 'error': {
                     type: 'notes',
-                    notes: 'F4 D4',
-                    velocity: 65,
-                    duration: 200
+                    notes: 'F#6+C6 C#6+A6',
+                    velocity: 80,
+                    duration: 150
                 },
                 'connecting': {
                     type: 'notes',
                     notes: 'E4 G4',
                     velocity: 50,
                     duration: 80
+                },
+                'room_connection': {
+                    type: 'notes',
+                    notes: 'C#7 F7',
+                    velocity: 80,
+                    duration: 50
+                },
+                'peer_connection': {
+                    type: 'notes',
+                    notes: 'Ab6 Db6 F6 Db7',
+                    velocity: 75,
+                    duration: 60
                 }
             };
             this.chimesLoaded = true;
@@ -76,6 +92,13 @@ export class MIDIManager {
         const inputs = Array.from(this.access.inputs.values());
         const outputs = Array.from(this.access.outputs.values());
         
+        // Get previously saved device IDs from storage
+        const savedInputId = localStorage.getItem(this.STORAGE_KEY_INPUT);
+        const savedOutputId = localStorage.getItem(this.STORAGE_KEY_OUTPUT);
+        
+        let selectedInputId = null;
+        let selectedOutputId = null;
+        
         // Only show "No device selected" if there are no devices
         if (inputs.length === 0) {
             const option = document.createElement('option');
@@ -88,11 +111,21 @@ export class MIDIManager {
                 const option = document.createElement('option');
                 option.value = input.id;
                 option.textContent = input.name;
-                if (index === 0) option.selected = true; // Select first device by default
                 inputSelect.appendChild(option);
+                
+                // Try to restore saved device, otherwise use first
+                if (input.id === savedInputId) {
+                    selectedInputId = input.id;
+                    option.selected = true;
+                } else if (!selectedInputId && index === 0) {
+                    selectedInputId = input.id;
+                    option.selected = true;
+                }
             });
-            // Auto-select first input device
-            this.selectInput(inputs[0].id);
+            // Auto-select chosen input device
+            if (selectedInputId) {
+                this.selectInput(selectedInputId);
+            }
         }
         
         if (outputs.length === 0) {
@@ -106,11 +139,21 @@ export class MIDIManager {
                 const option = document.createElement('option');
                 option.value = output.id;
                 option.textContent = output.name;
-                if (index === 0) option.selected = true; // Select first device by default
                 outputSelect.appendChild(option);
+                
+                // Try to restore saved device, otherwise use first
+                if (output.id === savedOutputId) {
+                    selectedOutputId = output.id;
+                    option.selected = true;
+                } else if (!selectedOutputId && index === 0) {
+                    selectedOutputId = output.id;
+                    option.selected = true;
+                }
             });
-            // Auto-select first output device
-            this.selectOutput(outputs[0].id);
+            // Auto-select chosen output device
+            if (selectedOutputId) {
+                this.selectOutput(selectedOutputId);
+            }
         }
     }
 
@@ -126,16 +169,22 @@ export class MIDIManager {
                     this.onMessage(Array.from(event.data));
                 }
             };
+            // Save to localStorage
+            localStorage.setItem(this.STORAGE_KEY_INPUT, deviceId);
         } else {
             this.selectedInput = null;
+            localStorage.removeItem(this.STORAGE_KEY_INPUT);
         }
     }
 
     selectOutput(deviceId) {
         if (deviceId && this.access) {
             this.selectedOutput = this.access.outputs.get(deviceId);
+            // Save to localStorage
+            localStorage.setItem(this.STORAGE_KEY_OUTPUT, deviceId);
         } else {
             this.selectedOutput = null;
+            localStorage.removeItem(this.STORAGE_KEY_OUTPUT);
         }
     }
 
@@ -242,27 +291,56 @@ export class MIDIManager {
     }
     
     /**
-     * Play a sequence of notes
+     * Play a sequence of notes, supporting simultaneous notes with + separator
      * @param {Object} config - Configuration with notes, velocity, duration
+     * Format: "C4 E4 G4" for sequential, "C4+E4 G4+B4" for simultaneous
      */
     playNoteSequence(config) {
-        const noteNames = config.notes.split(/\s+/);
+        const noteGroups = config.notes.split(/\s+/);
         const velocity = config.velocity || 100;
         const duration = config.duration || 100;
         let delay = 0;
         
-        noteNames.forEach(noteName => {
-            const noteNumber = this.noteNameToNumber(noteName);
+        noteGroups.forEach((group) => {
+            // Split by + to find simultaneous notes
+            const notes = group.split('+');
             
             setTimeout(() => {
-                // Note on
-                this.send([0x90, noteNumber, velocity]);
+                // Note on for all notes in group
+                notes.forEach(noteName => {
+                    const noteNumber = this.noteNameToNumber(noteName.trim());
+                    this.send([0x90, noteNumber, velocity]);
+                });
+                
                 // Note off after duration
                 setTimeout(() => {
-                    this.send([0x80, noteNumber, 0]);
+                    notes.forEach(noteName => {
+                        const noteNumber = this.noteNameToNumber(noteName.trim());
+                        this.send([0x80, noteNumber, 0]);
+                    });
                 }, duration);
             }, delay);
-            delay += duration + 50; // Small gap between notes
+            
+            delay += duration + 50; // Small gap between groups
         });
+    }
+
+    /**
+     * Send "All Notes Off" CC to all 16 MIDI channels
+     * This ensures no stuck notes when page unloads or disconnects
+     */
+    allNotesOff() {
+        if (!this.selectedOutput) return;
+        
+        try {
+            // Send CC 123 (All Notes Off) to all 16 channels (0-15)
+            for (let channel = 0; channel < 16; channel++) {
+                const ccMessage = [0xB0 | channel, 123, 0]; // CC 123 = All Notes Off
+                this.send(ccMessage);
+            }
+            console.log('All MIDI notes released');
+        } catch (error) {
+            console.error('Error sending all notes off:', error);
+        }
     }
 }
