@@ -1,6 +1,6 @@
 /**
- * Common chord detection utilities for MIDI mini apps
- * Shared between Chord Display and iRealPro Maker
+ * Common chord detection utilities
+ * Shared chord helper functions used by the application
  */
 
 // MIDI note number to note name mapping (using flats by default for jazz notation)

@@ -78,19 +78,8 @@ mkdir -p signaling_data
 - **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
 - **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
 
-## 🎛️ MIDI Mini Apps
-
-Web MIDI Streamer now includes professional mini apps for pianists and keyboard players:
-
-### 🎚️ Nord Effects Controller (BETA)
-Control Nord keyboard effects via MIDI CC messages. Adjust reverb, delay, rotary speaker, and more in real-time.
-
-**⚠️ EXPERIMENTAL**: This mini app is in beta and may be unstable. CC mappings may not work with all Nord keyboard models. Test carefully before using in performance settings.
-
-### 🎼 Chord Display
-Real-time jazz chord detection from MIDI input. See what chord you're playing with proper jazz notation, supporting 70+ chord types including extended and altered voicings.
-
 ## 🏗️ Architecture
+
 
 ```
 ┌─────────┐     WebRTC P2P      ┌─────────┐
