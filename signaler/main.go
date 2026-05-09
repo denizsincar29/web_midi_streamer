@@ -1,12 +1,11 @@
-// signaler — tiny WebRTC signaling server
-//
-// Each client connects via WebSocket, joins a named room, and broadcasts
-// JSON messages to all OTHER peers in the same room.
-// That's all WebRTC needs for signaling (SDP + ICE candidates).
+// signaler — tiny WebRTC signaling server with room hiding support
 //
 // Build:   go build -o signaler .
 // Run:     ./signaler -addr :8765
 // Protocol: ws://your-host:8765/signal?room=ROOMNAME&peer=PEERID
+//
+// Extra:  POST /hide-room?room=NAME  → marks room as hidden (not in /rooms listing)
+//         POST /show-room?room=NAME  → un-hides a room
 
 package main
 
@@ -20,8 +19,6 @@ import (
 
 	"github.com/gorilla/websocket"
 )
-
-// ── Room registry ─────────────────────────────────────────────────────────────
 
 type Client struct {
 	id   string
@@ -37,12 +34,16 @@ const (
 )
 
 type Hub struct {
-	mu    sync.RWMutex
-	rooms map[string]map[string]*Client // room → peerID → client
+	mu          sync.RWMutex
+	rooms       map[string]map[string]*Client
+	hiddenRooms map[string]bool
 }
 
 func newHub() *Hub {
-	return &Hub{rooms: make(map[string]map[string]*Client)}
+	return &Hub{
+		rooms:       make(map[string]map[string]*Client),
+		hiddenRooms: make(map[string]bool),
+	}
 }
 
 func (h *Hub) join(c *Client) {
@@ -63,11 +64,11 @@ func (h *Hub) leave(c *Client) {
 		log.Printf("leave room=%-20s peer=%s  peers_now=%d", c.room, c.id, len(peers))
 		if len(peers) == 0 {
 			delete(h.rooms, c.room)
+			delete(h.hiddenRooms, c.room) // auto-clean hidden flag
 		}
 	}
 }
 
-// broadcast sends msg to every peer in the same room EXCEPT the sender.
 func (h *Hub) broadcast(sender *Client, msg []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -78,16 +79,15 @@ func (h *Hub) broadcast(sender *Client, msg []byte) {
 		select {
 		case c.send <- msg:
 		default:
-			// slow client — drop rather than block
 			log.Printf("drop  peer=%s (send buffer full)", id)
 		}
 	}
 }
 
-// listRooms returns a JSON array of available rooms with peer counts
 type RoomInfo struct {
 	Name      string `json:"name"`
 	PeerCount int    `json:"peerCount"`
+	Hidden    bool   `json:"hidden,omitempty"`
 }
 
 func (h *Hub) listRooms() []RoomInfo {
@@ -95,32 +95,38 @@ func (h *Hub) listRooms() []RoomInfo {
 	defer h.mu.RUnlock()
 	rooms := make([]RoomInfo, 0, len(h.rooms))
 	for name, peers := range h.rooms {
-		rooms = append(rooms, RoomInfo{
-			Name:      name,
-			PeerCount: len(peers),
-		})
+		if h.hiddenRooms[name] {
+			continue // skip hidden rooms
+		}
+		rooms = append(rooms, RoomInfo{Name: name, PeerCount: len(peers)})
 	}
 	return rooms
 }
 
-// ── WebSocket upgrader ────────────────────────────────────────────────────────
+func (h *Hub) setHidden(room string, hidden bool) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, exists := h.rooms[room]; !exists {
+		return false // room doesn't exist
+	}
+	if hidden {
+		h.hiddenRooms[room] = true
+	} else {
+		delete(h.hiddenRooms, room)
+	}
+	log.Printf("room=%-20s hidden=%v", room, hidden)
+	return true
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	// Allow all origins — restrict this in production if you like
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
-
-// ── Per-client goroutines ─────────────────────────────────────────────────────
 
 func (h *Hub) writePump(c *Client) {
 	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		ticker.Stop()
-		c.conn.Close()
-	}()
-
+	defer func() { ticker.Stop(); c.conn.Close() }()
 	for {
 		select {
 		case msg, ok := <-c.send:
@@ -144,24 +150,16 @@ func (h *Hub) writePump(c *Client) {
 }
 
 func (h *Hub) readPump(c *Client) {
-	defer func() {
-		h.leave(c)
-		close(c.send)
-		c.conn.Close()
-	}()
-
-	c.conn.SetReadLimit(64 * 1024) // 64 KB max message (plenty for SDP)
+	defer func() { h.leave(c); close(c.send); c.conn.Close() }()
+	c.conn.SetReadLimit(64 * 1024)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
 		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
-
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err,
-				websocket.CloseGoingAway,
-				websocket.CloseNormalClosure) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				log.Printf("read err peer=%s: %v", c.id, err)
 			}
 			return
@@ -170,8 +168,6 @@ func (h *Hub) readPump(c *Client) {
 	}
 }
 
-// ── HTTP handler ──────────────────────────────────────────────────────────────
-
 func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	room := r.URL.Query().Get("room")
 	peer := r.URL.Query().Get("peer")
@@ -179,45 +175,62 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing ?room= or ?peer=", http.StatusBadRequest)
 		return
 	}
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("upgrade err: %v", err)
 		return
 	}
-
-	c := &Client{
-		id:   peer,
-		room: room,
-		conn: conn,
-		send: make(chan []byte, 32),
-	}
-
+	c := &Client{id: peer, room: room, conn: conn, send: make(chan []byte, 32)}
 	h.join(c)
 	go h.writePump(c)
-	h.readPump(c) // blocks until client disconnects
+	h.readPump(c)
 }
 
-// ── main ──────────────────────────────────────────────────────────────────────
+func corsJSON(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-store")
+}
 
 func main() {
 	addr := flag.String("addr", ":8765", "listen address")
 	flag.Parse()
 
 	hub := newHub()
-
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/signal", hub.serveWS)
+
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
+
 	mux.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
-		rooms := hub.listRooms()
-		json.NewEncoder(w).Encode(rooms)
+		corsJSON(w)
+		json.NewEncoder(w).Encode(hub.listRooms())
+	})
+
+	// POST /hide-room?room=NAME  or  POST /show-room?room=NAME
+	mux.HandleFunc("/hide-room", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", http.StatusMethodNotAllowed); return
+		}
+		room := r.URL.Query().Get("room")
+		if room == "" { http.Error(w, "missing ?room=", http.StatusBadRequest); return }
+		corsJSON(w)
+		ok := hub.setHidden(room, true)
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": ok, "room": room, "hidden": true})
+	})
+
+	mux.HandleFunc("/show-room", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", http.StatusMethodNotAllowed); return
+		}
+		room := r.URL.Query().Get("room")
+		if room == "" { http.Error(w, "missing ?room=", http.StatusBadRequest); return }
+		corsJSON(w)
+		ok := hub.setHidden(room, false)
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": ok, "room": room, "hidden": false})
 	})
 
 	log.Printf("signaler listening on %s", *addr)

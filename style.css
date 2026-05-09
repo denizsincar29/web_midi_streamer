@@ -916,3 +916,43 @@ footer a:hover {
         margin-left: auto;
     }
 }
+
+/* ── Peer count badge ───────────────────────────────────────────────────────── */
+.peer-count-badge {
+    display: inline-block;
+    background: #28a745;
+    color: #fff;
+    font-size: 0.8em;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    vertical-align: middle;
+    margin-left: 8px;
+    transition: opacity 0.3s;
+}
+.peer-count-badge:empty { display: none; }
+
+/* ── MIDI Recorder ──────────────────────────────────────────────────────────── */
+.recorder-section {
+    background: var(--section-bg, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+}
+.recorder-section h2 {
+    margin: 0 0 12px;
+    font-size: 1.1em;
+}
+.recorder-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.rec-status {
+    margin-top: 10px;
+    font-size: 0.9em;
+    font-weight: 600;
+    min-height: 1.4em;
+    color: #c0392b;
+}

@@ -158,6 +158,8 @@ export class UIManager {
         this.elements.disconnectBtn.disabled = !connected;
         this.elements.sendTestNoteBtn.disabled = !debugEnabled;
         this.elements.sendPingBtn.disabled = !debugEnabled;
+        const hideRoomBtn = document.getElementById('hideRoomBtn');
+        if (hideRoomBtn) hideRoomBtn.disabled = !connected;
     }
 
     addMessage(text, type = 'info', announce = null) {

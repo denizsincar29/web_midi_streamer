@@ -3,6 +3,7 @@ import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
 import { RoomManager } from './rooms.js';
+import { MIDIRecorder } from './recorder.js';
 import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 
 export class MIDIStreamer {
@@ -17,6 +18,11 @@ export class MIDIStreamer {
         };
         this.isUpdatingFromRemote = false;
         this.MAX_TIMESTAMP_DELAY_MS = 10000;
+
+        this.recorder        = new MIDIRecorder();
+        this.currentTake     = null;
+        this.playbackHandle  = null;
+        this.roomHidden      = false;
 
         this.midi = new MIDIManager();
         this.ui = new UIManager(this.midi);
@@ -36,10 +42,19 @@ export class MIDIStreamer {
             if (connected) {
                 this.stopRoomAutoRefresh();
                 this.midi.playStatusChime('peer_connection');
-                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
+                const n = this.webrtc.connectedCount();
+                this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
             } else {
                 this.startRoomAutoRefresh();
                 this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+            }
+        };
+
+        this.webrtc.onPeerCountChange = (n) => {
+            const el = document.getElementById('peerCountBadge');
+            if (el) el.textContent = n > 0 ? `${n} peer${n>1?'s':''}` : '';
+            if (n > 0) {
+                this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
             }
         };
 
@@ -211,6 +226,69 @@ export class MIDIStreamer {
                 this.ui.addMessage(t('chat.notConnected'), 'error');
             }
         };
+
+        // ── MIDI Recorder ──────────────────────────────────────────────────────
+        const recBtn      = document.getElementById('recStartBtn');
+        const recStopBtn  = document.getElementById('recStopBtn');
+        const recPlayBtn  = document.getElementById('recPlayBtn');
+        const recSaveBtn  = document.getElementById('recSaveBtn');
+        const recStatus   = document.getElementById('recStatus');
+
+        this.recorder.onStateChange = (recording) => {
+            if (recBtn)     recBtn.disabled     = recording;
+            if (recStopBtn) recStopBtn.disabled  = !recording;
+            if (recStatus)  recStatus.textContent = recording ? '⏺ Recording…' : (this.currentTake ? '✅ Take ready' : '');
+        };
+
+        recBtn?.addEventListener('click', () => {
+            this.currentTake    = null;
+            this.playbackHandle?.cancel();
+            this.playbackHandle = null;
+            if (recPlayBtn) recPlayBtn.disabled = true;
+            if (recSaveBtn) recSaveBtn.disabled = true;
+            this.recorder.start();
+            this.ui.addMessage('⏺ Recording started', 'info');
+        });
+
+        recStopBtn?.addEventListener('click', () => {
+            this.currentTake = this.recorder.stop();
+            if (!this.currentTake || this.currentTake.events.length === 0) {
+                this.ui.addMessage('Recording stopped — no events captured', 'warning');
+                return;
+            }
+            const dur = (this.currentTake.durationMs / 1000).toFixed(1);
+            if (recPlayBtn) recPlayBtn.disabled = false;
+            if (recSaveBtn) recSaveBtn.disabled = false;
+            if (recStatus)  recStatus.textContent = `✅ Take: ${this.currentTake.events.length} events, ${dur}s`;
+            this.ui.addMessage(`⏹ Recording stopped — ${this.currentTake.events.length} events, ${dur}s`, 'success');
+        });
+
+        recPlayBtn?.addEventListener('click', () => {
+            if (!this.currentTake) return;
+            this.playbackHandle?.cancel();
+            this.ui.addMessage('▶ Playing back recording…', 'info');
+            this.playbackHandle = MIDIRecorder.playback(
+                this.currentTake.events,
+                (data) => this.midi.send(data),
+                () => this.ui.addMessage('▶ Playback finished', 'success')
+            );
+        });
+
+        recSaveBtn?.addEventListener('click', () => {
+            if (!this.currentTake) return;
+            const json = MIDIRecorder.exportJSON(this.currentTake);
+            const blob = new Blob([json], { type: 'application/json' });
+            const a    = document.createElement('a');
+            a.href     = URL.createObjectURL(blob);
+            a.download = `midi-take-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            this.ui.addMessage('💾 Recording saved as JSON', 'success');
+        });
+
+        // ── Hide room button ───────────────────────────────────────────────────
+        const hideRoomBtn = document.getElementById('hideRoomBtn');
+        hideRoomBtn?.addEventListener('click', () => this.toggleRoomHidden());
     }
 
     async refreshAvailableRooms() {
@@ -260,6 +338,34 @@ export class MIDIStreamer {
         }, intervalMs);
     }
 
+    async toggleRoomHidden() {
+        if (!this.currentRoomName) {
+            this.ui.addMessage('Join a room first before hiding it', 'warning');
+            return;
+        }
+        const proto = location.protocol === 'https:' ? 'https' : 'http';
+        const newHidden = !this.roomHidden;
+        const endpoint  = newHidden ? 'hide-room' : 'show-room';
+        try {
+            const res = await fetch(
+                `${proto}://${location.hostname}/${endpoint}?room=${encodeURIComponent(this.currentRoomName)}`,
+                { method: 'POST' }
+            );
+            if (!res.ok) throw new Error(`Server returned ${res.status}`);
+            this.roomHidden = newHidden;
+            const btn = document.getElementById('hideRoomBtn');
+            if (btn) btn.textContent = this.roomHidden ? '👁 Show Room' : '🙈 Hide Room';
+            this.ui.addMessage(
+                this.roomHidden
+                    ? '🙈 Room hidden from the room list'
+                    : '👁 Room is now visible in the room list',
+                'info'
+            );
+        } catch (e) {
+            this.ui.addMessage(`Failed to toggle room visibility: ${e.message}`, 'error');
+        }
+    }
+
     stopRoomAutoRefresh() {
         if (!this.roomRefreshIntervalId) return;
         clearInterval(this.roomRefreshIntervalId);
@@ -288,6 +394,8 @@ export class MIDIStreamer {
             }
             this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
+            const hideBtn = document.getElementById('hideRoomBtn');
+            if (hideBtn) hideBtn.disabled = false;
         } catch (error) {
             this.ui.addMessage(`${t('connection.failed')}: ${error.message}`, 'error');
         }
@@ -295,6 +403,9 @@ export class MIDIStreamer {
 
     disconnect() {
         this.midi.allNotesOff();
+        this.recorder.recording && this.recorder.stop();
+        this.playbackHandle?.cancel();
+        this.playbackHandle = null;
         this.webrtc.disconnect();
         this.ui.addMessage(t('status.disconnected'), 'info');
         this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
@@ -302,6 +413,11 @@ export class MIDIStreamer {
         this.ui.enableChat(false);
         this.webrtc.manualDisconnect = false;
         this.currentRoomName = '';
+        this.roomHidden = false;
+        const hideBtn = document.getElementById('hideRoomBtn');
+        if (hideBtn) hideBtn.textContent = '🙈 Hide Room';
+        const badge = document.getElementById('peerCountBadge');
+        if (badge) badge.textContent = '';
         this.setRoomsVisibility(true);
         this.midi.refreshDevices();
         this.startRoomAutoRefresh();
@@ -317,6 +433,7 @@ export class MIDIStreamer {
 
     handleMIDIInput(data) {
         if (!this.settings.sysexEnabled && data[0] === 0xF0) return;
+        this.recorder.feed(data);   // capture locally played notes
         const message = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
         this.webrtc.send(message);
         this.midi.announceMIDIEvent(data, this.settings.showMidiActivity);

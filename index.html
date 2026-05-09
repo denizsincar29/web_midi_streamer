@@ -78,6 +78,20 @@
                 </div>
                 <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Connect to Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
+                <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list">🙈 Hide Room</button>
+                <span id="peerCountBadge" class="peer-count-badge" aria-live="polite"></span>
+            </section>
+
+            <!-- MIDI Recorder -->
+            <section class="recorder-section">
+                <h2>🎹 MIDI Recorder</h2>
+                <div class="recorder-controls">
+                    <button id="recStartBtn" class="btn btn-danger">⏺ Record</button>
+                    <button id="recStopBtn" class="btn btn-secondary" disabled>⏹ Stop</button>
+                    <button id="recPlayBtn" class="btn btn-secondary" disabled>▶ Play Back</button>
+                    <button id="recSaveBtn" class="btn btn-secondary" disabled>💾 Save JSON</button>
+                </div>
+                <div id="recStatus" class="rec-status" aria-live="polite"></div>
             </section>
 
             <!-- Available Rooms -->
