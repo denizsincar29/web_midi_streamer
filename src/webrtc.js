@@ -67,6 +67,29 @@ export class WebRTCManager {
         await this._wsOpen();
         this._send({ type: 'join', from: this.myId });
         this.onStatusUpdate('⏳ Waiting for other participants…', 'info');
+
+        // Reconnect immediately when tab becomes visible again or network returns —
+        // avoids waiting for the full exponential-backoff timer after a throttle-kill.
+        if (!this._visibilityBound) {
+            this._visibilityBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && !this.manualDisconnect) {
+                    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                        console.log('Tab visible — reconnecting signaling WS');
+                        this.reconnectAttempts = 0;
+                        this._scheduleReconnect();
+                    }
+                }
+            });
+            window.addEventListener('online', () => {
+                if (!this.manualDisconnect && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
+                    console.log('Network online — reconnecting signaling WS');
+                    this.reconnectAttempts = 0;
+                    this._scheduleReconnect();
+                }
+            });
+        }
+
         return `${location.origin}${location.pathname}?room=${encodeURIComponent(roomName)}`;
     }
 
@@ -101,6 +124,7 @@ export class WebRTCManager {
 
     async disconnect() {
         this.manualDisconnect = true;
+        this._stopHeartbeat();
         this.ws?.close(); this.ws = null;
         for (const p of this.peers.values()) { p.dataChannel?.close(); p.pc?.close(); }
         this.peers.clear();
@@ -138,11 +162,38 @@ export class WebRTCManager {
             const ws  = new WebSocket(url);
             this.ws   = ws;
             const timer = setTimeout(() => reject(new Error(`Cannot reach signaling server at ${url}`)), 8000);
-            ws.onopen    = () => { clearTimeout(timer); this.reconnectAttempts = 0; resolve(); };
+            ws.onopen    = () => {
+                clearTimeout(timer);
+                this.reconnectAttempts = 0;
+                this._startHeartbeat();
+                resolve();
+            };
             ws.onmessage = async ({ data }) => { try { await this._handleSignal(JSON.parse(data)); } catch(e){ console.error(e); } };
             ws.onerror   = () => { clearTimeout(timer); reject(new Error('WebSocket error')); };
-            ws.onclose   = () => { if (!this.manualDisconnect) this._scheduleReconnect(); };
+            ws.onclose   = () => {
+                this._stopHeartbeat();
+                if (!this.manualDisconnect) this._scheduleReconnect();
+            };
         });
+    }
+
+    // Application-level heartbeat — keeps the WS alive through browser throttling.
+    // Browsers can suppress WS-protocol pings when backgrounded; an app-level
+    // JSON ping sent from *our* side always produces a send() call that wakes
+    // the socket even in throttled tabs.
+    _startHeartbeat() {
+        this._stopHeartbeat();
+        this._heartbeatTimer = setInterval(() => {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+                // Tiny keepalive — server broadcasts to nobody (from == myId filtered out)
+                // but the send itself resets the server's read deadline.
+                this.ws.send(JSON.stringify({ type: 'keepalive', from: this.myId }));
+            }
+        }, 25_000);   // every 25 s — well under the server's 60 s pongWait deadline
+    }
+
+    _stopHeartbeat() {
+        if (this._heartbeatTimer) { clearInterval(this._heartbeatTimer); this._heartbeatTimer = null; }
     }
 
     _scheduleReconnect() {

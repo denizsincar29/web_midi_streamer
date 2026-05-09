@@ -29,8 +29,8 @@ type Client struct {
 
 const (
 	writeWait  = 10 * time.Second
-	pongWait   = 60 * time.Second
-	pingPeriod = (pongWait * 9) / 10
+	pongWait   = 120 * time.Second  // generous: client heartbeats every 25 s
+	pingPeriod = 30 * time.Second   // server pings every 30 s as a backstop
 )
 
 type Hub struct {
