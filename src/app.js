@@ -14,7 +14,8 @@ export class MIDIStreamer {
             timestampEnabled: false,
             showMidiActivity: false,
             midiEchoEnabled: false,
-            ipv6Enabled: true
+            ipv6Enabled: true,
+            lowLatencyMode: false,
         };
         this.isUpdatingFromRemote = false;
         this.MAX_TIMESTAMP_DELAY_MS = 10000;
@@ -24,11 +25,21 @@ export class MIDIStreamer {
         this.playbackHandle  = null;
         this.roomHidden      = false;
 
+        // ── Web Worker (off-main-thread MIDI serialisation) ────────────────
+        this._midiWorker = null;
+        this._initMidiWorker();
+
+        // ── Stuck Note Prevention ─────────────────────────────────────────
+        // Map<pitch, timeoutId> — one entry per active (Note On) pitch
+        this._activeNotes = new Map();
+        this.STUCK_NOTE_TIMEOUT_MS = 10_000;
+
         this.midi = new MIDIManager();
         this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
             (msg) => this.handleWebRTCMessage(msg),
-            (text, type, announce) => this.ui.addMessage(text, type, announce)
+            (text, type, announce) => this.ui.addMessage(text, type, announce),
+            (pathInfo) => this._updateIPVersionBadge(pathInfo)
         );
 
         this.roomManager = new RoomManager(location.hostname);
@@ -217,6 +228,27 @@ export class MIDIStreamer {
             this.ui.addMessage(e.target.checked ? t('settings.ipv6EnabledMsg') : t('settings.ipv6DisabledMsg'), 'info');
             if (this.webrtc) this.webrtc.ipv6Enabled = e.target.checked;
         });
+
+        // Experimental Low-Latency Mode toggle
+        const llmToggle = document.getElementById('lowLatencyMode');
+        if (llmToggle) {
+            llmToggle.addEventListener('change', (e) => {
+                this.settings.lowLatencyMode = e.target.checked;
+                if (this.webrtc) this.webrtc.lowLatencyMode = e.target.checked;
+                this.ui.addMessage(
+                    e.target.checked
+                        ? '⚡ Low-Latency Mode ON (unordered, no retransmits) — reconnect to apply'
+                        : '🔁 Low-Latency Mode OFF — reconnect to apply',
+                    'info'
+                );
+            });
+        }
+
+        // Emergency All Notes Off
+        const emergencyBtn = document.getElementById('emergencyAllNotesOff');
+        if (emergencyBtn) {
+            emergencyBtn.addEventListener('click', () => this.emergencyAllNotesOff());
+        }
 
         this.ui.onSendChat = (message) => {
             if (this.webrtc.isConnected()) {
@@ -433,9 +465,40 @@ export class MIDIStreamer {
 
     handleMIDIInput(data) {
         if (!this.settings.sysexEnabled && data[0] === 0xF0) return;
-        this.recorder.feed(data);   // capture locally played notes
-        const message = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
-        this.webrtc.send(message);
+        this.recorder.feed(data);
+
+        // Stuck Note Prevention (outgoing)
+        const status = data[0] & 0xF0;
+        const pitch  = data[1];
+        if (status === 0x90 && data[2] > 0) {
+            if (this._activeNotes.has(pitch)) clearTimeout(this._activeNotes.get(pitch));
+            const tid = setTimeout(() => {
+                console.warn('[StuckNote] Auto-releasing pitch ' + pitch);
+                this.midi.send([0x80 | (data[0] & 0x0F), pitch, 0]);
+                this._activeNotes.delete(pitch);
+            }, this.STUCK_NOTE_TIMEOUT_MS);
+            this._activeNotes.set(pitch, tid);
+        } else if (status === 0x80 || (status === 0x90 && data[2] === 0)) {
+            if (this._activeNotes.has(pitch)) {
+                clearTimeout(this._activeNotes.get(pitch));
+                this._activeNotes.delete(pitch);
+            }
+        }
+
+        // Send via Web Worker (binary) or fallback (JSON)
+        if (this._midiWorker) {
+            this._midiWorker.postMessage({
+                type: 'midi',
+                data: new Uint8Array(data),
+                sysexEnabled:     this.settings.sysexEnabled,
+                timestampEnabled: this.settings.timestampEnabled,
+            });
+        } else {
+            const message = this.settings.timestampEnabled
+                ? { data, timestamp: performance.now() } : { data };
+            this.webrtc.send(message);
+        }
+
         this.midi.announceMIDIEvent(data, this.settings.showMidiActivity);
     }
 
@@ -470,6 +533,25 @@ export class MIDIStreamer {
                     }
                 }
             }
+            // Stuck Note Prevention (incoming) — track remote notes too
+            if (data && data.length >= 3) {
+                const st = data[0] & 0xF0;
+                const p  = data[1];
+                if (st === 0x90 && data[2] > 0) {
+                    if (this._activeNotes.has('r' + p)) clearTimeout(this._activeNotes.get('r' + p));
+                    const tid = setTimeout(() => {
+                        console.warn('[StuckNote] Auto-releasing remote pitch', p);
+                        this.midi.send([0x80 | (data[0] & 0x0F), p, 0]);
+                        this._activeNotes.delete('r' + p);
+                    }, this.STUCK_NOTE_TIMEOUT_MS);
+                    this._activeNotes.set('r' + p, tid);
+                } else if (st === 0x80 || (st === 0x90 && data[2] === 0)) {
+                    if (this._activeNotes.has('r' + p)) {
+                        clearTimeout(this._activeNotes.get('r' + p));
+                        this._activeNotes.delete('r' + p);
+                    }
+                }
+            }
             this.midi.send(data);
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
                 const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
@@ -478,6 +560,65 @@ export class MIDIStreamer {
         } else if (msg.type === 'chat') {
             this.ui.addChatMessage(msg.data, 'peer');
         }
+    }
+
+    // ── Web Worker init ────────────────────────────────────────────────────
+
+    _initMidiWorker() {
+        try {
+            this._midiWorker = new Worker(new URL('./midi-worker.js', import.meta.url), { type: 'module' });
+            this._midiWorker.onmessage = (e) => this._onWorkerMessage(e.data);
+            this._midiWorker.onerror   = (e) => {
+                console.error('[MidiWorker] error, falling back to main thread:', e);
+                this._midiWorker = null;
+            };
+            console.log('[MidiWorker] started');
+        } catch (err) {
+            console.warn('[MidiWorker] could not start, falling back to main thread:', err);
+            this._midiWorker = null;
+        }
+    }
+
+    _onWorkerMessage(msg) {
+        if (msg.type === 'midi_ready') {
+            // msg.buffer is a transferred ArrayBuffer with the compact binary packet
+            this.webrtc.send(new Uint8Array(msg.buffer));
+        }
+        // 'dropped' messages are silently ignored (sysex filter etc.)
+    }
+
+    // ── IP version badge ───────────────────────────────────────────────────
+
+    _updateIPVersionBadge(pathInfo) {
+        const badge = document.getElementById('ipVersionBadge');
+        if (!badge) return;
+        const icons = { host: '🏠', srflx: '🌐', relay: '🔁' };
+        const icon  = icons[pathInfo.candidateType] ?? '🔗';
+        badge.textContent = icon + ' ' + pathInfo.ipVersion;
+        badge.className   = 'ip-version-badge ip-version-' + (pathInfo.ipVersion === 'IPv6' ? 'v6' : 'v4');
+        badge.title       = pathInfo.candidateType + ' | local: ' + pathInfo.localAddress;
+        badge.hidden      = false;
+    }
+
+    // ── Emergency All Notes Off ────────────────────────────────────────────
+
+    emergencyAllNotesOff() {
+        // 1. Cancel every local stuck-note timer
+        for (const tid of this._activeNotes.values()) clearTimeout(tid);
+        this._activeNotes.clear();
+
+        // 2. Send CC 123 (All Notes Off) to all 16 channels via MIDI output
+        this.midi.allNotesOff();
+
+        // 3. Also broadcast over WebRTC so the remote side silences too
+        if (this.webrtc.isConnected()) {
+            for (let ch = 0; ch < 16; ch++) {
+                const cc123 = new Uint8Array([0xB0 | ch, 123, 0]);
+                this.webrtc.send(cc123);
+            }
+        }
+
+        this.ui.addMessage('🛑 Emergency: All Notes Off sent (CC 123, all channels)', 'warning');
     }
 
     sendTestNote() {

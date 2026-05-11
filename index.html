@@ -80,6 +80,7 @@
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
                 <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list">🙈 Hide Room</button>
                 <span id="peerCountBadge" class="peer-count-badge" aria-live="polite"></span>
+                <span id="ipVersionBadge" class="ip-version-badge" aria-live="polite" hidden title="Active ICE path type and IP version"></span>
             </section>
 
             <!-- MIDI Recorder -->
@@ -150,8 +151,22 @@
                         </label>
                         <p id="ipv6-desc" class="description" data-i18n="settings.ipv6Desc">Attempt IPv6 connections for peer-to-peer communication. If disabled, only IPv4 will be used.</p>
                     </div>
-                    
+
+                    <!-- Experimental Low-Latency Mode -->
+                    <div class="setting-group experimental-mode">
+                        <label>
+                            <input type="checkbox" id="lowLatencyMode" aria-describedby="llm-desc">
+                            <span>⚡ Experimental Low-Latency Mode</span>
+                        </label>
+                        <p id="llm-desc" class="description">Uses an unordered, no-retransmit DataChannel (unreliable) to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.</p>
+                    </div>
+
                     <h3 data-i18n="settings.debugTools">Debug Tools</h3>
+
+                    <!-- Emergency All Notes Off -->
+                    <button id="emergencyAllNotesOff" class="btn btn-danger">🛑 Emergency: All Notes Off</button>
+                    <p class="description">Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.</p>
+
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled data-i18n="debug.testNote">Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled data-i18n="debug.ping">Send Ping</button>
                     <label>

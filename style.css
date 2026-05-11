@@ -932,6 +932,31 @@ footer a:hover {
 }
 .peer-count-badge:empty { display: none; }
 
+/* ── IP Version Badge ────────────────────────────────────────────────────────── */
+.ip-version-badge {
+    display: inline-block;
+    font-size: 0.78em;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+    vertical-align: middle;
+    margin-left: 8px;
+    transition: background 0.3s, color 0.3s;
+    letter-spacing: 0.02em;
+}
+.ip-version-badge[hidden] { display: none; }
+.ip-version-v6 { background: #0d6efd; color: #fff; }
+.ip-version-v4 { background: #6c757d; color: #fff; }
+
+/* ── Experimental Mode section ───────────────────────────────────────────────── */
+.experimental-mode {
+    border: 1.5px solid #fd7e14;
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: rgba(253, 126, 20, 0.07);
+}
+.experimental-mode label span { color: #fd7e14; font-weight: 600; }
+
 /* ── MIDI Recorder ──────────────────────────────────────────────────────────── */
 .recorder-section {
     background: var(--section-bg, #fff);

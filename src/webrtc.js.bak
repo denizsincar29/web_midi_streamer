@@ -1,13 +1,9 @@
 /**
- * webrtc.js — Ultra-low-latency WebRTC P2P Mesh Manager
+ * WebRTC P2P Mesh Manager — multi-peer edition
  *
- * Key enhancements over the baseline:
- *  • Experimental Low-Latency Mode: unordered, maxRetransmits:0 DataChannel
- *  • ICE candidate parser: detects Host/Srflx/Relay and IPv4/IPv6, reports to UI
- *  • IPv6 preference: non-IPv6 candidates filtered when disabled
- *  • Binary MIDI path: Uint8Array through DataChannel (no JSON overhead)
- *  • One-way latency estimation via performance.now() timestamps in binary packets
- *  • WebTransport skeleton (datagram mode) with graceful fallback to WebRTC
+ * Every peer maintains a direct DataChannel to every other peer (full mesh).
+ * Signaling uses unicast `to` fields so messages are only processed by the
+ * intended recipient (the server still broadcasts everything, peers filter).
  */
 
 const SIGNALING_HOST  = location.hostname;
@@ -22,20 +18,6 @@ const DEFAULT_ICE_SERVERS = [
     { urls: 'stun:stun.stunprotocol.org:3478' },
 ];
 
-// ── ICE candidate analyser ─────────────────────────────────────────────────────
-
-function analyseCandidate(candidate) {
-    if (!candidate?.candidate) return null;
-    const parts  = candidate.candidate.split(' ');
-    const proto  = parts[2]?.toLowerCase() ?? 'unknown';
-    const addr   = parts[4] ?? '';
-    const type   = parts[7] ?? 'unknown';
-    const ipVer  = addr.includes(':') ? 'IPv6' : 'IPv4';
-    return { type, ipVersion: ipVer, address: addr, protocol: proto };
-}
-
-// ── PeerConn ───────────────────────────────────────────────────────────────────
-
 class PeerConn {
     constructor(remoteId) {
         this.remoteId    = remoteId;
@@ -46,78 +28,14 @@ class PeerConn {
         this.isPolite    = true;
         this.pendingICE  = [];
         this.connected   = false;
-        this.pathInfo    = null;
     }
     isOpen() { return this.dataChannel?.readyState === 'open'; }
 }
 
-// ── WebTransport skeleton ──────────────────────────────────────────────────────
-
-/**
- * WebTransportRelay — skeleton for datagram-mode WebTransport.
- *
- * True browser-native WebTransport requires an HTTPS/3 server endpoint
- * (not direct P2P). For a real deployment you would run a QUIC relay (e.g.
- * using Go's quic-go library or Cloudflare Workers) and set webTransportUrl.
- *
- * Until a relay server exists this class self-reports as unavailable so the
- * manager falls back to WebRTC automatically.
- */
-class WebTransportRelay {
-    constructor(url) {
-        this.url       = url;
-        this.transport = null;
-        this.writer    = null;
-        this.available = false;
-    }
-
-    static isSupported() {
-        return typeof WebTransport !== 'undefined';
-    }
-
-    async connect() {
-        if (!WebTransportRelay.isSupported()) throw new Error('WebTransport not supported');
-        if (!this.url) throw new Error('No WebTransport relay URL configured');
-        this.transport = new WebTransport(this.url);
-        await this.transport.ready;
-        this.writer    = this.transport.datagrams.writable.getWriter();
-        this.available = true;
-        console.log('[WebTransport] Connected to relay:', this.url);
-    }
-
-    async send(uint8Array) {
-        if (!this.writer) throw new Error('WebTransport not connected');
-        await this.writer.write(uint8Array);
-    }
-
-    async *receive() {
-        const reader = this.transport.datagrams.readable.getReader();
-        try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                yield value;
-            }
-        } finally {
-            reader.releaseLock();
-        }
-    }
-
-    close() {
-        this.transport?.close();
-        this.transport = null;
-        this.writer    = null;
-        this.available = false;
-    }
-}
-
-// ── WebRTCManager ─────────────────────────────────────────────────────────────
-
 export class WebRTCManager {
-    constructor(onMessage, onStatusUpdate, onICEPath) {
+    constructor(onMessage, onStatusUpdate) {
         this.onMessage               = onMessage;
         this.onStatusUpdate          = onStatusUpdate;
-        this.onICEPath               = onICEPath ?? (() => {});
         this.onConnectionStateChange = null;
         this.onPeerCountChange       = null;
 
@@ -127,17 +45,11 @@ export class WebRTCManager {
         this.peers            = new Map();
         this.manualDisconnect = false;
         this.ipv6Enabled      = true;
-        this.lowLatencyMode   = false;   // Experimental Low-Latency Mode
 
-        this.pingStats            = this._resetPing();
-        this.reconnectAttempts    = 0;
+        this.pingStats           = this._resetPing();
+        this.reconnectAttempts   = 0;
         this.maxReconnectAttempts = 6;
-        this.reconnectTimer       = null;
-
-        // WebTransport (experimental)
-        this.webTransportUrl = null;
-        this._wt             = null;
-        this.useWebTransport = false;
+        this.reconnectTimer      = null;
     }
 
     _resetPing() {
@@ -152,31 +64,18 @@ export class WebRTCManager {
         this.roomName = roomName;
         this.myId     = this._uid();
         this.onStatusUpdate('🔗 Connecting to signaling server…', 'info');
-
-        // Try WebTransport if relay URL is configured
-        if (this.webTransportUrl && WebTransportRelay.isSupported()) {
-            try {
-                this._wt = new WebTransportRelay(this.webTransportUrl);
-                await this._wt.connect();
-                this.useWebTransport = true;
-                this.onStatusUpdate('⚡ WebTransport (QUIC datagram) active', 'success');
-                this._startWebTransportReceiveLoop();
-            } catch (err) {
-                this.onStatusUpdate(`⚠️ WebTransport unavailable (${err.message}), falling back to WebRTC`, 'warning');
-                this.useWebTransport = false;
-                this._wt             = null;
-            }
-        }
-
         await this._wsOpen();
         this._send({ type: 'join', from: this.myId });
         this.onStatusUpdate('⏳ Waiting for other participants…', 'info');
 
+        // Reconnect immediately when tab becomes visible again or network returns —
+        // avoids waiting for the full exponential-backoff timer after a throttle-kill.
         if (!this._visibilityBound) {
             this._visibilityBound = true;
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible' && !this.manualDisconnect) {
                     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                        console.log('Tab visible — reconnecting signaling WS');
                         this.reconnectAttempts = 0;
                         this._scheduleReconnect();
                     }
@@ -184,6 +83,7 @@ export class WebRTCManager {
             });
             window.addEventListener('online', () => {
                 if (!this.manualDisconnect && (!this.ws || this.ws.readyState !== WebSocket.OPEN)) {
+                    console.log('Network online — reconnecting signaling WS');
                     this.reconnectAttempts = 0;
                     this._scheduleReconnect();
                 }
@@ -194,20 +94,10 @@ export class WebRTCManager {
     }
 
     send(data) {
-        if (this.useWebTransport && data instanceof Uint8Array) {
-            this._wt?.send(data).catch(e => console.warn('WT send error:', e));
-            return 1;
-        }
+        const payload = typeof data === 'string' ? data : JSON.stringify(data);
         let sent = 0;
         for (const p of this.peers.values()) {
-            if (p.isOpen()) {
-                if (data instanceof Uint8Array) {
-                    p.dataChannel.send(data);
-                } else {
-                    p.dataChannel.send(JSON.stringify(data));
-                }
-                sent++;
-            }
+            if (p.isOpen()) { p.dataChannel.send(payload); sent++; }
         }
         return sent;
     }
@@ -215,20 +105,18 @@ export class WebRTCManager {
     sendTo(remoteId, data) {
         const p = this.peers.get(remoteId);
         if (p?.isOpen()) {
-            p.dataChannel.send(data instanceof Uint8Array ? data : JSON.stringify(data));
+            p.dataChannel.send(typeof data === 'string' ? data : JSON.stringify(data));
             return true;
         }
         return false;
     }
 
     isConnected() {
-        if (this.useWebTransport) return true;
         for (const p of this.peers.values()) if (p.isOpen()) return true;
         return false;
     }
 
     connectedCount() {
-        if (this.useWebTransport) return 1;
         let n = 0;
         for (const p of this.peers.values()) if (p.isOpen()) n++;
         return n;
@@ -242,7 +130,6 @@ export class WebRTCManager {
         this.peers.clear();
         this.myId = null;
         if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
-        this._wt?.close(); this._wt = null; this.useWebTransport = false;
     }
 
     sendPing() {
@@ -256,7 +143,6 @@ export class WebRTCManager {
         openPeers.forEach(peer => {
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
-                    if (!peer.isOpen()) return;
                     const id = `${peer.remoteId.slice(0,6)}-${i+1}`;
                     const ts = performance.now();
                     this.pingStats.sentTimes[id] = ts;
@@ -268,21 +154,7 @@ export class WebRTCManager {
 
     getEstimatedLatency() { return this.pingStats.lastAvg / 2; }
 
-    // ── WebTransport receive loop ─────────────────────────────────────────────
-
-    async _startWebTransportReceiveLoop() {
-        try {
-            for await (const datagram of this._wt.receive()) {
-                this._handleBinaryPacket(datagram, 'webtransport');
-            }
-        } catch (err) {
-            if (!this.manualDisconnect) {
-                this.onStatusUpdate(`⚠️ WebTransport receive error: ${err.message}`, 'warning');
-            }
-        }
-    }
-
-    // ── WebSocket ─────────────────────────────────────────────────────────────
+    // ── WebSocket ──────────────────────────────────────────────────────────────
 
     _wsOpen() {
         return new Promise((resolve, reject) => {
@@ -290,19 +162,34 @@ export class WebRTCManager {
             const ws  = new WebSocket(url);
             this.ws   = ws;
             const timer = setTimeout(() => reject(new Error(`Cannot reach signaling server at ${url}`)), 8000);
-            ws.onopen    = () => { clearTimeout(timer); this.reconnectAttempts = 0; this._startHeartbeat(); resolve(); };
+            ws.onopen    = () => {
+                clearTimeout(timer);
+                this.reconnectAttempts = 0;
+                this._startHeartbeat();
+                resolve();
+            };
             ws.onmessage = async ({ data }) => { try { await this._handleSignal(JSON.parse(data)); } catch(e){ console.error(e); } };
             ws.onerror   = () => { clearTimeout(timer); reject(new Error('WebSocket error')); };
-            ws.onclose   = () => { this._stopHeartbeat(); if (!this.manualDisconnect) this._scheduleReconnect(); };
+            ws.onclose   = () => {
+                this._stopHeartbeat();
+                if (!this.manualDisconnect) this._scheduleReconnect();
+            };
         });
     }
 
+    // Application-level heartbeat — keeps the WS alive through browser throttling.
+    // Browsers can suppress WS-protocol pings when backgrounded; an app-level
+    // JSON ping sent from *our* side always produces a send() call that wakes
+    // the socket even in throttled tabs.
     _startHeartbeat() {
         this._stopHeartbeat();
         this._heartbeatTimer = setInterval(() => {
-            if (this.ws?.readyState === WebSocket.OPEN)
+            if (this.ws?.readyState === WebSocket.OPEN) {
+                // Tiny keepalive — server broadcasts to nobody (from == myId filtered out)
+                // but the send itself resets the server's read deadline.
                 this.ws.send(JSON.stringify({ type: 'keepalive', from: this.myId }));
-        }, 25_000);
+            }
+        }, 25_000);   // every 25 s — well under the server's 60 s pongWait deadline
     }
 
     _stopHeartbeat() {
@@ -379,10 +266,10 @@ export class WebRTCManager {
         this.peers.set(remoteId, peer);
 
         const pc = new RTCPeerConnection({
-            iceServers:           DEFAULT_ICE_SERVERS,
+            iceServers: DEFAULT_ICE_SERVERS,
             iceCandidatePoolSize: 4,
-            bundlePolicy:         'max-bundle',
-            rtcpMuxPolicy:        'require',
+            bundlePolicy: 'max-bundle',
+            rtcpMuxPolicy: 'require',
         });
         peer.pc = pc;
 
@@ -395,29 +282,14 @@ export class WebRTCManager {
             finally { peer.makingOffer = false; }
         };
 
-        pc.onicecandidate = ({ candidate }) => {
-            if (!candidate) return;
-
-            const info = analyseCandidate(candidate);
-
-            // IPv6 filtering
-            if (!this.ipv6Enabled && info?.ipVersion === 'IPv6') return;
-
-            // Log to console with type + IP version
-            if (info) {
-                const typeLabels = { host:'🏠 Host', srflx:'🌐 STUN (srflx)', relay:'🔁 TURN (relay)' };
-                const label = typeLabels[info.type] ?? info.type;
-                console.log(`[ICE candidate] ${label} | ${info.ipVersion} | ${info.address} | ${info.protocol.toUpperCase()}`);
-            }
-
+        pc.onicecandidate = ({ candidate }) =>
             this._send({ type:'ice', from:this.myId, to:remoteId, candidate });
-        };
 
         pc.oniceconnectionstatechange = () => {
             const s = pc.iceConnectionState;
-            if (s === 'failed')       { this.onStatusUpdate(`❌ ICE failed for ${remoteId.slice(0,6)}`, 'error'); this._removePeer(remoteId); }
-            if (s === 'disconnected') { this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} disconnected`, 'warning'); }
-            if (s === 'connected' || s === 'completed') this._reportPath(pc, remoteId, peer);
+            if (s === 'failed') { this.onStatusUpdate(`❌ ICE failed for ${remoteId.slice(0,6)}`, 'error'); this._removePeer(remoteId); }
+            if (s === 'disconnected') this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} disconnected`, 'warning');
+            if (s === 'connected' || s === 'completed') this._reportPath(pc, remoteId);
         };
 
         pc.ondatachannel = ({ channel }) => { peer.dataChannel = channel; this._setupDC(peer); };
@@ -425,34 +297,23 @@ export class WebRTCManager {
     }
 
     _createDataChannel(peer) {
-        // Low-Latency Mode: unordered + no retransmits = minimal queuing delay
-        // Trade-off: occasional packet loss (acceptable for real-time MIDI).
-        const dcOptions = this.lowLatencyMode
-            ? { ordered: false, maxRetransmits: 0, priority: 'high' }
-            : { ordered: true,  maxRetransmits: 2 };
-
-        peer.dataChannel = peer.pc.createDataChannel('midi', dcOptions);
+        peer.dataChannel = peer.pc.createDataChannel('midi', { ordered:true, maxRetransmits:2 });
         this._setupDC(peer);
     }
 
     _setupDC(peer) {
         const dc = peer.dataChannel;
-        dc.binaryType = 'arraybuffer';
         dc.onopen = () => {
             peer.connected = true;
-            const n    = this.connectedCount();
-            const mode = this.lowLatencyMode ? ' ⚡ Low-Latency' : '';
-            this.onStatusUpdate(
-                `✅ Connected to ${peer.remoteId.slice(0,6)}${mode} (${n} peer${n>1?'s':''} total)`,
-                'success'
-            );
+            const n = this.connectedCount();
+            this.onStatusUpdate(`✅ Connected to ${peer.remoteId.slice(0,6)} (${n} peer${n>1?'s':''} total)`, 'success');
             this.onConnectionStateChange?.(true);
             this.onPeerCountChange?.(n);
             setTimeout(() => this._quickPing(peer), 800);
         };
         dc.onmessage = ({ data }) => this._handleData(data, peer.remoteId);
-        dc.onclose   = () => { peer.connected = false; this._removePeer(peer.remoteId); };
-        dc.onerror   = e  => this.onStatusUpdate(`❌ DataChannel error: ${e}`, 'error');
+        dc.onclose = () => { peer.connected = false; this._removePeer(peer.remoteId); };
+        dc.onerror = e => this.onStatusUpdate(`❌ DataChannel error: ${e}`, 'error');
     }
 
     _removePeer(remoteId) {
@@ -468,6 +329,7 @@ export class WebRTCManager {
     }
 
     _quickPing(peer) {
+        if (!peer.isOpen()) return;
         for (let i = 0; i < 3; i++) {
             setTimeout(() => {
                 if (!peer.isOpen()) return;
@@ -478,99 +340,46 @@ export class WebRTCManager {
         }
     }
 
-    _reportPath(pc, remoteId, peer) {
+    _reportPath(pc, remoteId) {
         pc.getStats().then(stats => {
             stats.forEach(r => {
-                if (r.type === 'candidate-pair' && (r.state === 'succeeded' || r.nominated)) {
+                if (r.type === 'candidate-pair' && r.state === 'succeeded') {
                     const lc = stats.get(r.localCandidateId);
-                    const rc = stats.get(r.remoteCandidateId);
-                    if (!lc) return;
-
-                    const typeLabels  = { host:'🏠 Direct LAN', srflx:'🌐 STUN', relay:'🔁 TURN' };
-                    const typeLabel   = typeLabels[lc.candidateType] ?? lc.candidateType;
-                    const localAddr   = lc.address ?? lc.ip ?? '';
-                    const remoteAddr  = rc?.address ?? rc?.ip ?? '';
-                    const ipVer       = localAddr.includes(':') ? 'IPv6' : 'IPv4';
-
-                    this.onStatusUpdate(`${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`, 'success');
-
-                    this.onICEPath({
-                        candidateType: lc.candidateType,
-                        ipVersion:     ipVer,
-                        localAddress:  localAddr,
-                        remoteAddress: remoteAddr,
-                        peerId:        remoteId,
-                    });
-
-                    if (peer) peer.pathInfo = { candidateType: lc.candidateType, ipVersion: ipVer };
+                    if (lc) {
+                        const labels = { host:'🏠 Direct LAN', srflx:'🌐 STUN', relay:'🔁 TURN' };
+                        this.onStatusUpdate(`${labels[lc.candidateType]||lc.candidateType} → ${remoteId.slice(0,6)}`, 'success');
+                    }
                 }
             });
-        }).catch(() => {});
+        }).catch(()=>{});
     }
 
     // ── Data handler ───────────────────────────────────────────────────────────
 
     _handleData(raw, fromId) {
-        if (raw instanceof ArrayBuffer || raw instanceof Uint8Array) {
-            this._handleBinaryPacket(raw instanceof ArrayBuffer ? new Uint8Array(raw) : raw, fromId);
-            return;
-        }
-
-        let msg;
-        try { msg = JSON.parse(raw); } catch { return; }
-
+        const msg = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (msg.type === 'ping') {
-            this.sendTo(fromId, JSON.stringify({ type:'pong', timestamp:msg.timestamp, pingId:msg.pingId }));
+            this.sendTo(fromId, { type:'pong', timestamp:msg.timestamp, pingId:msg.pingId });
             return;
         }
         if (msg.type === 'pong') {
             const rtt = performance.now() - msg.timestamp;
             this.pingStats.count++;
             this.pingStats.times.push(rtt);
-            this.onStatusUpdate(`Ping ${msg.pingId}: ${rtt.toFixed(1)} ms RTT (est. one-way: ${(rtt/2).toFixed(1)} ms)`, 'success');
+            this.onStatusUpdate(`Ping ${msg.pingId}: ${rtt.toFixed(1)} ms`, 'success');
             if (this.pingStats.times.length >= this.pingStats.total && this.pingStats.inProgress) {
                 const avg = this.pingStats.times.reduce((a,b)=>a+b,0)/this.pingStats.times.length;
                 this.pingStats.lastAvg = avg;
                 this.pingStats.inProgress = false;
                 const mn = Math.min(...this.pingStats.times), mx = Math.max(...this.pingStats.times);
-                this.onStatusUpdate(
-                    `Ping done — min ${mn.toFixed(1)}  avg ${avg.toFixed(1)}  max ${mx.toFixed(1)} ms  (est. one-way: ${(avg/2).toFixed(1)} ms)`,
-                    'success'
-                );
+                this.onStatusUpdate(`Ping done — min ${mn.toFixed(1)} avg ${avg.toFixed(1)} max ${mx.toFixed(1)} ms`, 'success');
             }
             return;
         }
-
         const structured = ['test_note','settings_sync','chat'].includes(msg.type)
             ? { type:msg.type, data:msg.data, from:fromId }
             : { type:'midi', data:msg, from:fromId };
         this.onMessage(structured);
-    }
-
-    /**
-     * Decode compact binary MIDI packet produced by midi-worker.js.
-     *
-     * Layout:
-     *   byte 0      flags  (bit 0 = has timestamp)
-     *   bytes 1-8   Float64 timestamp big-endian — only if flag set
-     *   remaining   raw MIDI bytes
-     */
-    _handleBinaryPacket(bytes, fromId) {
-        const view       = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        const hasTs      = (view.getUint8(0) & 0x01) !== 0;
-        const dataOffset = hasTs ? 9 : 1;
-        const midiBytes  = bytes.slice(dataOffset);
-
-        let timestamp = null;
-        if (hasTs) {
-            timestamp = view.getFloat64(1, false);
-            const oneWay = performance.now() - timestamp;
-            if (oneWay >= 0 && oneWay < 30000) {
-                console.debug(`[MIDI binary] est. one-way latency: ${oneWay.toFixed(2)} ms`);
-            }
-        }
-
-        this.onMessage({ type:'midi', data:{ data: Array.from(midiBytes), timestamp }, from:fromId });
     }
 
     _uid() {
