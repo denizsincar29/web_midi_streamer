@@ -58,3 +58,4 @@ signaling_data/
 # Old backup files
 *.old
 README.md.old
+node_modules/

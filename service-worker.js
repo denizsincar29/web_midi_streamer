@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.3.0';  // bumped
+const CACHE_NAME = 'midi-streamer-v1.4.0';  // bumped: low-latency mode, midi-worker, IP badge
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
@@ -19,6 +19,7 @@ const STATIC_ASSETS = [
   basePath + 'src/main.js',
   basePath + 'src/app.js',
   basePath + 'src/webrtc.js',
+  basePath + 'src/midi-worker.js',
   basePath + 'src/midi.js',
   basePath + 'src/ui.js',
   basePath + 'src/utils.js',
