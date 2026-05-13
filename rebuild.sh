@@ -53,6 +53,7 @@ rsync -av --checksum --delete \
     --exclude='*.md'             \
     --exclude='*.php'            \
     --exclude='*.py'             \
+    --exclude='chimes.json'      \
     --exclude='*.json.example'   \
     --exclude='*.bak'            \
     --exclude='package.json'     \
