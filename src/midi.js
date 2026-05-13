@@ -243,7 +243,9 @@ export class MIDIManager {
         }
         
         const [, note, octave] = match;
-        const noteValue = noteMap[note.toUpperCase()];
+        // Normalise to Title-case so 'bb' -> 'Bb', 'BB' -> 'Bb', 'C#' stays 'C#'
+        const noteNorm = note.charAt(0).toUpperCase() + note.slice(1).toLowerCase();
+        const noteValue = noteMap[noteNorm];
         
         if (noteValue === undefined) {
             console.error('Unknown note:', note);

@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.5.1';  // fix: stability test moved inside Settings
+const CACHE_NAME = 'midi-streamer-v1.5.2';  // fix: Bb/Eb note lookup, ICE restart on disconnect
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

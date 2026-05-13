@@ -494,9 +494,49 @@ export class WebRTCManager {
 
         pc.oniceconnectionstatechange = () => {
             const s = pc.iceConnectionState;
-            if (s === 'failed')       { this.onStatusUpdate(`❌ ICE failed for ${remoteId.slice(0,6)}`, 'error'); this._removePeer(remoteId); }
-            if (s === 'disconnected') { this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} disconnected`, 'warning'); }
-            if (s === 'connected' || s === 'completed') this._reportPath(pc, remoteId, peer);
+            console.log(`[ICE] ${remoteId.slice(0,6)} → ${s}`);
+
+            if (s === 'connected' || s === 'completed') {
+                // Clear any pending restart timer — we recovered
+                if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
+                peer._iceRestartCount = 0;
+                this._reportPath(pc, remoteId, peer);
+            }
+
+            if (s === 'disconnected') {
+                // 'disconnected' is transient — browser may self-recover within a few seconds.
+                // Give it 4 s before attempting restartIce(), up to 3 attempts.
+                this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} temporarily disconnected, waiting…`, 'warning');
+                if (peer._iceRestartTimer) return; // already waiting
+                peer._iceRestartTimer = setTimeout(() => {
+                    peer._iceRestartTimer = null;
+                    if (pc.iceConnectionState !== 'disconnected' && pc.iceConnectionState !== 'failed') return;
+                    peer._iceRestartCount = (peer._iceRestartCount ?? 0) + 1;
+                    if (peer._iceRestartCount <= 3) {
+                        this.onStatusUpdate(`🔄 ICE restart attempt ${peer._iceRestartCount}/3 for ${remoteId.slice(0,6)}…`, 'info');
+                        try { pc.restartIce(); } catch(e) { console.warn('restartIce failed:', e); }
+                    } else {
+                        this.onStatusUpdate(`❌ ICE failed after 3 restart attempts — removing ${remoteId.slice(0,6)}`, 'error');
+                        this._removePeer(remoteId);
+                    }
+                }, 4000);
+            }
+
+            if (s === 'failed') {
+                // 'failed' is definitive — but try one restartIce before giving up
+                if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
+                peer._iceRestartCount = (peer._iceRestartCount ?? 0) + 1;
+                if (peer._iceRestartCount <= 2) {
+                    this.onStatusUpdate(`🔄 ICE failed, restarting (attempt ${peer._iceRestartCount}/2) for ${remoteId.slice(0,6)}…`, 'warning');
+                    try { pc.restartIce(); } catch(e) {
+                        this.onStatusUpdate(`❌ ICE restart error: ${e.message}`, 'error');
+                        this._removePeer(remoteId);
+                    }
+                } else {
+                    this.onStatusUpdate(`❌ ICE permanently failed for ${remoteId.slice(0,6)}`, 'error');
+                    this._removePeer(remoteId);
+                }
+            }
         };
 
         pc.ondatachannel = ({ channel }) => { peer.dataChannel = channel; this._setupDC(peer); };
@@ -537,6 +577,7 @@ export class WebRTCManager {
     _removePeer(remoteId) {
         const peer = this.peers.get(remoteId);
         if (!peer) return;
+        if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
         peer.dataChannel?.close();
         peer.pc?.close();
         this.peers.delete(remoteId);
