@@ -101,28 +101,6 @@
                 </div>
             </section>
 
-            <!-- ── Stability Test ────────────────────────────────────────────── -->
-            <section class="stability-section">
-                <h2>📶 Connection Stability Test</h2>
-                <div class="stability-controls">
-                    <label for="stabInterval">Probe interval (ms):</label>
-                    <input type="number" id="stabInterval" value="200" min="50" max="2000" step="50">
-                    <label for="stabDuration">Duration (s):</label>
-                    <input type="number" id="stabDuration" value="10" min="2" max="60" step="1">
-                    <button id="stabStartBtn" class="btn btn-secondary" disabled>▶ Start</button>
-                    <button id="stabStopBtn"  class="btn btn-secondary" disabled style="display:none">⏹ Stop</button>
-                </div>
-                <div id="stabilityStatus" role="status" aria-live="polite"></div>
-                <div id="jitterChart" aria-hidden="true"></div>
-                <div class="stability-stats">
-                    <span>Jitter: <strong id="stabJitter">—</strong> ms</span>
-                    <span>Lost: <strong id="stabLost">—</strong></span>
-                    <span>Sent: <strong id="stabSent">—</strong></span>
-                    <span>Min gap: <strong id="stabMin">—</strong> ms</span>
-                    <span>Max gap: <strong id="stabMax">—</strong> ms</span>
-                </div>
-            </section>
-
             <section class="recorder-section">
                 <h2>🎹 MIDI Recorder</h2>
                 <div class="recorder-controls">
@@ -213,6 +191,26 @@
                         <span data-i18n="debug.midiEcho">MIDI Echo (send back all received MIDI)</span>
                     </label>
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
+
+                    <!-- Signal Stability Test -->
+                    <h3>📶 Signal Stability Test</h3>
+                    <div class="stability-controls">
+                        <label for="stabInterval">Probe interval (ms):</label>
+                        <input type="number" id="stabInterval" value="200" min="50" max="2000" step="50">
+                        <label for="stabDuration">Duration (s):</label>
+                        <input type="number" id="stabDuration" value="10" min="2" max="60" step="1">
+                        <button id="stabStartBtn" class="btn btn-secondary" disabled>▶ Start</button>
+                        <button id="stabStopBtn"  class="btn btn-secondary" disabled style="display:none">⏹ Stop</button>
+                    </div>
+                    <div id="stabilityStatus" role="status" aria-live="polite"></div>
+                    <div id="jitterChart" aria-hidden="true"></div>
+                    <div class="stability-stats">
+                        <span>Jitter: <strong id="stabJitter">—</strong> ms</span>
+                        <span>Lost: <strong id="stabLost">—</strong></span>
+                        <span>Sent: <strong id="stabSent">—</strong></span>
+                        <span>Min gap: <strong id="stabMin">—</strong> ms</span>
+                        <span>Max gap: <strong id="stabMax">—</strong> ms</span>
+                    </div>
                     
                     <h3 data-i18n="settings.messages">Messages</h3>
                     <button id="copyMessagesBtn" class="btn btn-secondary" data-i18n="debug.copyMessages">Copy All Messages</button>
