@@ -268,6 +268,85 @@ export class WebRTCManager {
 
     getEstimatedLatency() { return this.pingStats.lastAvg / 2; }
 
+    // ── Stability Test ─────────────────────────────────────────────────────────
+    //
+    // Fires a lightweight probe packet every `intervalMs` ms and records the
+    // actual inter-arrival gap on the receiving side.  Jitter = stddev of gaps.
+    // The onStabilityUpdate callback receives:
+    //   { type: 'probe_result', gap, expected, jitter, lost, total, stable }
+
+    startStabilityTest(intervalMs = 200, durationMs = 10000) {
+        if (this._stabTimer) this.stopStabilityTest();
+
+        this._stabInterval = intervalMs;
+        this._stabSeq      = 0;
+        this._stabSent     = 0;
+        this._stabLost     = 0;
+        this._stabGaps     = [];   // inter-arrival gaps recorded on remote side
+        this._stabStart    = performance.now();
+        this._stabDuration = durationMs;
+
+        this._stabTimer = setInterval(() => {
+            if (!this.isConnected()) return;
+            const seq = ++this._stabSeq;
+            const ts  = performance.now();
+            this._stabSent++;
+            this.send(JSON.stringify({ type: 'stab_probe', seq, ts, interval: intervalMs }));
+
+            // Auto-stop after durationMs
+            if (performance.now() - this._stabStart >= durationMs) {
+                this.stopStabilityTest();
+            }
+        }, intervalMs);
+
+        this.onStatusUpdate(`📶 Stability test started (${intervalMs} ms interval, ${durationMs/1000} s)`, 'info');
+    }
+
+    stopStabilityTest() {
+        if (this._stabTimer) { clearInterval(this._stabTimer); this._stabTimer = null; }
+        const gaps  = this._stabGaps ?? [];
+        if (gaps.length < 2) { this.onStatusUpdate('Stability test stopped (not enough data)', 'warning'); return; }
+        const jitter = this._calcJitter(gaps);
+        const lost   = this._stabLost ?? 0;
+        const total  = this._stabSent ?? 0;
+        const stable = jitter < (this._stabInterval * 0.2) && (lost / Math.max(total, 1)) < 0.05;
+        this.onStatusUpdate(
+            `📶 Stability: jitter ${jitter.toFixed(1)} ms | loss ${lost}/${total} | ${stable ? '✅ STABLE' : '❌ UNSTABLE'}`,
+            stable ? 'success' : 'error'
+        );
+        this.onStabilityUpdate?.({ type: 'test_done', jitter, lost, total, stable, gaps });
+    }
+
+    _calcJitter(gaps) {
+        if (gaps.length < 2) return 0;
+        const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+        const variance = gaps.reduce((s, g) => s + (g - mean) ** 2, 0) / gaps.length;
+        return Math.sqrt(variance);
+    }
+
+    _handleStabProbe(msg, fromId) {
+        const now = performance.now();
+        // Track inter-arrival gap
+        if (this._lastProbeArrival != null) {
+            const gap = now - this._lastProbeArrival;
+            const expected = msg.interval ?? 200;
+            const jitter   = Math.abs(gap - expected);
+            // Detect lost packets by sequence gap
+            const seqDiff  = msg.seq - (this._lastProbeSeq ?? msg.seq - 1);
+            const lost     = Math.max(0, seqDiff - 1);
+
+            this.onStabilityUpdate?.({ type: 'probe_result', gap, expected, jitter, lost, seq: msg.seq });
+
+            // Echo result back to sender so they can display it too
+            this.sendTo(fromId, JSON.stringify({
+                type: 'stab_result', seq: msg.seq, gap, jitter, lost,
+                stable: jitter < expected * 0.2,
+            }));
+        }
+        this._lastProbeArrival = now;
+        this._lastProbeSeq     = msg.seq;
+    }
+
     // ── WebTransport receive loop ─────────────────────────────────────────────
 
     async _startWebTransportReceiveLoop() {
@@ -518,6 +597,15 @@ export class WebRTCManager {
 
         let msg;
         try { msg = JSON.parse(raw); } catch { return; }
+
+        if (msg.type === 'stab_probe') { this._handleStabProbe(msg, fromId); return; }
+        if (msg.type === 'stab_result') {
+            const g = this._stabGaps ?? (this._stabGaps = []);
+            g.push(msg.gap);
+            if (msg.lost) this._stabLost = (this._stabLost ?? 0) + msg.lost;
+            this.onStabilityUpdate?.({ type: 'probe_result', ...msg });
+            return;
+        }
 
         if (msg.type === 'ping') {
             this.sendTo(fromId, JSON.stringify({ type:'pong', timestamp:msg.timestamp, pingId:msg.pingId }));

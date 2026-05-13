@@ -5,6 +5,7 @@ import { WebRTCManager } from './webrtc.js';
 import { RoomManager } from './rooms.js';
 import { MIDIRecorder } from './recorder.js';
 import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
+import { PianoKeyboard } from './piano.js';
 
 export class MIDIStreamer {
     constructor() {
@@ -34,6 +35,14 @@ export class MIDIStreamer {
         this._activeNotes = new Map();
         this.STUCK_NOTE_TIMEOUT_MS = 10_000;
 
+        // Piano keyboard visualiser (created after DOM ready)
+        this._piano = null;
+
+        // Stability test state
+        this._stabGaps = [];
+        this._stabLost = 0;
+        this._stabSent = 0;
+
         this.midi = new MIDIManager();
         this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
@@ -50,6 +59,7 @@ export class MIDIStreamer {
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
             this.ui.enableChat(connected);
+            this._onConnectionChange(connected);   // piano + stability buttons
             if (connected) {
                 this.stopRoomAutoRefresh();
                 this.midi.playStatusChime('peer_connection');
@@ -102,6 +112,20 @@ export class MIDIStreamer {
         }
 
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
+
+        // Piano keyboard visualiser
+        try {
+            this._piano = new PianoKeyboard('#pianoContainer');
+        } catch (e) { console.warn('Piano keyboard init failed:', e); }
+
+        // Wire stability test callbacks
+        this.webrtc.onStabilityUpdate = (ev) => this._onStabilityUpdate(ev);
+
+        // Stability test buttons
+        const stabStart = document.getElementById('stabStartBtn');
+        const stabStop  = document.getElementById('stabStopBtn');
+        if (stabStart) stabStart.addEventListener('click', () => this._startStabilityTest());
+        if (stabStop)  stabStop.addEventListener('click',  () => this._stopStabilityTest());
 
         if (this.roomName) {
             this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
@@ -500,6 +524,13 @@ export class MIDIStreamer {
         }
 
         this.midi.announceMIDIEvent(data, this.settings.showMidiActivity);
+
+        // Piano keyboard — local notes
+        if (this._piano && data.length >= 3) {
+            const st = data[0] & 0xF0, p = data[1];
+            if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'local');
+            else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'local');
+        }
     }
 
     handleWebRTCMessage(msg) {
@@ -551,6 +582,12 @@ export class MIDIStreamer {
                         this._activeNotes.delete('r' + p);
                     }
                 }
+            }
+            // Piano keyboard — remote notes
+            if (this._piano && data && data.length >= 3) {
+                const st = data[0] & 0xF0, p = data[1];
+                if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'remote');
+                else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'remote');
             }
             this.midi.send(data);
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
@@ -618,7 +655,109 @@ export class MIDIStreamer {
             }
         }
 
+        this._piano?.allOff();
         this.ui.addMessage('🛑 Emergency: All Notes Off sent (CC 123, all channels)', 'warning');
+    }
+
+    // ── Stability Test ─────────────────────────────────────────────────────
+
+    _startStabilityTest() {
+        if (!this.webrtc.isConnected()) {
+            this.ui.addMessage('Connect to a peer first before running the stability test.', 'error');
+            return;
+        }
+        const interval = parseInt(document.getElementById('stabInterval')?.value ?? 200);
+        const duration = parseInt(document.getElementById('stabDuration')?.value ?? 10) * 1000;
+
+        // Reset local tracking
+        this._stabGaps = [];
+        this._stabLost = 0;
+        this._stabSent = 0;
+        this._stabExpected = interval;
+        this._stabAll  = [];
+
+        document.getElementById('jitterChart').innerHTML = '';
+        document.getElementById('stabilityStatus').textContent = 'Running…';
+        document.getElementById('stabilityStatus').className = 'running';
+        document.getElementById('stabStartBtn').style.display = 'none';
+        document.getElementById('stabStopBtn').style.display  = '';
+
+        this.webrtc.startStabilityTest(interval, duration);
+
+        // Auto-restore buttons when test ends
+        this._stabEndTimer = setTimeout(() => this._stabDone(), duration + 500);
+    }
+
+    _stopStabilityTest() {
+        clearTimeout(this._stabEndTimer);
+        this.webrtc.stopStabilityTest();
+        this._stabDone();
+    }
+
+    _stabDone() {
+        document.getElementById('stabStartBtn').style.display = '';
+        document.getElementById('stabStopBtn').style.display  = 'none';
+    }
+
+    _onStabilityUpdate(ev) {
+        if (ev.type !== 'probe_result') return;
+
+        const { gap, jitter, lost } = ev;
+        const expected = this._stabExpected ?? 200;
+
+        this._stabAll  = this._stabAll  ?? [];
+        this._stabGaps = this._stabGaps ?? [];
+        this._stabLost = (this._stabLost ?? 0) + (lost ?? 0);
+        this._stabSent = (this._stabSent ?? 0) + 1;
+
+        this._stabAll.push(gap);
+
+        // Compute running jitter (stddev of gaps)
+        const mean     = this._stabAll.reduce((a, b) => a + b, 0) / this._stabAll.length;
+        const variance = this._stabAll.reduce((s, g) => s + (g - mean) ** 2, 0) / this._stabAll.length;
+        const runJitter = Math.sqrt(variance);
+
+        const stable = runJitter < expected * 0.2 && (this._stabLost / Math.max(this._stabSent, 1)) < 0.05;
+
+        // Update stats display
+        const el = (id) => document.getElementById(id);
+        if (el('stabJitter')) el('stabJitter').textContent = runJitter.toFixed(1);
+        if (el('stabLost'))   el('stabLost').textContent   = this._stabLost;
+        if (el('stabSent'))   el('stabSent').textContent   = this._stabSent;
+        if (el('stabMin'))    el('stabMin').textContent    = Math.min(...this._stabAll).toFixed(0);
+        if (el('stabMax'))    el('stabMax').textContent    = Math.max(...this._stabAll).toFixed(0);
+
+        const statusEl = el('stabilityStatus');
+        if (statusEl) {
+            statusEl.textContent = stable ? '✅ Stable' : '⚠️ Unstable';
+            statusEl.className   = stable ? 'stable' : 'unstable';
+        }
+
+        // Append jitter bar
+        const chart = el('jitterChart');
+        if (chart) {
+            const bar = document.createElement('div');
+            bar.className = 'jitter-bar ' + (jitter < expected * 0.1 ? 'ok' : jitter < expected * 0.25 ? 'warning' : 'bad');
+            // Height: clamp jitter to 0–50 px range
+            const h = Math.min(50, Math.max(2, (jitter / expected) * 50));
+            bar.style.height = h + 'px';
+            bar.title = `gap ${gap.toFixed(0)} ms | jitter ${jitter.toFixed(1)} ms`;
+            chart.appendChild(bar);
+            // Keep last 60 bars
+            while (chart.children.length > 60) chart.removeChild(chart.firstChild);
+        }
+    }
+
+    // ── Connection state helpers ────────────────────────────────────────────
+
+    _onConnectionChange(connected) {
+        const stabBtn = document.getElementById('stabStartBtn');
+        if (stabBtn) stabBtn.disabled = !connected;
+        if (!connected) {
+            this._piano?.allOff();
+            document.getElementById('stabStopBtn').style.display  = 'none';
+            document.getElementById('stabStartBtn').style.display = '';
+        }
     }
 
     sendTestNote() {

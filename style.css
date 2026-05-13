@@ -981,3 +981,154 @@ footer a:hover {
     min-height: 1.4em;
     color: #c0392b;
 }
+
+/* ── Piano Keyboard ──────────────────────────────────────────────────────────── */
+.piano-section {
+    background: var(--section-bg, #1e1e2e);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+.piano-section h2 {
+    margin: 0 0 12px;
+    font-size: 1.1em;
+}
+
+.piano-keyboard {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    height: 90px;
+    user-select: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px; /* room for scrollbar */
+}
+
+/* White keys */
+.piano-key--white {
+    position: relative;
+    flex: 0 0 22px;
+    height: 86px;
+    background: #f5f5f5;
+    border: 1px solid #888;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    margin-right: 1px;
+    z-index: 1;
+    transition: background 80ms;
+    box-sizing: border-box;
+}
+
+/* Black keys — absolutely positioned above white keys via negative margin trick */
+.piano-key--black {
+    position: relative;
+    flex: 0 0 14px;
+    height: 54px;
+    background: #222;
+    border-radius: 0 0 3px 3px;
+    margin-left: -8px;
+    margin-right: -7px;
+    z-index: 2;
+    transition: background 80ms;
+    box-sizing: border-box;
+}
+
+/* Local (blue) */
+.piano-key--white.piano-key--local  { background: #4a9eff; border-color: #2277cc; }
+.piano-key--black.piano-key--local  { background: #1a6fd4; }
+
+/* Remote teacher (amber) */
+.piano-key--white.piano-key--remote { background: #ffb830; border-color: #cc8800; }
+.piano-key--black.piano-key--remote { background: #cc8800; }
+
+/* Both simultaneously (purple blend) */
+.piano-key--white.piano-key--both   { background: #b060f0; border-color: #7a30c0; }
+.piano-key--black.piano-key--both   { background: #7a30c0; }
+
+/* Legend */
+.piano-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 0.8em;
+    opacity: 0.75;
+}
+.piano-legend-item { display: flex; align-items: center; gap: 5px; }
+.piano-legend-swatch {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.swatch-local  { background: #4a9eff; }
+.swatch-remote { background: #ffb830; }
+.swatch-both   { background: #b060f0; }
+
+/* ── Stability Test ──────────────────────────────────────────────────────────── */
+.stability-section {
+    background: var(--section-bg, #1e1e2e);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.stability-section h2 { margin: 0 0 12px; font-size: 1.1em; }
+
+.stability-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.stability-controls label { font-size: 0.9em; }
+.stability-controls input[type=number] {
+    width: 70px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #2a2a3e;
+    color: inherit;
+    font-size: 0.9em;
+}
+
+#stabilityStatus {
+    font-size: 0.85em;
+    font-weight: 600;
+    min-height: 1.2em;
+    margin-bottom: 8px;
+}
+#stabilityStatus.stable   { color: #2ecc71; }
+#stabilityStatus.unstable { color: #e74c3c; }
+#stabilityStatus.running  { color: #f39c12; }
+
+/* Mini jitter chart — a row of coloured bars */
+#jitterChart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 50px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.2);
+    padding: 4px;
+}
+.jitter-bar {
+    flex: 0 0 6px;
+    border-radius: 2px 2px 0 0;
+    transition: height 150ms, background 150ms;
+    min-height: 2px;
+}
+.jitter-bar.ok      { background: #2ecc71; }
+.jitter-bar.warning { background: #f39c12; }
+.jitter-bar.bad     { background: #e74c3c; }
+
+.stability-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8em;
+    margin-top: 6px;
+    opacity: 0.8;
+    flex-wrap: wrap;
+}
