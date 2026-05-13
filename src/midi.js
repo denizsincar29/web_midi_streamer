@@ -190,13 +190,17 @@ export class MIDIManager {
 
     send(data) {
         if (this.selectedOutput) {
+            // MIDIOutput.send() requires a Uint8Array or array-like of integers
+            const bytes = (data instanceof Uint8Array) ? data : new Uint8Array(data);
             try {
-                this.selectedOutput.send(data);
+                this.selectedOutput.send(bytes);
             } catch (error) {
                 console.error('MIDI send error:', error);
-                // The output device may have been disconnected
-                // Refresh devices to update the UI
-                this.refreshDevices();
+                // Only refresh device list if the output port disappeared;
+                // don't spam refreshDevices() on every data-format error
+                if (error instanceof DOMException || this.selectedOutput.state === 'disconnected') {
+                    this.refreshDevices();
+                }
             }
         }
     }

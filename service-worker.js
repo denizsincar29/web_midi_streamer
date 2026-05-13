@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.5.2';  // fix: Bb/Eb note lookup, ICE restart on disconnect
+const CACHE_NAME = 'midi-streamer-v1.5.3';  // fix: Uint8Array coercion in midi.send, stop refreshDevices spam
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

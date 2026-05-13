@@ -589,7 +589,8 @@ export class MIDIStreamer {
                 if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'remote');
                 else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'remote');
             }
-            this.midi.send(data);
+            // MIDIOutput.send() requires a typed array, not a plain Array
+            this.midi.send(data instanceof Uint8Array ? data : new Uint8Array(data));
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
                 const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
                 this.webrtc.send(echoMessage);
