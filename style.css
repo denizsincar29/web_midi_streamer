@@ -366,15 +366,19 @@ h2 {
     display: none;
 }
 
-.advanced summary::before {
-    content: '▶';
+.advanced summary::before,
+.chat-section summary::before {
+    content: '▸';
     display: inline-block;
-    margin-right: 10px;
+    margin-right: 8px;
+    font-size: 0.85em;
     transition: transform 0.2s;
     color: #667eea;
+    flex-shrink: 0;
 }
 
-.advanced[open] summary::before {
+.advanced[open] summary::before,
+.chat-section[open] summary::before {
     transform: rotate(90deg);
 }
 
@@ -725,10 +729,17 @@ footer a:hover {
 
 .chat-section summary {
     cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
     padding: 15px 20px;
     background: #f8f9fa;
     border-radius: 5px;
     transition: background 0.3s;
+}
+
+.chat-section summary::-webkit-details-marker {
+    display: none;
 }
 
 .chat-section summary:hover {
