@@ -59,6 +59,12 @@ export class UIManager {
     }
 
     addChatMessage(message, sender = 'peer') {
+        // Auto-expand the chat panel when a peer message arrives
+        if (sender === 'peer') {
+            const chatDetails = document.querySelector('.chat-section');
+            if (chatDetails && !chatDetails.open) chatDetails.open = true;
+        }
+
         const messageDiv = document.createElement('div');
         messageDiv.className = `chat-message ${sender === 'you' ? 'sent' : 'received'}`;
 
