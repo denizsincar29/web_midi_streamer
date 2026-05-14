@@ -46,16 +46,16 @@ self.onmessage = (e) => {
 
     const ts = performance.now();
 
-    let buf, view;
+    let buf;
     if (timestampEnabled) {
-        buf  = new ArrayBuffer(1 + 8 + bytes.length);
-        view = new DataView(buf);
+        buf = new ArrayBuffer(1 + 8 + bytes.length);
+        const view = new DataView(buf);
         view.setUint8(0, 0x01);           // flag: has timestamp
         view.setFloat64(1, ts, false);    // big-endian f64
         new Uint8Array(buf, 9).set(bytes);
     } else {
-        buf  = new ArrayBuffer(1 + bytes.length);
-        view = new DataView(buf);
+        buf = new ArrayBuffer(1 + bytes.length);
+        const view = new DataView(buf);
         view.setUint8(0, 0x00);           // flag: no timestamp
         new Uint8Array(buf, 1).set(bytes);
     }

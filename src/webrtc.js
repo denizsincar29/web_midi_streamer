@@ -297,16 +297,16 @@ export class WebRTCManager {
         this._stabDuration = durationMs;
 
         this._stabTimer = setInterval(() => {
+            // Check duration first so we don't send one extra probe at the boundary
+            if (performance.now() - this._stabStart >= durationMs) {
+                this.stopStabilityTest();
+                return;
+            }
             if (!this.isConnected()) return;
             const seq = ++this._stabSeq;
             const ts  = performance.now();
             this._stabSent++;
             this.send(JSON.stringify({ type: 'stab_probe', seq, ts, interval: intervalMs }));
-
-            // Auto-stop after durationMs
-            if (performance.now() - this._stabStart >= durationMs) {
-                this.stopStabilityTest();
-            }
         }, intervalMs);
 
         this.onStatusUpdate(this._t('stability.started').replace('{interval}', intervalMs).replace('{duration}', durationMs/1000), 'info');

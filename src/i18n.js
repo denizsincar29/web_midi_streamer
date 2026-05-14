@@ -13,6 +13,7 @@ export const translations = {
         'status.disconnected': 'Disconnected',
         'status.waitingForPeer': 'Waiting for other participant...',
         'status.connectedToPeer': 'Connected',
+        'status.connectedPeers': 'Connected ({n} peer(s))',
         
         // MIDI Devices
         'midi.title': 'MIDI Devices',
@@ -63,6 +64,7 @@ export const translations = {
 
         // Piano keyboard visualiser
         'piano.title': '🎹 Keyboard Visualiser',
+        'piano.ariaLabel': 'Piano keyboard showing active notes',
         'piano.legend.local': 'You (blue)',
         'piano.legend.remote': 'Remote (amber)',
         'piano.legend.both': 'Both (purple)',
@@ -107,6 +109,9 @@ export const translations = {
         'recorder.stop': '⏹ Stop',
         'recorder.play': '▶ Play',
         'recorder.save': '💾 Save .mid',
+        'recorder.statusRecording': '⏺ Recording…',
+        'recorder.statusReady': '✅ Take ready',
+        'recorder.statusTake': '✅ Take: {events} events, {dur}s',
         'recorder.started': '⏺ Recording started',
         'recorder.stoppedEmpty': 'Recording stopped — no events captured',
         'recorder.stopped': '⏹ Recording stopped — {events} events, {dur}s',
@@ -282,6 +287,7 @@ export const translations = {
         'status.disconnected': 'Отключено',
         'status.waitingForPeer': 'Ожидание партнёра...',
         'status.connectedToPeer': 'Подключено к партнёру',
+        'status.connectedPeers': 'Подключено ({n} участник(ов))',
         
         // MIDI Devices
         'midi.title': 'MIDI-устройства',
@@ -332,6 +338,7 @@ export const translations = {
 
         // Piano keyboard visualiser
         'piano.title': '🎹 Визуализатор клавиатуры',
+        'piano.ariaLabel': 'Клавиатура пианино с подсветкой активных нот',
         'piano.legend.local': 'Вы (синий)',
         'piano.legend.remote': 'Партнёр (оранжевый)',
         'piano.legend.both': 'Оба (фиолетовый)',
@@ -376,6 +383,9 @@ export const translations = {
         'recorder.stop': '⏹ Стоп',
         'recorder.play': '▶ Воспроизвести',
         'recorder.save': '💾 Сохранить .mid',
+        'recorder.statusRecording': '⏺ Запись…',
+        'recorder.statusReady': '✅ Запись готова',
+        'recorder.statusTake': '✅ Запись: {events} событий, {dur}с',
         'recorder.started': '⏺ Запись начата',
         'recorder.stoppedEmpty': 'Запись остановлена — события не записаны',
         'recorder.stopped': '⏹ Запись остановлена — {events} событий, {dur}с',

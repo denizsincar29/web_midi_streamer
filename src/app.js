@@ -65,7 +65,7 @@ export class MIDIStreamer {
                 this.stopRoomAutoRefresh();
                 this.midi.playStatusChime('peer_connection');
                 const n = this.webrtc.connectedCount();
-                this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
+                this.ui.updateConnectionStatus(t('status.connectedPeers').replace('{n}', n), 'connected');
             } else {
                 this.startRoomAutoRefresh();
                 this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
@@ -76,7 +76,7 @@ export class MIDIStreamer {
             const el = document.getElementById('peerCountBadge');
             if (el) el.textContent = n > 0 ? `${n} peer${n>1?'s':''}` : '';
             if (n > 0) {
-                this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
+                this.ui.updateConnectionStatus(t('status.connectedPeers').replace('{n}', n), 'connected');
             }
         };
 
@@ -116,7 +116,7 @@ export class MIDIStreamer {
 
         // Piano keyboard visualiser
         try {
-            this._piano = new PianoKeyboard('#pianoContainer');
+            this._piano = new PianoKeyboard('#pianoContainer', t('piano.ariaLabel'));
         } catch (e) { console.warn('Piano keyboard init failed:', e); }
 
         // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
@@ -183,7 +183,7 @@ export class MIDIStreamer {
         // Use the mesh's actual connection state rather than a non-existent .peerConnection
         if (this.webrtc.isConnected()) {
             const n = this.webrtc.connectedCount();
-            this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
+            this.ui.updateConnectionStatus(t('status.connectedPeers').replace('{n}', n), 'connected');
         } else if (this.currentRoomName) {
             this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
         } else {
@@ -298,7 +298,7 @@ export class MIDIStreamer {
         this.recorder.onStateChange = (recording) => {
             if (recBtn)     recBtn.disabled     = recording;
             if (recStopBtn) recStopBtn.disabled  = !recording;
-            if (recStatus)  recStatus.textContent = recording ? '⏺ Recording…' : (this.currentTake ? '✅ Take ready' : '');
+            if (recStatus)  recStatus.textContent = recording ? t('recorder.statusRecording') : (this.currentTake ? t('recorder.statusReady') : '');
         };
 
         recBtn?.addEventListener('click', () => {
@@ -320,7 +320,7 @@ export class MIDIStreamer {
             const dur = (this.currentTake.durationMs / 1000).toFixed(1);
             if (recPlayBtn) recPlayBtn.disabled = false;
             if (recSaveBtn) recSaveBtn.disabled = false;
-            if (recStatus)  recStatus.textContent = `✅ Take: ${this.currentTake.events.length} events, ${dur}s`;
+            if (recStatus)  recStatus.textContent = t('recorder.statusTake').replace('{events}', this.currentTake.events.length).replace('{dur}', dur);
             this.ui.addMessage(t('recorder.stopped').replace('{events}', this.currentTake.events.length).replace('{dur}', dur), 'success');
         });
 
@@ -474,7 +474,7 @@ export class MIDIStreamer {
         this.currentRoomName = '';
         this.roomHidden = false;
         const hideBtn = document.getElementById('hideRoomBtn');
-        if (hideBtn) hideBtn.textContent = '🙈 Hide Room';
+        if (hideBtn) hideBtn.textContent = t('room.hide');
         const badge = document.getElementById('peerCountBadge');
         if (badge) badge.textContent = '';
         this.setRoomsVisibility(true);
@@ -764,6 +764,9 @@ export class MIDIStreamer {
         if (stabBtn) stabBtn.disabled = !connected;
         if (!connected) {
             this._piano?.allOff();
+            // Cancel any running stability test
+            if (this._stabEndTimer) { clearTimeout(this._stabEndTimer); this._stabEndTimer = null; }
+            this.webrtc.stopStabilityTest?.();
             document.getElementById('stabStopBtn').style.display  = 'none';
             document.getElementById('stabStartBtn').style.display = '';
         }

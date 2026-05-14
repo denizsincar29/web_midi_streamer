@@ -27,8 +27,10 @@ function isBlack(midi) { return BLACK_SEMITONES.has(midi % 12); }
 export class PianoKeyboard {
     /**
      * @param {string|HTMLElement} container  CSS selector or DOM element
+     * @param {string} [ariaLabel]            Localised aria-label for the keyboard
      */
-    constructor(container) {
+    constructor(container, ariaLabel) {
+        this._ariaLabel = ariaLabel ?? 'Piano keyboard showing active notes';
         this._root = typeof container === 'string'
             ? document.querySelector(container)
             : container;
@@ -46,7 +48,7 @@ export class PianoKeyboard {
         this._root.innerHTML = '';
         this._root.classList.add('piano-keyboard');
         this._root.setAttribute('role', 'img');
-        this._root.setAttribute('aria-label', 'Piano keyboard showing active notes');
+        this._root.setAttribute('aria-label', this._ariaLabel);
 
         this._keys = {}; // pitch → element
 

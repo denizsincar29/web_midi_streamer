@@ -103,7 +103,9 @@ export class MIDIRecorder {
 
         for (const ev of take.events) {
             const deltaTicks = Math.round(ev.deltaMs / MS_PER_TICK);
-            trackBytes.push(...vlq(deltaTicks), ...ev.data);
+            // Use push.apply instead of spread to avoid call stack overflow on large takes
+            Array.prototype.push.apply(trackBytes, vlq(deltaTicks));
+            Array.prototype.push.apply(trackBytes, ev.data);
         }
 
         // End-of-track meta-event (delta=0, FF 2F 00)
