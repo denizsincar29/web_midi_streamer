@@ -63,11 +63,6 @@ export class MIDIRecorder {
         return { events: compacted, durationMs };
     }
 
-    /** Export take as a simple JSON blob the user can save. */
-    static exportJSON(take) {
-        return JSON.stringify({ version: 1, maxPauseMs: MAX_PAUSE_MS, ...take }, null, 2);
-    }
-
     /**
      * Export take as a Standard MIDI File (SMF format 0, single track).
      *
