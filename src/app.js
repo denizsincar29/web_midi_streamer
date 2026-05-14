@@ -170,15 +170,12 @@ export class MIDIStreamer {
             this.ui.updateRoomName(t('status.enterRoomName'));
         }
 
-        if (this.webrtc.peerConnection) {
-            const state = this.webrtc.peerConnection.connectionState;
-            if (state === 'connected') {
-                this.ui.updateConnectionStatus(t('status.connectedToPeer'), 'connected');
-            } else if (state === 'connecting') {
-                this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
-            } else {
-                this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
-            }
+        // Use the mesh's actual connection state rather than a non-existent .peerConnection
+        if (this.webrtc.isConnected()) {
+            const n = this.webrtc.connectedCount();
+            this.ui.updateConnectionStatus(`Connected (${n} peer${n>1?'s':''})`, 'connected');
+        } else if (this.currentRoomName) {
+            this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
         } else {
             this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
         }

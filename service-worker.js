@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.5.4';  // fix: connectionState-based ICE, no chimes on transient events
+const CACHE_NAME = 'midi-streamer-v1.5.5';  // fix: 6 bugs found in code review
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

@@ -19,8 +19,6 @@
 // Range shown on screen
 const FIRST_NOTE = 36;  // C2
 const LAST_NOTE  = 84;  // C6
-const TOTAL_KEYS = LAST_NOTE - FIRST_NOTE + 1;
-
 // Which semitones within an octave are black keys
 const BLACK_SEMITONES = new Set([1, 3, 6, 8, 10]);
 

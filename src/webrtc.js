@@ -238,10 +238,12 @@ export class WebRTCManager {
         this.manualDisconnect = true;
         this._stopHeartbeat();
         this.ws?.close(); this.ws = null;
-        for (const p of this.peers.values()) { p.dataChannel?.close(); p.pc?.close(); }
-        this.peers.clear();
+        // Use _removePeer so all per-peer timers are cancelled cleanly
+        for (const remoteId of [...this.peers.keys()]) this._removePeer(remoteId);
         this.myId = null;
         if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+        // Stop any running stability test
+        if (this._stabTimer) { clearInterval(this._stabTimer); this._stabTimer = null; }
         this._wt?.close(); this._wt = null; this.useWebTransport = false;
     }
 
@@ -282,8 +284,10 @@ export class WebRTCManager {
         this._stabSeq      = 0;
         this._stabSent     = 0;
         this._stabLost     = 0;
-        this._stabGaps     = [];   // inter-arrival gaps recorded on remote side
-        this._stabStart    = performance.now();
+        this._stabGaps         = [];   // inter-arrival gaps recorded on remote side
+        this._lastProbeArrival = null;  // reset so first gap isn't huge
+        this._lastProbeSeq     = null;
+        this._stabStart        = performance.now();
         this._stabDuration = durationMs;
 
         this._stabTimer = setInterval(() => {
@@ -596,7 +600,7 @@ export class WebRTCManager {
             setTimeout(() => this._quickPing(peer), 800);
         };
         dc.onmessage = ({ data }) => this._handleData(data, peer.remoteId);
-        dc.onclose   = () => { peer.connected = false; this._removePeer(peer.remoteId); };
+        dc.onclose   = () => { peer.connected = false; /* pc.onconnectionstatechange('closed') handles full cleanup */ };
         dc.onerror   = e  => this.onStatusUpdate(`❌ DataChannel error: ${e}`, 'error');
     }
 

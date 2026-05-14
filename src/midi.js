@@ -163,7 +163,14 @@ export class MIDIManager {
         }
         
         if (deviceId && this.access) {
-            this.selectedInput = this.access.inputs.get(deviceId);
+            const input = this.access.inputs.get(deviceId);
+            if (!input) {
+                // Device ID no longer valid (unplugged etc.) — clear selection
+                this.selectedInput = null;
+                localStorage.removeItem(this.STORAGE_KEY_INPUT);
+                return;
+            }
+            this.selectedInput = input;
             this.selectedInput.onmidimessage = (event) => {
                 if (this.onMessage) {
                     this.onMessage(Array.from(event.data));
