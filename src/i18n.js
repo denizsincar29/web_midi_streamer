@@ -60,6 +60,86 @@ export const translations = {
         'settings.timestampDisabledByRemote': 'Timestamp sync disabled by remote peer',
         'messages.copied': '✓ All messages copied to clipboard',
         'messages.copyFailed': 'Failed to copy messages',
+
+        // Piano keyboard visualiser
+        'piano.title': '🎹 Keyboard Visualiser',
+        'piano.legend.local': 'You (blue)',
+        'piano.legend.remote': 'Remote (amber)',
+        'piano.legend.both': 'Both (purple)',
+
+        // Low-Latency Mode
+        'settings.lowLatency': '⚡ Experimental Low-Latency Mode',
+        'settings.lowLatencyDesc': 'Uses an unordered, no-retransmit DataChannel to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.',
+        'settings.lowLatencyOn': '⚡ Low-Latency Mode ON (unordered, no retransmits) — reconnect to apply',
+        'settings.lowLatencyOff': '🔁 Low-Latency Mode OFF — reconnect to apply',
+
+        // Emergency
+        'debug.emergency': '🛑 Emergency: All Notes Off',
+        'debug.emergencyDesc': 'Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.',
+        'debug.emergencySent': '🛑 Emergency: All Notes Off sent (CC 123, all channels)',
+
+        // Stability test
+        'stability.title': '📶 Signal Stability Test',
+        'stability.interval': 'Probe interval (ms):',
+        'stability.duration': 'Duration (s):',
+        'stability.start': '▶ Start',
+        'stability.stop': '⏹ Stop',
+        'stability.jitter': 'Jitter:',
+        'stability.lost': 'Lost:',
+        'stability.sent': 'Sent:',
+        'stability.minGap': 'Min gap:',
+        'stability.maxGap': 'Max gap:',
+        'stability.running': 'Running…',
+        'stability.stable': '✅ Stable',
+        'stability.unstable': '⚠️ Unstable',
+        'stability.notConnected': 'Connect to a peer first before running the stability test.',
+        'stability.noData': 'Stability test stopped (not enough data)',
+        'stability.result': '📶 Stability: jitter {jitter} ms | loss {lost}/{total} | {verdict}',
+        'stability.verdictStable': '✅ STABLE',
+        'stability.verdictUnstable': '❌ UNSTABLE',
+        'stability.started': '📶 Stability test started ({interval} ms interval, {duration} s)',
+
+        // Recorder
+        'recorder.title': '🎹 MIDI Recorder',
+        'recorder.start': '⏺ Record',
+        'recorder.stop': '⏹ Stop',
+        'recorder.play': '▶ Play',
+        'recorder.save': '💾 Save JSON',
+        'recorder.started': '⏺ Recording started',
+        'recorder.stoppedEmpty': 'Recording stopped — no events captured',
+        'recorder.stopped': '⏹ Recording stopped — {events} events, {dur}s',
+        'recorder.playing': '▶ Playing back recording…',
+        'recorder.playbackDone': '▶ Playback finished',
+        'recorder.saved': '💾 Recording saved as JSON',
+
+        // Room hiding
+        'room.hideFirst': 'Join a room first before hiding it',
+        'room.hidden': '🙈 Room hidden from the room list',
+        'room.shown': '👁 Room is now visible in the room list',
+        'room.toggleFailed': 'Failed to toggle room visibility: {error}',
+        'room.hide': '🙈 Hide Room',
+        'room.show': '👁 Show Room',
+        'rooms.refreshFailed': 'Failed to refresh rooms',
+
+        // WebRTC status
+        'webrtc.connecting': '🔗 Connecting to signaling server…',
+        'webrtc.waiting': '⏳ Waiting for other participants…',
+        'webrtc.noConnections': 'No open peer connections',
+        'webrtc.pingBusy': 'Ping already in progress',
+        'webrtc.pingStarted': 'Starting ping test (5 pings × {n} peer(s))…',
+        'webrtc.pingResult': 'Ping {id}: {rtt} ms RTT (est. one-way: {oneway} ms)',
+        'webrtc.pingDone': 'Ping done — min {min}  avg {avg}  max {max} ms  (est. one-way: {oneway} ms)',
+        'webrtc.reconnecting': '🔄 Reconnecting to {peer} ({n}/2)…',
+        'webrtc.lostAfter20s': '⚠️ Peer {peer} lost after 20 s',
+        'webrtc.connectionLost': '❌ Connection to {peer} lost',
+        'webrtc.peerLeft': 'Peer {peer} left ({n} remaining)',
+        'webrtc.dcError': '❌ DataChannel error: {error}',
+        'webrtc.signalFailed': 'Unable to reconnect to signaling server',
+        'webrtc.wtActive': '⚡ WebTransport (QUIC datagram) active',
+        'webrtc.wtUnavailable': '⚠️ WebTransport unavailable ({error}), falling back to WebRTC',
+        'webrtc.wtReceiveError': '⚠️ WebTransport receive error: {error}',
+        'webrtc.connected': '✅ Connected to {peer}{mode} ({n} peer{plural} total)',
+        'webrtc.connectedMode': ' ⚡ Low-Latency',
         
         // Available Rooms
         'connection.availableRooms': 'Available Rooms',
@@ -191,6 +271,8 @@ export const translations = {
         'app.title': 'Web MIDI Стример',
         'app.subtitle': 'Потоковая передача MIDI в реальном времени через WebRTC',
         
+        'header.tools': '🎹 Мини-приложения',
+
         // Status
         'status.title': 'Статус:',
         'status.notConnected': 'Не подключено',
@@ -245,6 +327,86 @@ export const translations = {
         'settings.timestampDisabledByRemote': 'Синхронизация временных меток выключена удалённым участником',
         'messages.copied': '✓ Все сообщения скопированы в буфер обмена',
         'messages.copyFailed': 'Не удалось скопировать сообщения',
+
+        // Piano keyboard visualiser
+        'piano.title': '🎹 Визуализатор клавиатуры',
+        'piano.legend.local': 'Вы (синий)',
+        'piano.legend.remote': 'Партнёр (оранжевый)',
+        'piano.legend.both': 'Оба (фиолетовый)',
+
+        // Low-Latency Mode
+        'settings.lowLatency': '⚡ Экспериментальный режим минимальной задержки',
+        'settings.lowLatencyDesc': 'Использует неупорядоченный канал данных без повторных передач для минимизации джиттера. Переподключитесь после переключения. Потеря пакетов ожидаема — залипшие ноты обрабатываются автоматически.',
+        'settings.lowLatencyOn': '⚡ Режим минимальной задержки ВКЛЮЧЁН — переподключитесь для применения',
+        'settings.lowLatencyOff': '🔁 Режим минимальной задержки ВЫКЛЮЧЕН — переподключитесь для применения',
+
+        // Emergency
+        'debug.emergency': '🛑 Аварийное отключение нот',
+        'debug.emergencyDesc': 'Отправляет CC 123 по всем 16 каналам локально и всем партнёрам. Сбрасывает все таймеры активных нот.',
+        'debug.emergencySent': '🛑 Аварийное отключение нот отправлено (CC 123, все каналы)',
+
+        // Stability test
+        'stability.title': '📶 Тест стабильности сигнала',
+        'stability.interval': 'Интервал зондирования (мс):',
+        'stability.duration': 'Длительность (с):',
+        'stability.start': '▶ Начать',
+        'stability.stop': '⏹ Остановить',
+        'stability.jitter': 'Джиттер:',
+        'stability.lost': 'Потеряно:',
+        'stability.sent': 'Отправлено:',
+        'stability.minGap': 'Мин. интервал:',
+        'stability.maxGap': 'Макс. интервал:',
+        'stability.running': 'Выполняется…',
+        'stability.stable': '✅ Стабильно',
+        'stability.unstable': '⚠️ Нестабильно',
+        'stability.notConnected': 'Сначала подключитесь к партнёру для запуска теста.',
+        'stability.noData': 'Тест остановлен (недостаточно данных)',
+        'stability.result': '📶 Стабильность: джиттер {jitter} мс | потери {lost}/{total} | {verdict}',
+        'stability.verdictStable': '✅ СТАБИЛЬНО',
+        'stability.verdictUnstable': '❌ НЕСТАБИЛЬНО',
+        'stability.started': '📶 Тест запущен (интервал {interval} мс, {duration} с)',
+
+        // Recorder
+        'recorder.title': '🎹 MIDI Рекордер',
+        'recorder.start': '⏺ Запись',
+        'recorder.stop': '⏹ Стоп',
+        'recorder.play': '▶ Воспроизвести',
+        'recorder.save': '💾 Сохранить JSON',
+        'recorder.started': '⏺ Запись начата',
+        'recorder.stoppedEmpty': 'Запись остановлена — события не записаны',
+        'recorder.stopped': '⏹ Запись остановлена — {events} событий, {dur}с',
+        'recorder.playing': '▶ Воспроизведение…',
+        'recorder.playbackDone': '▶ Воспроизведение завершено',
+        'recorder.saved': '💾 Запись сохранена как JSON',
+
+        // Room hiding
+        'room.hideFirst': 'Сначала войдите в комнату',
+        'room.hidden': '🙈 Комната скрыта из списка',
+        'room.shown': '👁 Комната снова видна в списке',
+        'room.toggleFailed': 'Не удалось изменить видимость комнаты: {error}',
+        'room.hide': '🙈 Скрыть комнату',
+        'room.show': '👁 Показать комнату',
+        'rooms.refreshFailed': 'Не удалось обновить список комнат',
+
+        // WebRTC status
+        'webrtc.connecting': '🔗 Подключение к серверу сигнализации…',
+        'webrtc.waiting': '⏳ Ожидание других участников…',
+        'webrtc.noConnections': 'Нет открытых соединений',
+        'webrtc.pingBusy': 'Пинг уже выполняется',
+        'webrtc.pingStarted': 'Запуск теста пинга (5 × {n} соединение(й))…',
+        'webrtc.pingResult': 'Пинг {id}: {rtt} мс (одностороннее: {oneway} мс)',
+        'webrtc.pingDone': 'Пинг завершён — мин {min}  сред {avg}  макс {max} мс  (одностороннее: {oneway} мс)',
+        'webrtc.reconnecting': '🔄 Переподключение к {peer} ({n}/2)…',
+        'webrtc.lostAfter20s': '⚠️ Партнёр {peer} потерян через 20 с',
+        'webrtc.connectionLost': '❌ Соединение с {peer} потеряно',
+        'webrtc.peerLeft': 'Партнёр {peer} покинул сессию ({n} осталось)',
+        'webrtc.dcError': '❌ Ошибка канала данных: {error}',
+        'webrtc.signalFailed': 'Не удалось переподключиться к серверу сигнализации',
+        'webrtc.wtActive': '⚡ WebTransport (QUIC датаграмма) активен',
+        'webrtc.wtUnavailable': '⚠️ WebTransport недоступен ({error}), используется WebRTC',
+        'webrtc.wtReceiveError': '⚠️ Ошибка получения WebTransport: {error}',
+        'webrtc.connected': '✅ Подключено к {peer}{mode} (всего {n} участник{plural})',
+        'webrtc.connectedMode': ' ⚡ Мин. задержка',
         
         // Available Rooms
         'connection.availableRooms': 'Доступные комнаты',

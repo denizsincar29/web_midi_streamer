@@ -114,10 +114,11 @@ class WebTransportRelay {
 // ── WebRTCManager ─────────────────────────────────────────────────────────────
 
 export class WebRTCManager {
-    constructor(onMessage, onStatusUpdate, onICEPath) {
+    constructor(onMessage, onStatusUpdate, onICEPath, translate) {
         this.onMessage               = onMessage;
         this.onStatusUpdate          = onStatusUpdate;
         this.onICEPath               = onICEPath ?? (() => {});
+        this._translate              = translate ?? null;   // i18n t() fn, injected by app
         this.onConnectionStateChange = null;
         this.onPeerCountChange       = null;
 
@@ -140,6 +141,11 @@ export class WebRTCManager {
         this.useWebTransport = false;
     }
 
+    // Translation helper — app passes t() from i18n.js; fallback returns the key as-is
+    _t(key) {
+        return this._translate ? this._translate(key) : key;
+    }
+
     _resetPing() {
         return { count:0, total:0, times:[], sentTimes:{}, inProgress:false, lastAvg:0 };
     }
@@ -151,7 +157,7 @@ export class WebRTCManager {
         this.manualDisconnect = false;
         this.roomName = roomName;
         this.myId     = this._uid();
-        this.onStatusUpdate('🔗 Connecting to signaling server…', 'info');
+        this.onStatusUpdate(this._t('webrtc.connecting'), 'info');
 
         // Try WebTransport if relay URL is configured
         if (this.webTransportUrl && WebTransportRelay.isSupported()) {
@@ -159,10 +165,10 @@ export class WebRTCManager {
                 this._wt = new WebTransportRelay(this.webTransportUrl);
                 await this._wt.connect();
                 this.useWebTransport = true;
-                this.onStatusUpdate('⚡ WebTransport (QUIC datagram) active', 'success');
+                this.onStatusUpdate(this._t('webrtc.wtActive'), 'success');
                 this._startWebTransportReceiveLoop();
             } catch (err) {
-                this.onStatusUpdate(`⚠️ WebTransport unavailable (${err.message}), falling back to WebRTC`, 'warning', false);
+                this.onStatusUpdate(this._t('webrtc.wtUnavailable').replace('{error}', err.message), 'warning', false);
                 this.useWebTransport = false;
                 this._wt             = null;
             }
@@ -170,7 +176,7 @@ export class WebRTCManager {
 
         await this._wsOpen();
         this._send({ type: 'join', from: this.myId });
-        this.onStatusUpdate('⏳ Waiting for other participants…', 'info', false);
+        this.onStatusUpdate(this._t('webrtc.waiting'), 'info', false);
 
         if (!this._visibilityBound) {
             this._visibilityBound = true;
@@ -248,13 +254,13 @@ export class WebRTCManager {
     }
 
     sendPing() {
-        if (!this.isConnected()) { this.onStatusUpdate('No open peer connections', 'error'); return; }
-        if (this.pingStats.inProgress) { this.onStatusUpdate('Ping already in progress', 'warning'); return; }
+        if (!this.isConnected()) { this.onStatusUpdate(this._t('webrtc.noConnections'), 'error'); return; }
+        if (this.pingStats.inProgress) { this.onStatusUpdate(this._t('webrtc.pingBusy'), 'warning'); return; }
         this.pingStats = this._resetPing();
         const openPeers = [...this.peers.values()].filter(p => p.isOpen());
         this.pingStats.total = 5 * openPeers.length;
         this.pingStats.inProgress = true;
-        this.onStatusUpdate(`Starting ping test (5 pings × ${openPeers.length} peer(s))…`, 'info');
+        this.onStatusUpdate(this._t('webrtc.pingStarted').replace('{n}', openPeers.length), 'info');
         openPeers.forEach(peer => {
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
@@ -303,21 +309,18 @@ export class WebRTCManager {
             }
         }, intervalMs);
 
-        this.onStatusUpdate(`📶 Stability test started (${intervalMs} ms interval, ${durationMs/1000} s)`, 'info');
+        this.onStatusUpdate(this._t('stability.started').replace('{interval}', intervalMs).replace('{duration}', durationMs/1000), 'info');
     }
 
     stopStabilityTest() {
         if (this._stabTimer) { clearInterval(this._stabTimer); this._stabTimer = null; }
         const gaps  = this._stabGaps ?? [];
-        if (gaps.length < 2) { this.onStatusUpdate('Stability test stopped (not enough data)', 'warning'); return; }
+        if (gaps.length < 2) { this.onStatusUpdate(this._t('stability.noData'), 'warning'); return; }
         const jitter = this._calcJitter(gaps);
         const lost   = this._stabLost ?? 0;
         const total  = this._stabSent ?? 0;
         const stable = jitter < (this._stabInterval * 0.2) && (lost / Math.max(total, 1)) < 0.05;
-        this.onStatusUpdate(
-            `📶 Stability: jitter ${jitter.toFixed(1)} ms | loss ${lost}/${total} | ${stable ? '✅ STABLE' : '❌ UNSTABLE'}`,
-            stable ? 'success' : 'error'
-        );
+        this.onStatusUpdate(this._t('stability.result').replace('{jitter}', jitter.toFixed(1)).replace('{lost}', lost).replace('{total}', total).replace('{verdict}', stable ? this._t('stability.verdictStable') : this._t('stability.verdictUnstable')), stable ? 'success' : 'error');
         this.onStabilityUpdate?.({ type: 'test_done', jitter, lost, total, stable, gaps });
     }
 
@@ -360,7 +363,7 @@ export class WebRTCManager {
             }
         } catch (err) {
             if (!this.manualDisconnect) {
-                this.onStatusUpdate(`⚠️ WebTransport receive error: ${err.message}`, 'warning');
+                this.onStatusUpdate(this._t('webrtc.wtReceiveError').replace('{error}', err.message), 'warning');
             }
         }
     }
@@ -395,7 +398,7 @@ export class WebRTCManager {
     _scheduleReconnect() {
         if (this.manualDisconnect) return;
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            this.onStatusUpdate('Unable to reconnect to signaling server', 'error'); return;
+            this.onStatusUpdate(this._t('webrtc.signalFailed'), 'error'); return;
         }
         const delay = Math.min(30000, 1000 * Math.pow(2, ++this.reconnectAttempts));
         this.reconnectTimer = setTimeout(async () => {
@@ -524,7 +527,7 @@ export class WebRTCManager {
                     peer._watchdogTimer = null;
                     if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
                         // Still gone after 20 s — treat as failed
-                        this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} lost after 20 s`, 'warning', false);
+                        this.onStatusUpdate(this._t('webrtc.lostAfter20s').replace('{peer}', remoteId.slice(0,6)), 'warning', false);
                         this._removePeer(remoteId);
                     }
                 }, 20000);
@@ -536,10 +539,10 @@ export class WebRTCManager {
                 // Per spec: only the IMPOLITE peer initiates ICE restart.
                 // Polite peer waits for the re-offer triggered by the other side.
                 if (!peer.isPolite && peer._iceRestartCount <= 2) {
-                    this.onStatusUpdate(`🔄 Reconnecting to ${remoteId.slice(0,6)} (${peer._iceRestartCount}/2)…`, 'warning', false);
+                    this.onStatusUpdate(this._t('webrtc.reconnecting').replace('{peer}', remoteId.slice(0,6)).replace('{n}', peer._iceRestartCount), 'warning', false);
                     try { pc.restartIce(); }
                     catch(e) {
-                        this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
+                        this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
                         this._removePeer(remoteId);
                     }
                 } else if (peer.isPolite) {
@@ -548,13 +551,13 @@ export class WebRTCManager {
                         peer._failedWaitTimer = setTimeout(() => {
                             peer._failedWaitTimer = null;
                             if (pc.connectionState === 'failed') {
-                                this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
+                                this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
                                 this._removePeer(remoteId);
                             }
                         }, 8000);
                     }
                 } else {
-                    this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
+                    this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
                     this._removePeer(remoteId);
                 }
             }
@@ -590,18 +593,15 @@ export class WebRTCManager {
         dc.onopen = () => {
             peer.connected = true;
             const n    = this.connectedCount();
-            const mode = this.lowLatencyMode ? ' ⚡ Low-Latency' : '';
-            this.onStatusUpdate(
-                `✅ Connected to ${peer.remoteId.slice(0,6)}${mode} (${n} peer${n>1?'s':''} total)`,
-                'success'
-            );
+            const mode = this.lowLatencyMode ? this._t('webrtc.connectedMode') : '';
+            this.onStatusUpdate(this._t('webrtc.connected').replace('{peer}', peer.remoteId.slice(0,6)).replace('{mode}', mode).replace('{n}', n).replace('{plural}', n>1?'s':''), 'success');
             this.onConnectionStateChange?.(true);
             this.onPeerCountChange?.(n);
             setTimeout(() => this._quickPing(peer), 800);
         };
         dc.onmessage = ({ data }) => this._handleData(data, peer.remoteId);
         dc.onclose   = () => { peer.connected = false; /* pc.onconnectionstatechange('closed') handles full cleanup */ };
-        dc.onerror   = e  => this.onStatusUpdate(`❌ DataChannel error: ${e}`, 'error');
+        dc.onerror   = e  => this.onStatusUpdate(this._t('webrtc.dcError').replace('{error}', e), 'error');
     }
 
     _removePeer(remoteId) {
@@ -615,7 +615,7 @@ export class WebRTCManager {
         peer.pc?.close();
         this.peers.delete(remoteId);
         const n = this.connectedCount();
-        this.onStatusUpdate(`Peer ${remoteId.slice(0,6)} left (${n} remaining)`, 'warning', false);
+        this.onStatusUpdate(this._t('webrtc.peerLeft').replace('{peer}', remoteId.slice(0,6)).replace('{n}', n), 'warning', false);
         this.onConnectionStateChange?.(n > 0);
         this.onPeerCountChange?.(n);
     }
@@ -648,7 +648,7 @@ export class WebRTCManager {
                     // Always log to console; only add to message panel on first connect
                     console.log(`[Path] ${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`);
                     if (!silent) {
-                        this.onStatusUpdate(`${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`, 'success', false);
+                        this.onStatusUpdate(`${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`, 'success', false); // path type label not translated (always technical)
                     }
 
                     this.onICEPath({
@@ -693,16 +693,13 @@ export class WebRTCManager {
             const rtt = performance.now() - msg.timestamp;
             this.pingStats.count++;
             this.pingStats.times.push(rtt);
-            this.onStatusUpdate(`Ping ${msg.pingId}: ${rtt.toFixed(1)} ms RTT (est. one-way: ${(rtt/2).toFixed(1)} ms)`, 'success', false);
+            this.onStatusUpdate(this._t('webrtc.pingResult').replace('{id}', msg.pingId).replace('{rtt}', rtt.toFixed(1)).replace('{oneway}', (rtt/2).toFixed(1)), 'success', false);
             if (this.pingStats.times.length >= this.pingStats.total && this.pingStats.inProgress) {
                 const avg = this.pingStats.times.reduce((a,b)=>a+b,0)/this.pingStats.times.length;
                 this.pingStats.lastAvg = avg;
                 this.pingStats.inProgress = false;
                 const mn = Math.min(...this.pingStats.times), mx = Math.max(...this.pingStats.times);
-                this.onStatusUpdate(
-                    `Ping done — min ${mn.toFixed(1)}  avg ${avg.toFixed(1)}  max ${mx.toFixed(1)} ms  (est. one-way: ${(avg/2).toFixed(1)} ms)`,
-                    'success'
-                );
+                this.onStatusUpdate(this._t('webrtc.pingDone').replace('{min}', mn.toFixed(1)).replace('{avg}', avg.toFixed(1)).replace('{max}', mx.toFixed(1)).replace('{oneway}', (avg/2).toFixed(1)), 'success');
             }
             return;
         }

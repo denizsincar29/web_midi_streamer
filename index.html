@@ -78,7 +78,7 @@
                 </div>
                 <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Connect to Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
-                <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list">🙈 Hide Room</button>
+                <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list" data-i18n="room.hide">🙈 Hide Room</button>
                 <span id="peerCountBadge" class="peer-count-badge" aria-live="polite"></span>
                 <span id="ipVersionBadge" class="ip-version-badge" aria-live="polite" hidden title="Active ICE path type and IP version"></span>
             </section>
@@ -86,28 +86,28 @@
             <!-- MIDI Recorder -->
             <!-- ── Piano Keyboard Visualiser ──────────────────────────────── -->
             <section class="piano-section">
-                <h2>🎹 Keyboard Visualiser</h2>
+                <h2 data-i18n="piano.title">🎹 Keyboard Visualiser</h2>
                 <div id="pianoContainer" aria-label="Visual piano showing active notes"></div>
                 <div class="piano-legend" aria-hidden="true">
                     <span class="piano-legend-item">
-                        <span class="piano-legend-swatch swatch-local"></span> You (blue)
+                        <span class="piano-legend-swatch swatch-local"></span> <span data-i18n="piano.legend.local">You (blue)</span>
                     </span>
                     <span class="piano-legend-item">
-                        <span class="piano-legend-swatch swatch-remote"></span> Remote (amber)
+                        <span class="piano-legend-swatch swatch-remote"></span> <span data-i18n="piano.legend.remote">Remote (amber)</span>
                     </span>
                     <span class="piano-legend-item">
-                        <span class="piano-legend-swatch swatch-both"></span> Both (purple)
+                        <span class="piano-legend-swatch swatch-both"></span> <span data-i18n="piano.legend.both">Both (purple)</span>
                     </span>
                 </div>
             </section>
 
             <section class="recorder-section">
-                <h2>🎹 MIDI Recorder</h2>
+                <h2 data-i18n="recorder.title">🎹 MIDI Recorder</h2>
                 <div class="recorder-controls">
-                    <button id="recStartBtn" class="btn btn-danger">⏺ Record</button>
-                    <button id="recStopBtn" class="btn btn-secondary" disabled>⏹ Stop</button>
-                    <button id="recPlayBtn" class="btn btn-secondary" disabled>▶ Play Back</button>
-                    <button id="recSaveBtn" class="btn btn-secondary" disabled>💾 Save JSON</button>
+                    <button id="recStartBtn" class="btn btn-danger" data-i18n="recorder.start">⏺ Record</button>
+                    <button id="recStopBtn" class="btn btn-secondary" disabled data-i18n="recorder.stop">⏹ Stop</button>
+                    <button id="recPlayBtn" class="btn btn-secondary" disabled data-i18n="recorder.play">▶ Play Back</button>
+                    <button id="recSaveBtn" class="btn btn-secondary" disabled data-i18n="recorder.save">💾 Save JSON</button>
                 </div>
                 <div id="recStatus" class="rec-status" aria-live="polite"></div>
             </section>
@@ -173,16 +173,16 @@
                     <div class="setting-group experimental-mode">
                         <label>
                             <input type="checkbox" id="lowLatencyMode" aria-describedby="llm-desc">
-                            <span>⚡ Experimental Low-Latency Mode</span>
+                            <span data-i18n="settings.lowLatency">⚡ Experimental Low-Latency Mode</span>
                         </label>
-                        <p id="llm-desc" class="description">Uses an unordered, no-retransmit DataChannel (unreliable) to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.</p>
+                        <p id="llm-desc" class="description" data-i18n="settings.lowLatencyDesc">Uses an unordered, no-retransmit DataChannel (unreliable) to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.</p>
                     </div>
 
                     <h3 data-i18n="settings.debugTools">Debug Tools</h3>
 
                     <!-- Emergency All Notes Off -->
-                    <button id="emergencyAllNotesOff" class="btn btn-danger">🛑 Emergency: All Notes Off</button>
-                    <p class="description">Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.</p>
+                    <button id="emergencyAllNotesOff" class="btn btn-danger" data-i18n="debug.emergency">🛑 Emergency: All Notes Off</button>
+                    <p class="description" data-i18n="debug.emergencyDesc">Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.</p>
 
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled data-i18n="debug.testNote">Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled data-i18n="debug.ping">Send Ping</button>
@@ -193,23 +193,23 @@
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
 
                     <!-- Signal Stability Test -->
-                    <h3>📶 Signal Stability Test</h3>
+                    <h3 data-i18n="stability.title">📶 Signal Stability Test</h3>
                     <div class="stability-controls">
-                        <label for="stabInterval">Probe interval (ms):</label>
+                        <label for="stabInterval" data-i18n="stability.interval">Probe interval (ms):</label>
                         <input type="number" id="stabInterval" value="200" min="50" max="2000" step="50">
-                        <label for="stabDuration">Duration (s):</label>
+                        <label for="stabDuration" data-i18n="stability.duration">Duration (s):</label>
                         <input type="number" id="stabDuration" value="10" min="2" max="60" step="1">
-                        <button id="stabStartBtn" class="btn btn-secondary" disabled>▶ Start</button>
-                        <button id="stabStopBtn"  class="btn btn-secondary" disabled style="display:none">⏹ Stop</button>
+                        <button id="stabStartBtn" class="btn btn-secondary" disabled data-i18n="stability.start">▶ Start</button>
+                        <button id="stabStopBtn"  class="btn btn-secondary" disabled style="display:none" data-i18n="stability.stop">⏹ Stop</button>
                     </div>
                     <div id="stabilityStatus" role="status" aria-live="polite"></div>
                     <div id="jitterChart" aria-hidden="true"></div>
                     <div class="stability-stats">
-                        <span>Jitter: <strong id="stabJitter">—</strong> ms</span>
-                        <span>Lost: <strong id="stabLost">—</strong></span>
-                        <span>Sent: <strong id="stabSent">—</strong></span>
-                        <span>Min gap: <strong id="stabMin">—</strong> ms</span>
-                        <span>Max gap: <strong id="stabMax">—</strong> ms</span>
+                        <span><span data-i18n="stability.jitter">Jitter:</span> <strong id="stabJitter">—</strong> ms</span>
+                        <span><span data-i18n="stability.lost">Lost:</span> <strong id="stabLost">—</strong></span>
+                        <span><span data-i18n="stability.sent">Sent:</span> <strong id="stabSent">—</strong></span>
+                        <span><span data-i18n="stability.minGap">Min gap:</span> <strong id="stabMin">—</strong> ms</span>
+                        <span><span data-i18n="stability.maxGap">Max gap:</span> <strong id="stabMax">—</strong> ms</span>
                     </div>
                     
                     <h3 data-i18n="settings.messages">Messages</h3>

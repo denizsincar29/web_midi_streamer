@@ -48,7 +48,8 @@ export class MIDIStreamer {
         this.webrtc = new WebRTCManager(
             (msg) => this.handleWebRTCMessage(msg),
             (text, type, announce) => this.ui.addMessage(text, type, announce),
-            (pathInfo) => this._updateIPVersionBadge(pathInfo)
+            (pathInfo) => this._updateIPVersionBadge(pathInfo),
+            t   // pass i18n translate function so webrtc.js can localise its messages
         );
 
         this.roomManager = new RoomManager(location.hostname);
@@ -257,9 +258,7 @@ export class MIDIStreamer {
                 this.settings.lowLatencyMode = e.target.checked;
                 if (this.webrtc) this.webrtc.lowLatencyMode = e.target.checked;
                 this.ui.addMessage(
-                    e.target.checked
-                        ? '⚡ Low-Latency Mode ON (unordered, no retransmits) — reconnect to apply'
-                        : '🔁 Low-Latency Mode OFF — reconnect to apply',
+                    e.target.checked ? t('settings.lowLatencyOn') : t('settings.lowLatencyOff'),
                     'info'
                 );
             });
@@ -300,30 +299,30 @@ export class MIDIStreamer {
             if (recPlayBtn) recPlayBtn.disabled = true;
             if (recSaveBtn) recSaveBtn.disabled = true;
             this.recorder.start();
-            this.ui.addMessage('⏺ Recording started', 'info');
+            this.ui.addMessage(t('recorder.started'), 'info');
         });
 
         recStopBtn?.addEventListener('click', () => {
             this.currentTake = this.recorder.stop();
             if (!this.currentTake || this.currentTake.events.length === 0) {
-                this.ui.addMessage('Recording stopped — no events captured', 'warning');
+                this.ui.addMessage(t('recorder.stoppedEmpty'), 'warning');
                 return;
             }
             const dur = (this.currentTake.durationMs / 1000).toFixed(1);
             if (recPlayBtn) recPlayBtn.disabled = false;
             if (recSaveBtn) recSaveBtn.disabled = false;
             if (recStatus)  recStatus.textContent = `✅ Take: ${this.currentTake.events.length} events, ${dur}s`;
-            this.ui.addMessage(`⏹ Recording stopped — ${this.currentTake.events.length} events, ${dur}s`, 'success');
+            this.ui.addMessage(t('recorder.stopped').replace('{events}', this.currentTake.events.length).replace('{dur}', dur), 'success');
         });
 
         recPlayBtn?.addEventListener('click', () => {
             if (!this.currentTake) return;
             this.playbackHandle?.cancel();
-            this.ui.addMessage('▶ Playing back recording…', 'info');
+            this.ui.addMessage(t('recorder.playing'), 'info');
             this.playbackHandle = MIDIRecorder.playback(
                 this.currentTake.events,
                 (data) => this.midi.send(data),
-                () => this.ui.addMessage('▶ Playback finished', 'success')
+                () => this.ui.addMessage(t('recorder.playbackDone'), 'success')
             );
         });
 
@@ -336,7 +335,7 @@ export class MIDIStreamer {
             a.download = `midi-take-${Date.now()}.json`;
             a.click();
             URL.revokeObjectURL(a.href);
-            this.ui.addMessage('💾 Recording saved as JSON', 'success');
+            this.ui.addMessage(t('recorder.saved'), 'success');
         });
 
         // ── Hide room button ───────────────────────────────────────────────────
@@ -369,7 +368,7 @@ export class MIDIStreamer {
             this.setRoomsVisibility(true);
         } catch (err) {
             console.error('Failed to refresh rooms:', err);
-            this.ui.addMessage(t('rooms.refreshFailed') || 'Failed to refresh rooms', 'error');
+            this.ui.addMessage(t('rooms.refreshFailed'), 'error');
         }
     }
 
@@ -393,7 +392,7 @@ export class MIDIStreamer {
 
     async toggleRoomHidden() {
         if (!this.currentRoomName) {
-            this.ui.addMessage('Join a room first before hiding it', 'warning');
+            this.ui.addMessage(t('room.hideFirst'), 'warning');
             return;
         }
         const proto = location.protocol === 'https:' ? 'https' : 'http';
@@ -407,15 +406,13 @@ export class MIDIStreamer {
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
             this.roomHidden = newHidden;
             const btn = document.getElementById('hideRoomBtn');
-            if (btn) btn.textContent = this.roomHidden ? '👁 Show Room' : '🙈 Hide Room';
+            if (btn) btn.textContent = this.roomHidden ? t('room.show') : t('room.hide');
             this.ui.addMessage(
-                this.roomHidden
-                    ? '🙈 Room hidden from the room list'
-                    : '👁 Room is now visible in the room list',
+                this.roomHidden ? t('room.hidden') : t('room.shown'),
                 'info'
             );
         } catch (e) {
-            this.ui.addMessage(`Failed to toggle room visibility: ${e.message}`, 'error');
+            this.ui.addMessage(t('room.toggleFailed').replace('{error}', e.message), 'error');
         }
     }
 
@@ -654,14 +651,14 @@ export class MIDIStreamer {
         }
 
         this._piano?.allOff();
-        this.ui.addMessage('🛑 Emergency: All Notes Off sent (CC 123, all channels)', 'warning');
+        this.ui.addMessage(t('debug.emergencySent'), 'warning');
     }
 
     // ── Stability Test ─────────────────────────────────────────────────────
 
     _startStabilityTest() {
         if (!this.webrtc.isConnected()) {
-            this.ui.addMessage('Connect to a peer first before running the stability test.', 'error');
+            this.ui.addMessage(t('stability.notConnected'), 'error');
             return;
         }
         const interval = parseInt(document.getElementById('stabInterval')?.value ?? 200);
@@ -675,7 +672,7 @@ export class MIDIStreamer {
         this._stabAll  = [];
 
         document.getElementById('jitterChart').innerHTML = '';
-        document.getElementById('stabilityStatus').textContent = 'Running…';
+        document.getElementById('stabilityStatus').textContent = t('stability.running');
         document.getElementById('stabilityStatus').className = 'running';
         document.getElementById('stabStartBtn').style.display = 'none';
         document.getElementById('stabStopBtn').style.display  = '';
@@ -727,7 +724,7 @@ export class MIDIStreamer {
 
         const statusEl = el('stabilityStatus');
         if (statusEl) {
-            statusEl.textContent = stable ? '✅ Stable' : '⚠️ Unstable';
+            statusEl.textContent = stable ? t('stability.stable') : t('stability.unstable');
             statusEl.className   = stable ? 'stable' : 'unstable';
         }
 
