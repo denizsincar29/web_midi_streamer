@@ -691,6 +691,10 @@ export class MIDIStreamer {
         document.getElementById('stabStartBtn').style.display = 'none';
         document.getElementById('stabStopBtn').style.display  = '';
 
+        // Auto-open the panel so results are visible
+        const det = document.getElementById('stabilityDetails');
+        if (det) det.open = true;
+
         this.webrtc.startStabilityTest(interval, duration);
 
         // Auto-restore buttons when test ends

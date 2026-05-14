@@ -98,6 +98,7 @@ export const translations = {
         'stability.result': '📶 Stability: jitter {jitter} ms | loss {lost}/{total} | {verdict}',
         'stability.verdictStable': '✅ STABLE',
         'stability.verdictUnstable': '❌ UNSTABLE',
+        'stability.howto': 'Connect to a peer, then set the interval and duration below and press Start. The test sends probe packets and measures how evenly they arrive — low jitter means a stable connection.',
         'stability.started': '📶 Stability test started ({interval} ms interval, {duration} s)',
 
         // Recorder
@@ -366,6 +367,7 @@ export const translations = {
         'stability.result': '📶 Стабильность: джиттер {jitter} мс | потери {lost}/{total} | {verdict}',
         'stability.verdictStable': '✅ СТАБИЛЬНО',
         'stability.verdictUnstable': '❌ НЕСТАБИЛЬНО',
+        'stability.howto': 'Подключитесь к партнёру, затем задайте интервал и длительность ниже и нажмите «Начать». Тест отправляет зондирующие пакеты и измеряет равномерность их прибытия — низкий джиттер означает стабильное соединение.',
         'stability.started': '📶 Тест запущен (интервал {interval} мс, {duration} с)',
 
         // Recorder
