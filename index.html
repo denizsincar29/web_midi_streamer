@@ -107,7 +107,7 @@
                     <button id="recStartBtn" class="btn btn-danger" data-i18n="recorder.start">⏺ Record</button>
                     <button id="recStopBtn" class="btn btn-secondary" disabled data-i18n="recorder.stop">⏹ Stop</button>
                     <button id="recPlayBtn" class="btn btn-secondary" disabled data-i18n="recorder.play">▶ Play Back</button>
-                    <button id="recSaveBtn" class="btn btn-secondary" disabled data-i18n="recorder.save">💾 Save JSON</button>
+                    <button id="recSaveBtn" class="btn btn-secondary" disabled data-i18n="recorder.save">💾 Save .mid</button>
                 </div>
                 <div id="recStatus" class="rec-status" aria-live="polite"></div>
             </section>
@@ -183,6 +183,7 @@
                     <!-- Emergency All Notes Off -->
                     <button id="emergencyAllNotesOff" class="btn btn-danger" data-i18n="debug.emergency">🛑 Emergency: All Notes Off</button>
                     <p class="description" data-i18n="debug.emergencyDesc">Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.</p>
+                    <p class="description"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F4</kbd> — global hotkey, works even from settings</p>
 
                     <button id="sendTestNoteBtn" class="btn btn-secondary" disabled data-i18n="debug.testNote">Send Test Note (C4)</button>
                     <button id="sendPingBtn" class="btn btn-secondary" disabled data-i18n="debug.ping">Send Ping</button>

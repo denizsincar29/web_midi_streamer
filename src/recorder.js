@@ -69,6 +69,72 @@ export class MIDIRecorder {
     }
 
     /**
+     * Export take as a Standard MIDI File (SMF format 0, single track).
+     *
+     * SMF structure:
+     *   MThd  — header chunk  (6 bytes of data)
+     *   MTrk  — track chunk   (variable length)
+     *
+     * Each event: variable-length delta time (in ticks) followed by MIDI bytes.
+     * We use 480 ticks-per-quarter-note (PPQ) at 120 BPM (500 000 µs/beat),
+     * so 1 tick = 500 000 / 480 µs ≈ 1.04 ms.
+     *
+     * @param {object} take  — result of MIDIRecorder.stop()
+     * @returns {Uint8Array}
+     */
+    static exportMID(take) {
+        const PPQ    = 480;          // ticks per quarter note
+        const TEMPO  = 500000;       // µs per beat = 120 BPM
+        const MS_PER_TICK = TEMPO / 1000 / PPQ;  // ≈ 1.04167 ms
+
+        // ── helpers ──────────────────────────────────────────────────────────
+        const u32be = (n) => [(n >>> 24) & 0xFF, (n >>> 16) & 0xFF, (n >>> 8) & 0xFF, n & 0xFF];
+        const u16be = (n) => [(n >>> 8) & 0xFF, n & 0xFF];
+
+        // Variable-length quantity encoding (MIDI delta time)
+        function vlq(n) {
+            if (n < 0x80) return [n];
+            const out = [];
+            out.unshift(n & 0x7F); n >>= 7;
+            while (n > 0) { out.unshift((n & 0x7F) | 0x80); n >>= 7; }
+            return out;
+        }
+
+        // ── build track data ─────────────────────────────────────────────────
+        const trackBytes = [];
+
+        // Tempo meta-event (FF 51 03 tttttt)
+        trackBytes.push(0x00, 0xFF, 0x51, 0x03, ...u32be(TEMPO).slice(1)); // 3-byte tempo
+
+        for (const ev of take.events) {
+            const deltaTicks = Math.round(ev.deltaMs / MS_PER_TICK);
+            trackBytes.push(...vlq(deltaTicks), ...ev.data);
+        }
+
+        // End-of-track meta-event (delta=0, FF 2F 00)
+        trackBytes.push(0x00, 0xFF, 0x2F, 0x00);
+
+        // ── assemble SMF ──────────────────────────────────────────────────────
+        // MThd
+        const header = [
+            0x4D, 0x54, 0x68, 0x64,   // "MThd"
+            ...u32be(6),               // chunk length = 6
+            ...u16be(0),               // format 0 (single track)
+            ...u16be(1),               // 1 track
+            ...u16be(PPQ),             // ticks per quarter note
+        ];
+
+        // MTrk
+        const track = [
+            0x4D, 0x54, 0x72, 0x6B,   // "MTrk"
+            ...u32be(trackBytes.length),
+            ...trackBytes,
+        ];
+
+        return new Uint8Array([...header, ...track]);
+    }
+
+    /**
      * Play back a take into a MIDI output function.
      * @param {Array} events  - compacted event list from stop()
      * @param {Function} sendFn  - called with raw data array per event

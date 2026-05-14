@@ -43,7 +43,7 @@ export class MIDIStreamer {
         this._stabLost = 0;
         this._stabSent = 0;
 
-        this.midi = new MIDIManager();
+        this.midi = new MIDIManager(t);
         this.ui = new UIManager(this.midi);
         this.webrtc = new WebRTCManager(
             (msg) => this.handleWebRTCMessage(msg),
@@ -118,6 +118,15 @@ export class MIDIStreamer {
         try {
             this._piano = new PianoKeyboard('#pianoContainer');
         } catch (e) { console.warn('Piano keyboard init failed:', e); }
+
+        // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
+        // Chosen because Firefox does not intercept it even when the page is focused
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'F4') {
+                e.preventDefault();
+                this.emergencyAllNotesOff();
+            }
+        });
 
         // Wire stability test callbacks
         this.webrtc.onStabilityUpdate = (ev) => this._onStabilityUpdate(ev);
@@ -328,11 +337,11 @@ export class MIDIStreamer {
 
         recSaveBtn?.addEventListener('click', () => {
             if (!this.currentTake) return;
-            const json = MIDIRecorder.exportJSON(this.currentTake);
-            const blob = new Blob([json], { type: 'application/json' });
+            const midi = MIDIRecorder.exportMID(this.currentTake);
+            const blob = new Blob([midi], { type: 'audio/midi' });
             const a    = document.createElement('a');
             a.href     = URL.createObjectURL(blob);
-            a.download = `midi-take-${Date.now()}.json`;
+            a.download = `midi-take-${Date.now()}.mid`;
             a.click();
             URL.revokeObjectURL(a.href);
             this.ui.addMessage(t('recorder.saved'), 'success');
@@ -528,6 +537,13 @@ export class MIDIStreamer {
     }
 
     handleWebRTCMessage(msg) {
+        if (msg.type === 'chat') {
+            this.ui.addChatMessage(msg.data, 'peer');
+            // Announce via the always-visible sr-only statusBar so screen readers
+            // hear it even when the Chat <details> panel is collapsed
+            this.ui.announceStatus(`${t('chat.peer')}: ${msg.data}`);
+            return;
+        }
         if (msg.type === 'test_note') {
             this.ui.addMessage(`${t('debug.receivedTestNote') || 'Received test note via WebRTC:'} ${msg.data}`, 'success');
             this.midi.send(msg.data);
@@ -589,8 +605,6 @@ export class MIDIStreamer {
                 const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
                 this.webrtc.send(echoMessage);
             }
-        } else if (msg.type === 'chat') {
-            this.ui.addChatMessage(msg.data, 'peer');
         }
     }
 

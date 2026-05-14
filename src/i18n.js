@@ -74,6 +74,7 @@ export const translations = {
         'settings.lowLatencyOff': '🔁 Low-Latency Mode OFF — reconnect to apply',
 
         // Emergency
+        'debug.emergencyHotkey': 'Ctrl+Shift+F4',
         'debug.emergency': '🛑 Emergency: All Notes Off',
         'debug.emergencyDesc': 'Sends CC 123 on all 16 channels locally and to all peers. Clears all active note timers.',
         'debug.emergencySent': '🛑 Emergency: All Notes Off sent (CC 123, all channels)',
@@ -104,13 +105,13 @@ export const translations = {
         'recorder.start': '⏺ Record',
         'recorder.stop': '⏹ Stop',
         'recorder.play': '▶ Play',
-        'recorder.save': '💾 Save JSON',
+        'recorder.save': '💾 Save .mid',
         'recorder.started': '⏺ Recording started',
         'recorder.stoppedEmpty': 'Recording stopped — no events captured',
         'recorder.stopped': '⏹ Recording stopped — {events} events, {dur}s',
         'recorder.playing': '▶ Playing back recording…',
         'recorder.playbackDone': '▶ Playback finished',
-        'recorder.saved': '💾 Recording saved as JSON',
+        'recorder.saved': '💾 Recording saved as .mid',
 
         // Room hiding
         'room.hideFirst': 'Join a room first before hiding it',
@@ -341,6 +342,7 @@ export const translations = {
         'settings.lowLatencyOff': '🔁 Режим минимальной задержки ВЫКЛЮЧЕН — переподключитесь для применения',
 
         // Emergency
+        'debug.emergencyHotkey': 'Ctrl+Shift+F4',
         'debug.emergency': '🛑 Аварийное отключение нот',
         'debug.emergencyDesc': 'Отправляет CC 123 по всем 16 каналам локально и всем партнёрам. Сбрасывает все таймеры активных нот.',
         'debug.emergencySent': '🛑 Аварийное отключение нот отправлено (CC 123, все каналы)',
@@ -371,13 +373,13 @@ export const translations = {
         'recorder.start': '⏺ Запись',
         'recorder.stop': '⏹ Стоп',
         'recorder.play': '▶ Воспроизвести',
-        'recorder.save': '💾 Сохранить JSON',
+        'recorder.save': '💾 Сохранить .mid',
         'recorder.started': '⏺ Запись начата',
         'recorder.stoppedEmpty': 'Запись остановлена — события не записаны',
         'recorder.stopped': '⏹ Запись остановлена — {events} событий, {dur}с',
         'recorder.playing': '▶ Воспроизведение…',
         'recorder.playbackDone': '▶ Воспроизведение завершено',
-        'recorder.saved': '💾 Запись сохранена как JSON',
+        'recorder.saved': '💾 Запись сохранена как .mid',
 
         // Room hiding
         'room.hideFirst': 'Сначала войдите в комнату',

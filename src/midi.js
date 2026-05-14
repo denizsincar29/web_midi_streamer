@@ -1,7 +1,8 @@
 import { getNoteName } from './utils.js';
 
 export class MIDIManager {
-    constructor() {
+    constructor(translateFn) {
+        this._t    = translateFn ?? ((k) => k);  // i18n helper, injected by app
         this.access = null;
         this.selectedInput = null;
         this.selectedOutput = null;
@@ -103,7 +104,7 @@ export class MIDIManager {
         if (inputs.length === 0) {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'No device selected';
+            option.textContent = this._t('midi.noDevice');
             inputSelect.appendChild(option);
         } else {
             // Add all input devices
@@ -131,7 +132,7 @@ export class MIDIManager {
         if (outputs.length === 0) {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'No device selected';
+            option.textContent = this._t('midi.noDevice');
             outputSelect.appendChild(option);
         } else {
             // Add all output devices
