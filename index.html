@@ -101,33 +101,6 @@
                 </div>
             </section>
 
-            <!-- ── Signal Stability Test ──────────────────────────────────── -->
-            <details class="stability-section" id="stabilityDetails">
-                <summary>
-                    <h2 data-i18n="stability.title">📶 Signal Stability Test</h2>
-                </summary>
-                <div class="stability-body">
-                    <p class="description" data-i18n="stability.howto">Connect to a peer, then set the interval and duration below and press Start. The test sends probe packets and measures how evenly they arrive — low jitter means a stable connection.</p>
-                    <div class="stability-controls">
-                        <label for="stabInterval" data-i18n="stability.interval">Probe interval (ms):</label>
-                        <input type="number" id="stabInterval" value="200" min="50" max="2000" step="50">
-                        <label for="stabDuration" data-i18n="stability.duration">Duration (s):</label>
-                        <input type="number" id="stabDuration" value="10" min="2" max="60" step="1">
-                        <button id="stabStartBtn" class="btn btn-secondary" disabled data-i18n="stability.start">▶ Start</button>
-                        <button id="stabStopBtn"  class="btn btn-secondary" style="display:none" data-i18n="stability.stop">⏹ Stop</button>
-                    </div>
-                    <div id="stabilityStatus" role="status" aria-live="polite"></div>
-                    <div id="jitterChart" aria-hidden="true"></div>
-                    <div class="stability-stats">
-                        <span><span data-i18n="stability.jitter">Jitter:</span> <strong id="stabJitter">—</strong> ms</span>
-                        <span><span data-i18n="stability.lost">Lost:</span> <strong id="stabLost">—</strong></span>
-                        <span><span data-i18n="stability.sent">Sent:</span> <strong id="stabSent">—</strong></span>
-                        <span><span data-i18n="stability.minGap">Min gap:</span> <strong id="stabMin">—</strong> ms</span>
-                        <span><span data-i18n="stability.maxGap">Max gap:</span> <strong id="stabMax">—</strong> ms</span>
-                    </div>
-                </div>
-            </details>
-
             <section class="recorder-section">
                 <h2 data-i18n="recorder.title">🎹 MIDI Recorder</h2>
                 <div class="recorder-controls">
@@ -221,6 +194,27 @@
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
 
                     
+                    <!-- Signal Stability Test -->
+                    <h3 data-i18n="stability.title">📶 Signal Stability Test</h3>
+                    <p class="description" data-i18n="stability.howto">Connect to a peer, set interval and duration, then press Start. Measures packet arrival jitter — low jitter means a stable connection.</p>
+                    <div class="stability-controls">
+                        <label for="stabInterval" data-i18n="stability.interval">Probe interval (ms):</label>
+                        <input type="number" id="stabInterval" value="200" min="50" max="2000" step="50">
+                        <label for="stabDuration" data-i18n="stability.duration">Duration (s):</label>
+                        <input type="number" id="stabDuration" value="10" min="2" max="60" step="1">
+                        <button id="stabStartBtn" class="btn btn-secondary" disabled data-i18n="stability.start">▶ Start</button>
+                        <button id="stabStopBtn"  class="btn btn-secondary" style="display:none" data-i18n="stability.stop">⏹ Stop</button>
+                    </div>
+                    <div id="stabilityStatus" role="status" aria-live="polite"></div>
+                    <div id="jitterChart" aria-hidden="true"></div>
+                    <div class="stability-stats">
+                        <span><span data-i18n="stability.jitter">Jitter:</span> <strong id="stabJitter">—</strong> ms</span>
+                        <span><span data-i18n="stability.lost">Lost:</span> <strong id="stabLost">—</strong></span>
+                        <span><span data-i18n="stability.sent">Sent:</span> <strong id="stabSent">—</strong></span>
+                        <span><span data-i18n="stability.minGap">Min gap:</span> <strong id="stabMin">—</strong> ms</span>
+                        <span><span data-i18n="stability.maxGap">Max gap:</span> <strong id="stabMax">—</strong> ms</span>
+                    </div>
+
                     <h3 data-i18n="settings.messages">Messages</h3>
                     <button id="copyMessagesBtn" class="btn btn-secondary" data-i18n="debug.copyMessages">Copy All Messages</button>
                     <div id="messageLog" role="log" aria-live="polite" aria-atomic="false"></div>
@@ -244,7 +238,7 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 Web MIDI Streamer | <a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
+            <p><a href="https://github.com/denizsincar29/web_midi_streamer" target="_blank" rel="noopener">GitHub</a></p>
         </footer>
     </div>
     

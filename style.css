@@ -1078,38 +1078,6 @@ footer a:hover {
 .swatch-both   { background: #b060f0; }
 
 /* ── Stability Test ──────────────────────────────────────────────────────────── */
-.stability-section {
-    background: var(--section-bg, #1e1e2e);
-    border-radius: 12px;
-    margin-bottom: 16px;
-    overflow: hidden;
-}
-
-.stability-section summary {
-    cursor: pointer;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    padding: 14px 16px;
-    user-select: none;
-}
-.stability-section summary::-webkit-details-marker { display: none; }
-.stability-section summary::before {
-    content: '▸';
-    display: inline-block;
-    margin-right: 8px;
-    font-size: 0.85em;
-    transition: transform 0.2s;
-    color: #667eea;
-    flex-shrink: 0;
-}
-.stability-section[open] summary::before { transform: rotate(90deg); }
-.stability-section summary h2 { margin: 0; font-size: 1.1em; display: inline; color: #667eea; }
-
-.stability-body {
-    padding: 0 16px 16px;
-}
-.stability-body .description { margin: 0 0 12px; }
 
 .stability-controls {
     display: flex;
