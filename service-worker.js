@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.5.3';  // fix: Uint8Array coercion in midi.send, stop refreshDevices spam
+const CACHE_NAME = 'midi-streamer-v1.5.4';  // fix: connectionState-based ICE, no chimes on transient events
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

@@ -162,7 +162,7 @@ export class WebRTCManager {
                 this.onStatusUpdate('⚡ WebTransport (QUIC datagram) active', 'success');
                 this._startWebTransportReceiveLoop();
             } catch (err) {
-                this.onStatusUpdate(`⚠️ WebTransport unavailable (${err.message}), falling back to WebRTC`, 'warning');
+                this.onStatusUpdate(`⚠️ WebTransport unavailable (${err.message}), falling back to WebRTC`, 'warning', false);
                 this.useWebTransport = false;
                 this._wt             = null;
             }
@@ -170,7 +170,7 @@ export class WebRTCManager {
 
         await this._wsOpen();
         this._send({ type: 'join', from: this.myId });
-        this.onStatusUpdate('⏳ Waiting for other participants…', 'info');
+        this.onStatusUpdate('⏳ Waiting for other participants…', 'info', false);
 
         if (!this._visibilityBound) {
             this._visibilityBound = true;
@@ -492,51 +492,77 @@ export class WebRTCManager {
             this._send({ type:'ice', from:this.myId, to:remoteId, candidate });
         };
 
-        pc.oniceconnectionstatechange = () => {
-            const s = pc.iceConnectionState;
-            console.log(`[ICE] ${remoteId.slice(0,6)} → ${s}`);
+        // ── connectionState is more reliable than iceConnectionState for
+        // deciding whether to tear down (covers DTLS failures too).
+        pc.onconnectionstatechange = () => {
+            const s = pc.connectionState;
+            console.log(`[PC] ${remoteId.slice(0,6)} → ${s}`);
 
-            if (s === 'connected' || s === 'completed') {
-                // Clear any pending restart timer — we recovered
-                if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
+            if (s === 'connected') {
+                if (peer._watchdogTimer) { clearTimeout(peer._watchdogTimer); peer._watchdogTimer = null; }
+                // Only report path / chime on first connect, not on ICE restart recovery
+                if (!peer._everConnected) {
+                    peer._everConnected = true;
+                    this._reportPath(pc, remoteId, peer);
+                } else {
+                    // Silent recovery — just update the badge
+                    this._reportPath(pc, remoteId, peer, /*silent=*/true);
+                }
                 peer._iceRestartCount = 0;
-                this._reportPath(pc, remoteId, peer);
             }
 
             if (s === 'disconnected') {
-                // 'disconnected' is transient — browser may self-recover within a few seconds.
-                // Give it 4 s before attempting restartIce(), up to 3 attempts.
-                this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} temporarily disconnected, waiting…`, 'warning');
-                if (peer._iceRestartTimer) return; // already waiting
-                peer._iceRestartTimer = setTimeout(() => {
-                    peer._iceRestartTimer = null;
-                    if (pc.iceConnectionState !== 'disconnected' && pc.iceConnectionState !== 'failed') return;
-                    peer._iceRestartCount = (peer._iceRestartCount ?? 0) + 1;
-                    if (peer._iceRestartCount <= 3) {
-                        this.onStatusUpdate(`🔄 ICE restart attempt ${peer._iceRestartCount}/3 for ${remoteId.slice(0,6)}…`, 'info');
-                        try { pc.restartIce(); } catch(e) { console.warn('restartIce failed:', e); }
-                    } else {
-                        this.onStatusUpdate(`❌ ICE failed after 3 restart attempts — removing ${remoteId.slice(0,6)}`, 'error');
+                // Transient — start a watchdog but do NOT chime or restart ICE.
+                // The browser self-recovers from 'disconnected' most of the time.
+                console.log(`[PC] ${remoteId.slice(0,6)} temporarily disconnected — watching…`);
+                if (peer._watchdogTimer) return;
+                peer._watchdogTimer = setTimeout(() => {
+                    peer._watchdogTimer = null;
+                    if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                        // Still gone after 20 s — treat as failed
+                        this.onStatusUpdate(`⚠️ Peer ${remoteId.slice(0,6)} lost after 20 s`, 'warning', false);
                         this._removePeer(remoteId);
                     }
-                }, 4000);
+                }, 20000);
             }
 
             if (s === 'failed') {
-                // 'failed' is definitive — but try one restartIce before giving up
-                if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
+                if (peer._watchdogTimer) { clearTimeout(peer._watchdogTimer); peer._watchdogTimer = null; }
                 peer._iceRestartCount = (peer._iceRestartCount ?? 0) + 1;
-                if (peer._iceRestartCount <= 2) {
-                    this.onStatusUpdate(`🔄 ICE failed, restarting (attempt ${peer._iceRestartCount}/2) for ${remoteId.slice(0,6)}…`, 'warning');
-                    try { pc.restartIce(); } catch(e) {
-                        this.onStatusUpdate(`❌ ICE restart error: ${e.message}`, 'error');
+                // Per spec: only the IMPOLITE peer initiates ICE restart.
+                // Polite peer waits for the re-offer triggered by the other side.
+                if (!peer.isPolite && peer._iceRestartCount <= 2) {
+                    this.onStatusUpdate(`🔄 Reconnecting to ${remoteId.slice(0,6)} (${peer._iceRestartCount}/2)…`, 'warning', false);
+                    try { pc.restartIce(); }
+                    catch(e) {
+                        this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
                         this._removePeer(remoteId);
                     }
+                } else if (peer.isPolite) {
+                    // Polite side: wait up to 8 s for impolite peer to send re-offer
+                    if (!peer._failedWaitTimer) {
+                        peer._failedWaitTimer = setTimeout(() => {
+                            peer._failedWaitTimer = null;
+                            if (pc.connectionState === 'failed') {
+                                this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
+                                this._removePeer(remoteId);
+                            }
+                        }, 8000);
+                    }
                 } else {
-                    this.onStatusUpdate(`❌ ICE permanently failed for ${remoteId.slice(0,6)}`, 'error');
+                    this.onStatusUpdate(`❌ Connection to ${remoteId.slice(0,6)} lost`, 'error');
                     this._removePeer(remoteId);
                 }
             }
+
+            if (s === 'closed') {
+                this._removePeer(remoteId);
+            }
+        };
+
+        // Keep iceConnectionState only for console diagnostics — no side effects
+        pc.oniceconnectionstatechange = () => {
+            console.log(`[ICE] ${remoteId.slice(0,6)} → ${pc.iceConnectionState}`);
         };
 
         pc.ondatachannel = ({ channel }) => { peer.dataChannel = channel; this._setupDC(peer); };
@@ -577,12 +603,15 @@ export class WebRTCManager {
     _removePeer(remoteId) {
         const peer = this.peers.get(remoteId);
         if (!peer) return;
-        if (peer._iceRestartTimer) { clearTimeout(peer._iceRestartTimer); peer._iceRestartTimer = null; }
+        // Clear all pending timers before tearing down
+        if (peer._iceRestartTimer)  { clearTimeout(peer._iceRestartTimer);  peer._iceRestartTimer  = null; }
+        if (peer._watchdogTimer)    { clearTimeout(peer._watchdogTimer);    peer._watchdogTimer    = null; }
+        if (peer._failedWaitTimer)  { clearTimeout(peer._failedWaitTimer);  peer._failedWaitTimer  = null; }
         peer.dataChannel?.close();
         peer.pc?.close();
         this.peers.delete(remoteId);
         const n = this.connectedCount();
-        this.onStatusUpdate(`Peer ${remoteId.slice(0,6)} left (${n} remaining)`, 'warning');
+        this.onStatusUpdate(`Peer ${remoteId.slice(0,6)} left (${n} remaining)`, 'warning', false);
         this.onConnectionStateChange?.(n > 0);
         this.onPeerCountChange?.(n);
     }
@@ -598,7 +627,7 @@ export class WebRTCManager {
         }
     }
 
-    _reportPath(pc, remoteId, peer) {
+    _reportPath(pc, remoteId, peer, silent = false) {
         pc.getStats().then(stats => {
             stats.forEach(r => {
                 if (r.type === 'candidate-pair' && (r.state === 'succeeded' || r.nominated)) {
@@ -612,7 +641,11 @@ export class WebRTCManager {
                     const remoteAddr  = rc?.address ?? rc?.ip ?? '';
                     const ipVer       = localAddr.includes(':') ? 'IPv6' : 'IPv4';
 
-                    this.onStatusUpdate(`${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`, 'success');
+                    // Always log to console; only add to message panel on first connect
+                    console.log(`[Path] ${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`);
+                    if (!silent) {
+                        this.onStatusUpdate(`${typeLabel} (${ipVer}) → ${remoteId.slice(0,6)}`, 'success', false);
+                    }
 
                     this.onICEPath({
                         candidateType: lc.candidateType,
@@ -656,7 +689,7 @@ export class WebRTCManager {
             const rtt = performance.now() - msg.timestamp;
             this.pingStats.count++;
             this.pingStats.times.push(rtt);
-            this.onStatusUpdate(`Ping ${msg.pingId}: ${rtt.toFixed(1)} ms RTT (est. one-way: ${(rtt/2).toFixed(1)} ms)`, 'success');
+            this.onStatusUpdate(`Ping ${msg.pingId}: ${rtt.toFixed(1)} ms RTT (est. one-way: ${(rtt/2).toFixed(1)} ms)`, 'success', false);
             if (this.pingStats.times.length >= this.pingStats.total && this.pingStats.inProgress) {
                 const avg = this.pingStats.times.reduce((a,b)=>a+b,0)/this.pingStats.times.length;
                 this.pingStats.lastAvg = avg;
