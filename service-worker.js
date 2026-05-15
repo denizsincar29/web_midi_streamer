@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.6.1';  // feat: .mid export, emergency hotkey, chat SR, device localisation
+const CACHE_NAME = 'midi-streamer-v1.6.2';  // fix: piano text visibility, suppress IPv4 SR, record remote MIDI
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
