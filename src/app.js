@@ -600,7 +600,10 @@ export class MIDIStreamer {
                 else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'remote');
             }
             // MIDIOutput.send() requires a typed array, not a plain Array
-            this.midi.send(data instanceof Uint8Array ? data : new Uint8Array(data));
+            const midiBytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+            // Record incoming MIDI alongside local notes for collaborative recording
+            this.recorder.feed(midiBytes);
+            this.midi.send(midiBytes);
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
                 const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
                 this.webrtc.send(echoMessage);

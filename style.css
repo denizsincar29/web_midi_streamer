@@ -1004,6 +1004,7 @@ footer a:hover {
 .piano-section h2 {
     margin: 0 0 12px;
     font-size: 1.1em;
+    color: #f0f0f0;
 }
 
 .piano-keyboard {
@@ -1064,7 +1065,7 @@ footer a:hover {
     gap: 16px;
     margin-top: 8px;
     font-size: 0.8em;
-    opacity: 0.75;
+    color: #d0d0d0;
 }
 .piano-legend-item { display: flex; align-items: center; gap: 5px; }
 .piano-legend-swatch {
