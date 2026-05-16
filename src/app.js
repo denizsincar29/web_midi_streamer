@@ -1,4 +1,4 @@
-import { getRoomNameFromURL, copyToClipboard } from './utils.js';
+import { getRoomNameFromURL, getNameFromURL, copyToClipboard } from './utils.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
@@ -109,6 +109,12 @@ export class MIDIStreamer {
         const roomNameInput = document.getElementById('roomNameInput');
         if (this.roomName && roomNameInput) {
             roomNameInput.value = this.roomName;
+        }
+
+        const nicknameInput = document.getElementById('nicknameInput');
+        const nameFromURL = getNameFromURL();
+        if (nameFromURL && nicknameInput) {
+            nicknameInput.value = nameFromURL;
         }
 
         const params = new URLSearchParams(window.location.search);

@@ -5,6 +5,11 @@ export function getRoomNameFromURL() {
     return params.get('room') || null;
 }
 
+export function getNameFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('name') || null;
+}
+
 export function shouldForceTurnRelay() {
     const params = new URLSearchParams(window.location.search);
     return params.get('forceTurn') === 'true';
