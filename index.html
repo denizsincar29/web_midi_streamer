@@ -76,6 +76,11 @@
                     <input type="text" id="roomNameInput" data-i18n-placeholder="connection.roomPlaceholder" placeholder="Enter room name" value="">
                     <p class="description" data-i18n="connection.roomDescription">Both peers must enter the same room name to connect</p>
                 </div>
+                <div class="room-input-group">
+                    <label for="nicknameInput" data-i18n="participants.nicknameLabel">Your Nickname:</label>
+                    <input type="text" id="nicknameInput" data-i18n-placeholder="participants.nicknamePlaceholder" placeholder="How others will see you" maxlength="32" autocomplete="nickname">
+                    <p class="description" data-i18n="participants.nicknameDescription">Shown to other participants</p>
+                </div>
                 <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Connect to Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
                 <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list" data-i18n="room.hide">🙈 Hide Room</button>
@@ -83,7 +88,6 @@
                 <span id="ipVersionBadge" class="ip-version-badge" aria-hidden="true" hidden title="Active ICE path type and IP version"></span>
             </section>
 
-            <!-- MIDI Recorder -->
             <!-- ── Piano Keyboard Visualiser ──────────────────────────────── -->
             <section class="piano-section">
                 <h2 data-i18n="piano.title">🎹 Keyboard Visualiser</h2>
@@ -99,6 +103,12 @@
                         <span class="piano-legend-swatch swatch-both"></span> <span data-i18n="piano.legend.both">Both (purple)</span>
                     </span>
                 </div>
+            </section>
+
+            <!-- ── Participants Panel ──────────────────────────────────────── -->
+            <section id="participantsSection" class="participants-section" hidden>
+                <h2 data-i18n="participants.title">👥 Participants</h2>
+                <div id="participantsList" class="participants-list" role="list" aria-live="polite" aria-label="Connected participants"></div>
             </section>
 
             <section class="recorder-section">

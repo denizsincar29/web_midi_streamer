@@ -2,18 +2,19 @@
  * piano.js — Visual piano keyboard that lights up with active MIDI notes.
  *
  * Renders a 49-key keyboard (C2–C6, MIDI 36–84) as SVG-free DOM elements.
- * Notes are lit from two sources:
- *   • Local:  MIDI input played by this peer (blue)
- *   • Remote: MIDI received from the teacher/peer (amber/orange)
+ * Notes are lit from multiple sources:
+ *   • 'local'  — MIDI input played by this peer (blue)
+ *   • peerId   — MIDI received from a remote peer (colour from palette)
  *
  * Public API
  * ──────────────────────────────────────────────────────────────────────────────
  *   const kb = new PianoKeyboard('#piano-container');
- *   kb.noteOn(pitch,  'local');    // light up (blue)
- *   kb.noteOn(pitch,  'remote');   // light up (amber)
+ *   kb.noteOn(pitch,  'local');     // light up (blue)
+ *   kb.noteOn(pitch,  peerId);      // light up (peer colour)
  *   kb.noteOff(pitch, 'local');
- *   kb.noteOff(pitch, 'remote');
- *   kb.allOff();                   // clear everything
+ *   kb.noteOff(pitch, peerId);
+ *   kb.allOff();                    // clear everything
+ *   kb.setPeerColor(peerId, cssColor);  // register peer colour
  */
 
 // Range shown on screen
@@ -36,8 +37,10 @@ export class PianoKeyboard {
             : container;
         if (!this._root) throw new Error(`PianoKeyboard: container not found: ${container}`);
 
-        // pitch → Set<'local'|'remote'>
+        // pitch → Set<source>  (source = 'local' | peerId)
         this._active = new Map();
+        // peerId → css colour string
+        this._peerColors = new Map();
 
         this._build();
     }
@@ -63,6 +66,24 @@ export class PianoKeyboard {
     }
 
     // ── Public API ─────────────────────────────────────────────────────────────
+
+    /** Register a colour for a peer so their notes light up in that colour. */
+    setPeerColor(peerId, cssColor) {
+        this._peerColors.set(peerId, cssColor);
+    }
+
+    /** Remove a peer's colour registration (on disconnect). */
+    removePeer(peerId) {
+        this._peerColors.delete(peerId);
+        // Clear any active notes from that peer
+        for (const [pitch, sources] of this._active) {
+            if (sources.has(peerId)) {
+                sources.delete(peerId);
+                if (sources.size === 0) this._active.delete(pitch);
+                this._render(pitch);
+            }
+        }
+    }
 
     noteOn(pitch, source = 'local') {
         if (pitch < FIRST_NOTE || pitch > LAST_NOTE) return;
@@ -90,10 +111,46 @@ export class PianoKeyboard {
         if (!el) return;
         const sources = forceOff ? new Set() : (this._active.get(pitch) ?? new Set());
         const base    = isBlack(pitch) ? 'piano-key--black' : 'piano-key--white';
-        const classes = ['piano-key', base];
-        if (sources.has('local') && sources.has('remote')) classes.push('piano-key--both');
-        else if (sources.has('local'))  classes.push('piano-key--local');
-        else if (sources.has('remote')) classes.push('piano-key--remote');
-        el.className = classes.join(' ');
+
+        const hasLocal  = sources.has('local');
+        // Collect all remote sources (legacy 'remote' + peer IDs)
+        const remotes   = [...sources].filter(s => s !== 'local');
+        const hasRemote = remotes.length > 0;
+
+        if (!hasLocal && !hasRemote) {
+            el.className = `piano-key ${base}`;
+            el.style.background   = '';
+            el.style.borderColor  = '';
+            return;
+        }
+
+        if (hasLocal && hasRemote) {
+            // Both: purple blend (classic behaviour for 2-player; good enough for N)
+            el.className = `piano-key ${base} piano-key--both`;
+            el.style.background  = '';
+            el.style.borderColor = '';
+            return;
+        }
+
+        if (hasLocal) {
+            el.className = `piano-key ${base} piano-key--local`;
+            el.style.background  = '';
+            el.style.borderColor = '';
+            return;
+        }
+
+        // Remote only — use peer colour if registered, else legacy amber
+        const firstRemote = remotes[0];
+        const color = this._peerColors.get(firstRemote);
+        if (color) {
+            el.className = `piano-key ${base}`;
+            el.style.background  = color;
+            el.style.borderColor = color;
+        } else {
+            // legacy 'remote' source or unknown peer
+            el.className = `piano-key ${base} piano-key--remote`;
+            el.style.background  = '';
+            el.style.borderColor = '';
+        }
     }
 }

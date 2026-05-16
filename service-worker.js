@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.6.2';  // fix: piano text visibility, suppress IPv4 SR, record remote MIDI
+const CACHE_NAME = 'midi-streamer-v1.7.0';  // feat: participants panel, nicknames, per-peer piano colours
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
@@ -29,6 +29,7 @@ const STATIC_ASSETS = [
   basePath + 'src/chord-utils.js',
   basePath + 'src/rooms.js',
   basePath + 'src/recorder.js',
+  basePath + 'src/participants.js',
   basePath + 'manifest.json',
   basePath + 'favicon.ico',
 ];

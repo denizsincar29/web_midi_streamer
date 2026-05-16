@@ -121,6 +121,8 @@ export class WebRTCManager {
         this._translate              = translate ?? null;   // i18n t() fn, injected by app
         this.onConnectionStateChange = null;
         this.onPeerCountChange       = null;
+        this.onPeerConnect           = null;   // (peerId) => void — fired when DC opens
+        this.onPeerDisconnect        = null;   // (peerId) => void — fired when peer leaves
 
         this.ws               = null;
         this.roomName         = null;
@@ -597,6 +599,7 @@ export class WebRTCManager {
             this.onStatusUpdate(this._t('webrtc.connected').replace('{peer}', peer.remoteId.slice(0,6)).replace('{mode}', mode).replace('{n}', n).replace('{plural}', n>1?'s':''), 'success');
             this.onConnectionStateChange?.(true);
             this.onPeerCountChange?.(n);
+            this.onPeerConnect?.(peer.remoteId);   // app sends 'hello' here
             setTimeout(() => this._quickPing(peer), 800);
         };
         dc.onmessage = ({ data }) => this._handleData(data, peer.remoteId);
@@ -618,6 +621,7 @@ export class WebRTCManager {
         this.onStatusUpdate(this._t('webrtc.peerLeft').replace('{peer}', remoteId.slice(0,6)).replace('{n}', n), 'warning', false);
         this.onConnectionStateChange?.(n > 0);
         this.onPeerCountChange?.(n);
+        this.onPeerDisconnect?.(remoteId);   // let app update participants panel
     }
 
     _quickPing(peer) {
@@ -704,7 +708,7 @@ export class WebRTCManager {
             return;
         }
 
-        const structured = ['test_note','settings_sync','chat'].includes(msg.type)
+        const structured = ['test_note','settings_sync','chat','hello','role_change'].includes(msg.type)
             ? { type:msg.type, data:msg.data, from:fromId }
             : { type:'midi', data:msg, from:fromId };
         this.onMessage(structured);

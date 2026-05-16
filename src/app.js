@@ -6,6 +6,7 @@ import { RoomManager } from './rooms.js';
 import { MIDIRecorder } from './recorder.js';
 import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 import { PianoKeyboard } from './piano.js';
+import { ParticipantsManager } from './participants.js';
 
 export class MIDIStreamer {
     constructor() {
@@ -37,6 +38,9 @@ export class MIDIStreamer {
 
         // Piano keyboard visualiser (created after DOM ready)
         this._piano = null;
+
+        // Participants panel
+        this._participants = null;   // created in init() once DOM is ready
 
         // Stability test state
         this._stabGaps = [];
@@ -80,6 +84,19 @@ export class MIDIStreamer {
             }
         };
 
+        this.webrtc.onPeerConnect = (peerId) => {
+            // Send our hello so the remote side knows our nickname + role
+            this.webrtc.sendTo(peerId, JSON.stringify({
+                type: 'hello',
+                data: { nickname: this._myNickname(), role: 'player' },
+            }));
+        };
+
+        this.webrtc.onPeerDisconnect = (peerId) => {
+            this._participants?.remove(peerId);
+            this._piano?.removePeer(peerId);
+        };
+
         this.init();
     }
 
@@ -118,6 +135,12 @@ export class MIDIStreamer {
         try {
             this._piano = new PianoKeyboard('#pianoContainer', t('piano.ariaLabel'));
         } catch (e) { console.warn('Piano keyboard init failed:', e); }
+
+        // Participants panel
+        this._participants = new ParticipantsManager(
+            this._myNickname(),
+            () => {} // future: could sync peer count badge here
+        );
 
         // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
         // Chosen because Firefox does not intercept it even when the page is focused
@@ -199,7 +222,28 @@ export class MIDIStreamer {
         }
     }
 
+    // ── Nickname helper ────────────────────────────────────────────────────────
+
+    _myNickname() {
+        const el = document.getElementById('nicknameInput');
+        return (el?.value?.trim()) || t('participants.defaultNickname');
+    }
+
     setupEventListeners() {
+        // Nickname input — update the "You" row in participants panel live
+        const nicknameInput = document.getElementById('nicknameInput');
+        if (nicknameInput) {
+            nicknameInput.addEventListener('input', () => {
+                this._participants?.setMyNickname(this._myNickname());
+                // If already connected, broadcast the new nickname to all peers
+                if (this.webrtc.isConnected()) {
+                    this.webrtc.send(JSON.stringify({
+                        type: 'hello',
+                        data: { nickname: this._myNickname(), role: 'player' },
+                    }));
+                }
+            });
+        }
         document.getElementById('sysexEnabled').addEventListener('change', (e) => {
             this.settings.sysexEnabled = e.target.checked;
             this.ui.addMessage(e.target.checked ? t('settings.sysexEnabledMsg') : t('settings.sysexDisabledMsg'), 'info');
@@ -466,6 +510,8 @@ export class MIDIStreamer {
         this.playbackHandle?.cancel();
         this.playbackHandle = null;
         this.webrtc.disconnect();
+        this._participants?.clear();
+        this._piano?.allOff();
         this.ui.addMessage(t('status.disconnected'), 'info');
         this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
         this.ui.updateButtonStates(false, false);
@@ -539,11 +585,28 @@ export class MIDIStreamer {
     handleWebRTCMessage(msg) {
         if (msg.type === 'chat') {
             this.ui.addChatMessage(msg.data, 'peer');
-            // Announce via the always-visible sr-only statusBar so screen readers
-            // hear it even when the Chat <details> panel is collapsed
             this.ui.announceStatus(`${t('chat.peer')}: ${msg.data}`);
             return;
         }
+
+        if (msg.type === 'hello') {
+            const { nickname, role } = msg.data ?? {};
+            this._participants?.add(msg.from, nickname, role);
+            // Register the peer's colour with the piano so their notes light up
+            const color = this._participants?.colorFor(msg.from);
+            if (color && this._piano) {
+                this._piano.setPeerColor(msg.from, color.css);
+            }
+            return;
+        }
+
+        if (msg.type === 'role_change') {
+            // Peer promoted/demoted themselves — re-add with updated role
+            const { nickname, role } = msg.data ?? {};
+            this._participants?.add(msg.from, nickname, role);
+            return;
+        }
+
         if (msg.type === 'test_note') {
             this.ui.addMessage(`${t('debug.receivedTestNote') || 'Received test note via WebRTC:'} ${msg.data}`, 'success');
             this.midi.send(msg.data);
@@ -593,11 +656,12 @@ export class MIDIStreamer {
                     }
                 }
             }
-            // Piano keyboard — remote notes
+            // Piano keyboard — remote notes (use peerId for per-peer colouring)
             if (this._piano && data && data.length >= 3) {
                 const st = data[0] & 0xF0, p = data[1];
-                if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'remote');
-                else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'remote');
+                const src = msg.from ?? 'remote';
+                if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, src);
+                else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, src);
             }
             // MIDIOutput.send() requires a typed array, not a plain Array
             const midiBytes = data instanceof Uint8Array ? data : new Uint8Array(data);

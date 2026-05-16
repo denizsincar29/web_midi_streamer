@@ -192,6 +192,13 @@ export const translations = {
         'chat.send': 'Send',
         'chat.you': 'You',
         'chat.peer': 'Partner',
+
+        // Participants
+        'participants.title': 'Participants',
+        'participants.nicknameLabel': 'Your Nickname:',
+        'participants.nicknamePlaceholder': 'How others will see you',
+        'participants.nicknameDescription': 'Shown to other participants',
+        'participants.defaultNickname': 'Player',
         
         // Footer
         'footer.help': 'Help',
@@ -466,6 +473,13 @@ export const translations = {
         'chat.send': 'Отправить',
         'chat.you': 'Вы',
         'chat.peer': 'Собеседник',
+
+        // Participants
+        'participants.title': 'Участники',
+        'participants.nicknameLabel': 'Ваш никнейм:',
+        'participants.nicknamePlaceholder': 'Как вас видят другие',
+        'participants.nicknameDescription': 'Виден другим участникам',
+        'participants.defaultNickname': 'Игрок',
         
         // Footer
         'footer.help': 'Справка',
