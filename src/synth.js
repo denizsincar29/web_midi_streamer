@@ -93,6 +93,7 @@ export class BrowserSynth {
         this._loading = true;
 
         this._tone = await loadTone();
+        await this._resumeAudio();
 
         const reverb = new this._tone.Reverb({
             decay: 3.5,
@@ -167,10 +168,10 @@ export class BrowserSynth {
         return this._tone?.Frequency(midiNote, 'midi').toNote() ?? null;
     }
 
-    _resumeAudio() {
+    async _resumeAudio() {
         if (!this._tone) return;
         if (this._tone.context?.state === 'suspended') {
-            void this._tone.start().catch(() => {});
+            await this._tone.start().catch(() => {});
         }
     }
 
@@ -185,7 +186,7 @@ export class BrowserSynth {
     noteOn(midiNote, velocity = 80) {
         if (!this._enabled) return;
 
-        this._resumeAudio();
+        void this._resumeAudio();
 
         if (!this._loaded) {
             this.load().then(() => this.noteOn(midiNote, velocity)).catch(() => {});
@@ -201,7 +202,7 @@ export class BrowserSynth {
 
         const gain = velocity / 127;
         try {
-            engine.triggerAttack(note, this._tone.now(), gain);
+            engine.triggerAttack(note, undefined, gain);
             this._active.set(midiNote, {
                 note,
                 engine: engine === this._sampler ? 'sampler' : 'fallback',
@@ -225,9 +226,9 @@ export class BrowserSynth {
                 return;
             }
             if (immediate) {
-                engine.triggerRelease(entry.note, this._tone.now());
+                engine.triggerRelease(entry.note);
             } else {
-                engine.triggerRelease(entry.note, this._tone.now() + 0.3);
+                engine.triggerRelease(entry.note);
             }
         } catch (_) {}
         this._active.delete(midiNote);
