@@ -97,10 +97,12 @@ export class BrowserSynth {
         this._loading = true;
 
         this._tone = await loadTone();
+        if (this._tone?.Context && this._tone?.setContext) {
+            this._tone.setContext(new this._tone.Context({ latencyHint: 'interactive' }));
+        }
         await this._resumeAudio();
 
         if (this._tone?.context) {
-            this._tone.context.latencyHint = 'interactive';
             this._tone.context.lookAhead = LOW_LATENCY_LOOKAHEAD;
             this._tone.context.updateInterval = LOW_LATENCY_LOOKAHEAD;
         }
