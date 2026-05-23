@@ -1,4 +1,4 @@
-# Web MIDI Streamer
+# JamRTC
 
 **Version 1.1.0** - Real-time MIDI streaming over WebRTC
 
@@ -31,8 +31,8 @@ A peer-to-peer MIDI streaming application that allows two users to stream MIDI d
 
 ```bash
 # Clone the repository
-git clone https://github.com/denizsincar29/web_midi_streamer.git
-cd web_midi_streamer
+git clone https://github.com/denizsincar29/web_jamrtc.git
+cd web_jamrtc
 
 # Run setup script
 uv run scripts/setup.py
@@ -157,8 +157,8 @@ This project is open source and available under the MIT License.
 
 ## 🔗 Links
 
-- **GitHub**: https://github.com/denizsincar29/web_midi_streamer
-- **Issues**: https://github.com/denizsincar29/web_midi_streamer/issues
+- **GitHub**: https://github.com/denizsincar29/web_jamrtc
+- **Issues**: https://github.com/denizsincar29/web_jamrtc/issues
 
 ---
 

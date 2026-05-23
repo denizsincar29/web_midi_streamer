@@ -1,5 +1,5 @@
 {
-  "name": "web_midi_streamer",
+  "name": "web_jamrtc",
   "version": "1.0.0",
   "description": "**Version 1.1.0** - Real-time MIDI streaming over WebRTC",
   "main": "service-worker.js",
@@ -8,15 +8,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/denizsincar29/web_midi_streamer.git"
+    "url": "git+https://github.com/denizsincar29/web_jamrtc.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/denizsincar29/web_midi_streamer/issues"
+    "url": "https://github.com/denizsincar29/web_jamrtc/issues"
   },
-  "homepage": "https://github.com/denizsincar29/web_midi_streamer#readme",
+  "homepage": "https://github.com/denizsincar29/web_jamrtc#readme",
   "devDependencies": {
     "@playwright/test": "^1.60.0"
   }

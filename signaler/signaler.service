@@ -1,7 +1,7 @@
 [Unit]
-Description=WebRTC Signaling Server (web-midi-streamer)
+Description=WebRTC Signaling Server (jamrtc)
 After=network.target
-Documentation=https://github.com/denizsincar29/web_midi_streamer
+Documentation=https://github.com/denizsincar29/web_jamrtc
 
 [Service]
 Type=simple

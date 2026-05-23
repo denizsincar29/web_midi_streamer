@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for Web MIDI Streamer
+Setup script for JamRTC
 Creates config.php and chimes.json from example files
 """
 
@@ -162,7 +162,7 @@ def setup_signaling_directory():
 def main():
     """Main setup function"""
     print("=" * 60)
-    print("Web MIDI Streamer - Setup Script")
+    print("JamRTC - Setup Script")
     print("=" * 60)
     print("\nThis script will help you set up the application.")
     print("It will create:")

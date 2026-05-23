@@ -1,11 +1,11 @@
-// Service Worker for Web MIDI Streamer PWA
+// Service Worker for JamRTC PWA
 // Strategy:
 //   - service-worker.js itself: NETWORK ONLY (browser handles this via updateViaCache)
 //   - HTML (index.html, /): NETWORK FIRST → cache fallback (so updates are seen)
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.8.0';  // feat: nickname prompt, participant list, UI polish, SR announcements
+const CACHE_NAME = 'jamrtc-v1.9.0';  // feat: renamed to JamRTC
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

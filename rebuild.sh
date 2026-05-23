@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# rebuild.sh — deploy static frontend to /var/www/html/denizsincar.ru/web_midi_streamer
+# rebuild.sh — deploy static frontend to /var/www/html/denizsincar.ru/jamrtc
 #
 # What it does:
 #   • Copies every static frontend file (HTML, CSS, JS, assets, SW, manifest)
@@ -15,14 +15,14 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
-DEST="${1:-/var/www/html/denizsincar.ru/web_midi_streamer}"
+DEST="${1:-/var/www/html/denizsincar.ru/jamrtc}"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${GREEN}==> web_midi_streamer rebuild${NC}"
+echo -e "${GREEN}==> jamrtc rebuild${NC}"
 echo    "    src : $SRC"
 echo    "    dest: $DEST"
 echo
@@ -78,5 +78,5 @@ fi
 echo
 echo -e "${GREEN}==> Done.${NC}"
 echo -e "${YELLOW}    Signaler was NOT touched — restart it manually if needed.${NC}"
-echo    "    e.g.:  sudo systemctl restart midi-signaler"
-echo    "    or:    cd $DEST/signaler && pm2 restart midi-signaler"
+echo    "    e.g.:  sudo systemctl restart jamrtc-signaler"
+echo    "    or:    cd $DEST/signaler && pm2 restart jamrtc-signaler"

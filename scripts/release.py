@@ -6,7 +6,7 @@
 # ]
 # ///
 """
-Release script for Web MIDI Streamer
+Release script for JamRTC
 Updates version numbers and adds changelog entries to help files
 
 Usage:
@@ -103,8 +103,8 @@ def update_service_worker_cache(sw_path, new_version):
         content = f.read()
     
     # Find and update cache name
-    pattern = r"const CACHE_NAME = 'midi-streamer-v[\d\.]+';"
-    replacement = f"const CACHE_NAME = 'midi-streamer-v{new_version}';"
+    pattern = r"const CACHE_NAME = 'jamrtc-v[\d\.]+';"
+    replacement = f"const CACHE_NAME = 'jamrtc-v{new_version}';"
     
     new_content = re.sub(pattern, replacement, content)
     
@@ -162,7 +162,7 @@ def main():
     base_path = Path(__file__).parent.parent
     
     print("=" * 60)
-    print("Web MIDI Streamer Release Script")
+    print("JamRTC Release Script")
     print("=" * 60)
     print()
     

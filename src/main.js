@@ -10,7 +10,7 @@ async function fetchSWVersion() {
         const res = await fetch('./service-worker.js', { cache: 'no-store' });
         if (!res.ok) return null;
         const text = await res.text();
-        // Match: const CACHE_NAME = 'midi-streamer-vX.Y.Z';
+        // Match: const CACHE_NAME = 'jamrtc-vX.Y.Z';
         const m = text.match(/CACHE_NAME\s*=\s*['"][\w-]+-v([\d.]+[^'"]*)['"]/);
         return m ? m[1] : null;
     } catch {

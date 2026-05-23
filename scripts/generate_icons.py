@@ -5,7 +5,7 @@
 # ]
 # ///
 """
-Generate PWA icons for Web MIDI Streamer
+Generate PWA icons for JamRTC
 Creates 192x192 and 512x512 PNG icons with piano keys and connection symbols
 
 Usage:

@@ -90,7 +90,7 @@ export class UIManager {
 
     copyAllMessages() {
         const messages = this.elements.messageLog.querySelectorAll('.message');
-        let text = 'Web MIDI Streamer - Debug Messages\n';
+        let text = 'JamRTC - Debug Messages\n';
         text += '='.repeat(50) + '\n\n';
 
         messages.forEach(msg => {

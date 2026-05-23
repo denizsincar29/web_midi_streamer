@@ -2,7 +2,7 @@
 export const translations = {
     en: {
         // Header
-        'app.title': 'Web MIDI Streamer',
+        'app.title': 'JamRTC',
         'app.subtitle': 'Real-time MIDI streaming over WebRTC',
         'app.tagline': 'Jam with friends in real time — <strong>under 50 ms latency</strong>, not the 200–500 ms you get on a video call. Play together like you\'re in the same room.',
         'header.tools': '🎹 Mini Apps',
@@ -208,7 +208,7 @@ export const translations = {
         'language.select': 'Language',
         
         // Help/Instructions
-        'help.title': 'How to Use Web MIDI Streamer',
+        'help.title': 'How to Use JamRTC',
         'help.close': 'Close',
         'help.step1Title': '1. Connect Your MIDI Keyboard First',
         'help.step1': 'IMPORTANT: Connect your MIDI keyboard or controller to your computer BEFORE opening this website or clicking any connection buttons. This prevents the need to refresh the page.',
@@ -283,7 +283,7 @@ export const translations = {
     
     ru: {
         // Header
-        'app.title': 'Web MIDI Стример',
+        'app.title': 'JamRTC',
         'app.subtitle': 'Потоковая передача MIDI в реальном времени через WebRTC',
         'app.tagline': 'Играйте вместе с друзьями в реальном времени — <strong>меньше 50 мс задержки</strong>, а не 200–500 мс как в видеозвонках. Как будто вы в одной комнате.',
         
@@ -490,7 +490,7 @@ export const translations = {
         'language.select': 'Язык',
         
         // Help/Instructions
-        'help.title': 'Как использовать Web MIDI Стример',
+        'help.title': 'Как использовать JamRTC',
         'help.close': 'Закрыть',
         'help.step1Title': '1. Сначала подключите MIDI-клавиатуру',
         'help.step1': 'ВАЖНО: Подключите MIDI-клавиатуру или контроллер к компьютеру ДО открытия сайта или нажатия кнопок подключения. Это избавит от необходимости обновлять страницу.',
