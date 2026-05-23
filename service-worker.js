@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.4';  // feat: synth timing fix and cache refresh
+const CACHE_NAME = 'jamrtc-v2.0.5';  // feat: lower synth latency and cache refresh
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

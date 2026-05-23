@@ -22,6 +22,10 @@ const SAMPLED_NOTES = {
     A6: 'A6.mp3', C7: 'C7.mp3',
 };
 
+const LOW_LATENCY_LOOKAHEAD = 0.01;
+const SAMPLER_RELEASE = 0.35;
+const FALLBACK_RELEASE = 0.45;
+
 const STORAGE_KEY = 'jamrtc_browser_synth_enabled';
 
 let toneLoadPromise = null;
@@ -95,6 +99,11 @@ export class BrowserSynth {
         this._tone = await loadTone();
         await this._resumeAudio();
 
+        if (this._tone?.context) {
+            this._tone.context.lookAhead = LOW_LATENCY_LOOKAHEAD;
+            this._tone.context.updateInterval = LOW_LATENCY_LOOKAHEAD;
+        }
+
         const reverb = new this._tone.Reverb({
             decay: 3.5,
             wet: this._wet,
@@ -106,7 +115,7 @@ export class BrowserSynth {
 
         const sampler = new this._tone.Sampler({
             urls: SAMPLED_NOTES,
-            release: 1.5,
+            release: SAMPLER_RELEASE,
             baseUrl: SAMPLE_BASE_URL,
         }).connect(this._reverb);
 
@@ -153,7 +162,7 @@ export class BrowserSynth {
                     attack: 0.005,
                     decay: 1.8,
                     sustain: 0.12,
-                    release: 1.6,
+                    release: FALLBACK_RELEASE,
                 },
                 volume: -6,
             },
