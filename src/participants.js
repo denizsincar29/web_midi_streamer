@@ -185,10 +185,16 @@ export class ParticipantsManager {
     }
 
     _makeRow(peerId, nickname, role, info, isMe = false) {
-        const row = document.createElement('div');
+        const row = document.createElement('li');
         row.className = 'participant-row' + (isMe ? ' participant-row--me' : '');
         const isPlaying = isMe ? this._myPlaying : info?.playing;
         if (isPlaying) row.classList.add('participant-row--playing');
+
+        const parts = [nickname + (isMe ? ' (you)' : '')];
+        parts.push(role === 'listener' ? 'listener' : 'player');
+        if (isPlaying) parts.push('playing');
+        if (!isMe && info?.latency != null) parts.push(Math.round(info.latency) + ' ms latency');
+        row.setAttribute('aria-label', parts.join(', '));
 
         // Colour swatch
         const swatch = document.createElement('span');
