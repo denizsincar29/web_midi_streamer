@@ -178,10 +178,6 @@ export class ParticipantsManager {
             );
         }
 
-        // Always show the section when we're in a room (panel visibility managed by app)
-        if (this._panel) {
-            this._panel.hidden = false;
-        }
     }
 
     _makeRow(peerId, nickname, role, info, isMe = false) {
