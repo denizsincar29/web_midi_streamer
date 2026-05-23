@@ -272,7 +272,6 @@ export class UIManager {
             midiActivity.textContent = '';
         }
     }
-}
 
     /**
      * Show or hide the connection form (room input, nickname input, connect button).
@@ -299,3 +298,4 @@ export class UIManager {
         const disconnectBtn = document.getElementById('disconnectBtn');
         if (disconnectBtn) disconnectBtn.hidden = false;
     }
+}
