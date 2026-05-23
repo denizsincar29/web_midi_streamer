@@ -54,32 +54,31 @@
             <div id="participantAnnouncer" class="sr-only" aria-live="assertive" aria-atomic="true" aria-relevant="additions text"></div>
 
             <!-- MIDI Devices -->
-            <section class="midi-devices">
+            <section class="midi-devices" id="midiDevicesSection">
                 <h2 data-i18n="midi.title">MIDI Devices</h2>
-                
-                <div class="device-group">
+
+                <div class="device-group" id="midiInputGroup">
                     <label for="midiInput" data-i18n="midi.inputDevice">Input Device:</label>
                     <select id="midiInput" aria-label="Select MIDI input device">
                         <option value="" data-i18n="midi.noDevice">No device selected</option>
                     </select>
                 </div>
 
-                <div class="device-group">
+                <div class="device-group" id="midiOutputGroup">
                     <label for="midiOutput" data-i18n="midi.outputDevice">Output Device:</label>
                     <select id="midiOutput" aria-label="Select MIDI output device">
-                        <option value="" data-i18n="midi.noDevice">No device selected</option>
+                        <!-- Browser Synth is always the first option, added by JS -->
                     </select>
                 </div>
 
+                <span id="synthStatus" class="synth-status" aria-live="polite"></span>
+
                 <button id="refreshDevices" class="btn btn-secondary" data-i18n="midi.refreshDevices">Refresh Devices</button>
 
-                <!-- Browser Synth toggle -->
-                <div class="synth-row" id="synthRow">
-                    <button id="synthToggleBtn" class="btn btn-synth" aria-pressed="false" title="Play notes through your browser speakers using a sampled grand piano">
-                        🔊 <span id="synthLabel" data-i18n="synth.enable">Browser Synth</span>
-                    </button>
-                    <span id="synthStatus" class="synth-status" aria-live="polite"></span>
-                </div>
+                <!-- Shown on mobile / no Web MIDI instead of the selects -->
+                <p id="noMidiNotice" class="no-midi-notice" hidden data-i18n="midi.noMidiApi">
+                    No MIDI API available — using browser piano.
+                </p>
             </section>
 
             <!-- Connection Controls -->

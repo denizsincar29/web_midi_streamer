@@ -13,10 +13,11 @@ export class MIDIManager {
         this.chimesLoading = this.loadChimes(); // Start loading immediately
         
         // Storage keys for device persistence
-        this.STORAGE_KEY_INPUT      = 'webmidi_selectedInputId';
-        this.STORAGE_KEY_OUTPUT     = 'webmidi_selectedOutputId';
+        this.STORAGE_KEY_INPUT       = 'webmidi_selectedInputId';
+        this.STORAGE_KEY_OUTPUT      = 'webmidi_selectedOutputId';
         this.STORAGE_KEY_INPUT_NAME  = 'webmidi_selectedInputName';
         this.STORAGE_KEY_OUTPUT_NAME = 'webmidi_selectedOutputName';
+        this.SYNTH_OUTPUT_VALUE      = '__synth__';
     }
 
     async loadChimes() {
@@ -140,22 +141,24 @@ export class MIDIManager {
 
         // ── Build output selector ──────────────────────────────────────────
         outputSelect.innerHTML = '';
+
+        // Browser Synth is always the first option
+        const synthOption = document.createElement('option');
+        synthOption.value = this.SYNTH_OUTPUT_VALUE;
+        synthOption.textContent = '🔊 ' + this._t('synth.name');
+        outputSelect.appendChild(synthOption);
+
         const bestOutput = findBest(outputs, savedOutputId, savedOutputName);
 
-        if (savedOutputName && !bestOutput) {
+        // If saved output is gone, show waiting placeholder (after synth option)
+        if (savedOutputName && savedOutputId !== this.SYNTH_OUTPUT_VALUE && !bestOutput) {
             const waiting = document.createElement('option');
             waiting.value = '';
             waiting.textContent = '⏳ ' + savedOutputName;
-            waiting.disabled = false;
             waiting.selected = true;
             outputSelect.appendChild(waiting);
         }
-        if (outputs.length === 0 && !savedOutputName) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = this._t('midi.noDevice');
-            outputSelect.appendChild(option);
-        }
+
         outputs.forEach(output => {
             const option = document.createElement('option');
             option.value = output.id;
@@ -163,7 +166,23 @@ export class MIDIManager {
             if (bestOutput && output.id === bestOutput.id) option.selected = true;
             outputSelect.appendChild(option);
         });
-        if (bestOutput) this.selectOutput(bestOutput.id);
+
+        // Decide what to select
+        const savedIsHardware = savedOutputId && savedOutputId !== this.SYNTH_OUTPUT_VALUE;
+        if (bestOutput && savedIsHardware) {
+            // Restore hardware device
+            this.selectOutput(bestOutput.id);
+        } else if (savedOutputId === this.SYNTH_OUTPUT_VALUE || (!savedOutputId && !savedOutputName)) {
+            // Synth was chosen, or nothing was ever saved → default to synth
+            synthOption.selected = true;
+            this.selectOutput(this.SYNTH_OUTPUT_VALUE);
+        } else if (bestOutput) {
+            this.selectOutput(bestOutput.id);
+        } else {
+            // Nothing available, fall back to synth
+            synthOption.selected = true;
+            this.selectOutput(this.SYNTH_OUTPUT_VALUE);
+        }
     }
 
     selectInput(deviceId) {
@@ -195,6 +214,19 @@ export class MIDIManager {
     }
 
     selectOutput(deviceId) {
+        if (deviceId === this.SYNTH_OUTPUT_VALUE) {
+            // Browser synth selected
+            this.selectedOutput = null;
+            localStorage.setItem(this.STORAGE_KEY_OUTPUT, this.SYNTH_OUTPUT_VALUE);
+            localStorage.removeItem(this.STORAGE_KEY_OUTPUT_NAME);
+            if (this.synth) this.synth.setEnabled(true);
+            return;
+        }
+        // Hardware device selected — disable synth-as-output (but keep it if user wants monitoring)
+        if (this.synth?.enabled) {
+            const keepMonitor = localStorage.getItem('jamrtc_synth_monitor') === 'true';
+            if (!keepMonitor) this.synth.setEnabled(false);
+        }
         if (deviceId && this.access) {
             this.selectedOutput = this.access.outputs.get(deviceId);
             // Save ID and name — name-based matching survives replug with new ID

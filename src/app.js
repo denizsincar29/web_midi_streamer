@@ -133,12 +133,23 @@ export class MIDIStreamer {
             this.disconnect();
         });
 
+        // Check if Web MIDI API is available at all (not on iOS Safari, most mobiles)
+        if (!navigator.requestMIDIAccess) {
+            this._activateNoMidiMode();
+            return;
+        }
+
         try {
             await this.midi.init();
             this.ui.addMessage(t('midi.accessGranted'), 'success');
             this.midi.refreshDevices();
             // Play startup logo chime once MIDI output is ready
             this.midi.playStatusChime('startup');
+            // Pre-load synth if it's the selected output
+            const currentOut = localStorage.getItem('webmidi_selectedOutputId');
+            if (!currentOut || currentOut === '__synth__') {
+                this._loadSynth();
+            }
         } catch (error) {
             this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
         }
@@ -161,14 +172,7 @@ export class MIDIStreamer {
         this.midi.synth = this._synth;
         this._initSynthUI();
 
-        // Auto-enable synth if no output device saved
-        const savedOut = localStorage.getItem('webmidi_selectedOutputName');
-        if (!savedOut && !this._synth.enabled) {
-            this._synth.setEnabled(true);
-            this._loadSynth();
-        } else if (this._synth.enabled) {
-            this._loadSynth();
-        }
+        // Synth loads lazily on first note; nothing to pre-load here.
 
         // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
         // Chosen because Firefox does not intercept it even when the page is focused
@@ -648,6 +652,8 @@ export class MIDIStreamer {
             }
             // Update playing indicator for "me"
             if (st === 0x90 && data[2] > 0) this._participants?.setMePlaying(true);
+            // Monitor local notes through synth when synth output is selected
+            if (this._synth?.enabled) this._synth.processMidi(Array.from(data));
         }
     }
 

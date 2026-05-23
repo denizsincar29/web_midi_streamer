@@ -8,11 +8,13 @@ export const translations = {
         'header.tools': '🎹 Mini Apps',
         
         // Browser Synth
+        'synth.name'     : 'Browser Piano',
         'synth.enable'   : 'Browser Synth',
         'synth.loading'  : 'Loading piano samples…',
         'synth.ready'    : '🎹 Grand piano ready',
         'synth.off'      : '',
         'synth.tooltip'  : 'Play notes through your speakers (Salamander Grand Piano)',
+        'midi.noMidiApi' : 'No MIDI keyboard detected — using browser piano 🎹',
 
         // Status
         'status.title': 'Status:',
