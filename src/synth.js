@@ -22,7 +22,7 @@ const SAMPLED_NOTES = {
     A6: 'A6.mp3', C7: 'C7.mp3',
 };
 
-const LOW_LATENCY_LOOKAHEAD = 0.01;
+const LOW_LATENCY_LOOKAHEAD = 0;
 const SAMPLER_RELEASE = 0.35;
 const FALLBACK_RELEASE = 0.45;
 
@@ -100,6 +100,7 @@ export class BrowserSynth {
         await this._resumeAudio();
 
         if (this._tone?.context) {
+            this._tone.context.latencyHint = 'interactive';
             this._tone.context.lookAhead = LOW_LATENCY_LOOKAHEAD;
             this._tone.context.updateInterval = LOW_LATENCY_LOOKAHEAD;
         }
@@ -211,7 +212,8 @@ export class BrowserSynth {
 
         const gain = velocity / 127;
         try {
-            engine.triggerAttack(note, undefined, gain);
+            const currentTime = this._tone?.context?.currentTime;
+            engine.triggerAttack(note, currentTime, gain);
             this._active.set(midiNote, {
                 note,
                 engine: engine === this._sampler ? 'sampler' : 'fallback',
