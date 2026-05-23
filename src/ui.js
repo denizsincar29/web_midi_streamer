@@ -273,3 +273,29 @@ export class UIManager {
         }
     }
 }
+
+    /**
+     * Show or hide the connection form (room input, nickname input, connect button).
+     * When connected, only the Disconnect button should be visible there.
+     */
+    setConnectionUIVisible(visible) {
+        // Elements to hide when connected
+        const selectors = [
+            '.room-input-group',         // room name + nickname inputs
+            '#connectBtn',
+            '.available-rooms',
+        ];
+        selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                el.hidden = !visible;
+            });
+        });
+
+        // The section heading too
+        const controlsSection = document.querySelector('.controls h2');
+        if (controlsSection) controlsSection.hidden = !visible;
+
+        // Always keep disconnect button accessible
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        if (disconnectBtn) disconnectBtn.hidden = false;
+    }

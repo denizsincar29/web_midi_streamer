@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'midi-streamer-v1.7.1';  // fix: ?name= URL param, force re-cache of i18n/utils
+const CACHE_NAME = 'midi-streamer-v1.8.0';  // feat: nickname prompt, participant list, UI polish, SR announcements
 
 const getBasePath = () => {
   const swPath = self.location.pathname;

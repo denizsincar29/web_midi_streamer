@@ -1213,3 +1213,25 @@ footer a:hover {
     font-size: 0.95em;
     margin-top: 4px;
 }
+
+/* ── Participant playing indicator ─────────────────────────────────────────── */
+.participant-playing {
+    font-size: 0.9em;
+    animation: participant-pulse 0.6s ease-in-out infinite alternate;
+    margin-left: 0.25rem;
+}
+
+@keyframes participant-pulse {
+    from { opacity: 0.5; transform: scale(0.9); }
+    to   { opacity: 1;   transform: scale(1.1); }
+}
+
+.participant-row--playing .participant-name {
+    font-weight: 600;
+}
+
+/* ── Connection form visibility ────────────────────────────────────────────── */
+.controls h2[hidden],
+.room-input-group[hidden] {
+    display: none;
+}

@@ -47,6 +47,9 @@
             <!-- Screen Reader Status Bar -->
             <div id="statusBar" class="sr-only" role="status" aria-live="polite" aria-atomic="false"></div>
 
+            <!-- Screen Reader Participant Announcements (join/leave only) -->
+            <div id="participantAnnouncer" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></div>
+
             <!-- MIDI Devices -->
             <section class="midi-devices">
                 <h2 data-i18n="midi.title">MIDI Devices</h2>
@@ -106,7 +109,7 @@
             </section>
 
             <!-- ── Participants Panel ──────────────────────────────────────── -->
-            <section id="participantsSection" class="participants-section" hidden>
+            <section id="participantsSection" class="participants-section" hidden aria-label="Participants">
                 <h2 data-i18n="participants.title">👥 Participants</h2>
                 <div id="participantsList" class="participants-list" role="list" aria-live="polite" aria-label="Connected participants"></div>
             </section>

@@ -115,6 +115,11 @@ export class MIDIStreamer {
         const nameFromURL = getNameFromURL();
         if (nameFromURL && nicknameInput) {
             nicknameInput.value = nameFromURL;
+            localStorage.setItem('midi_nickname', nameFromURL);
+        } else if (nicknameInput) {
+            // Load saved nickname from localStorage
+            const saved = localStorage.getItem('midi_nickname');
+            if (saved) nicknameInput.value = saved;
         }
 
         const params = new URLSearchParams(window.location.search);
@@ -168,8 +173,24 @@ export class MIDIStreamer {
 
         if (this.roomName) {
             this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
-            this.ui.addMessage(`${t('connection.autoConnecting')} '${this.roomName}'...`, 'info');
-            this.connect();
+            const savedNick = localStorage.getItem('midi_nickname');
+            const nickInput = document.getElementById('nicknameInput');
+            const hasNick = (nickInput?.value?.trim()) || savedNick;
+            if (!hasNick) {
+                // No nickname yet — show connection section so user can enter one
+                this.ui.setConnectionUIVisible(true);
+                const nicknameInput2 = document.getElementById('nicknameInput');
+                if (nicknameInput2) {
+                    nicknameInput2.focus();
+                    // Pre-fill room name so user just needs to type nickname and hit Connect
+                    const roomInput = document.getElementById('roomNameInput');
+                    if (roomInput) roomInput.value = this.roomName;
+                }
+                this.ui.addMessage(t('participants.nicknameRequired') || 'Please enter a nickname to join the room.', 'info');
+            } else {
+                this.ui.addMessage(`${t('connection.autoConnecting')} '${this.roomName}'...`, 'info');
+                this.connect();
+            }
         } else {
             this.ui.updateRoomName(t('status.enterRoomName'));
             this.ui.addMessage(t('connection.enterAndConnect'), 'info');
@@ -241,11 +262,13 @@ export class MIDIStreamer {
         if (nicknameInput) {
             nicknameInput.addEventListener('input', () => {
                 this._participants?.setMyNickname(this._myNickname());
+                const nick = this._myNickname();
+                if (nick) localStorage.setItem('midi_nickname', nick);
                 // If already connected, broadcast the new nickname to all peers
                 if (this.webrtc.isConnected()) {
                     this.webrtc.send(JSON.stringify({
                         type: 'hello',
-                        data: { nickname: this._myNickname(), role: 'player' },
+                        data: { nickname: nick, role: 'player' },
                     }));
                 }
             });
@@ -487,6 +510,17 @@ export class MIDIStreamer {
             if (!roomNameInput) { this.ui.addMessage(t('connection.roomInputNotFound'), 'error'); return; }
             const roomName = roomNameInput.value.trim();
             if (!roomName) { this.ui.addMessage(t('connection.enterRoomNamePrompt'), 'error'); return; }
+
+            // Require a nickname before connecting
+            const nicknameInput = document.getElementById('nicknameInput');
+            const nickname = nicknameInput?.value?.trim();
+            if (!nickname) {
+                nicknameInput?.focus();
+                this.ui.addMessage(t('participants.nicknameRequired') || 'Please enter a nickname before connecting.', 'error');
+                return;
+            }
+            // Save nickname to localStorage
+            localStorage.setItem('midi_nickname', nickname);
             const shareUrl = await this.webrtc.connect(roomName);
             if (shareUrl) {
                 this.currentRoomName = roomName;
@@ -500,6 +534,8 @@ export class MIDIStreamer {
                     copyToClipboard(url).then(() => this.ui.addMessage(t('connection.urlCopied'), 'success'))
                         .catch(() => this.ui.addMessage(t('connection.copyUrlFailed'), 'error'));
                 });
+                this.ui.setConnectionUIVisible(false);
+                this._participants?.showPanel(true);
             }
             this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
@@ -533,6 +569,8 @@ export class MIDIStreamer {
         this.midi.refreshDevices();
         this.startRoomAutoRefresh();
         this.refreshAvailableRooms();
+        this.ui.setConnectionUIVisible(true);
+        this._participants?.showPanel(false);
     }
 
     setRoomsVisibility(visible) {
@@ -581,10 +619,14 @@ export class MIDIStreamer {
         this.midi.announceMIDIEvent(data, this.settings.showMidiActivity);
 
         // Piano keyboard — local notes
-        if (this._piano && data.length >= 3) {
+        if (data.length >= 3) {
             const st = data[0] & 0xF0, p = data[1];
-            if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'local');
-            else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'local');
+            if (this._piano) {
+                if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, 'local');
+                else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, 'local');
+            }
+            // Update playing indicator for "me"
+            if (st === 0x90 && data[2] > 0) this._participants?.setMePlaying(true);
         }
     }
 
@@ -663,11 +705,17 @@ export class MIDIStreamer {
                 }
             }
             // Piano keyboard — remote notes (use peerId for per-peer colouring)
-            if (this._piano && data && data.length >= 3) {
+            if (data && data.length >= 3) {
                 const st = data[0] & 0xF0, p = data[1];
                 const src = msg.from ?? 'remote';
-                if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, src);
-                else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, src);
+                if (this._piano) {
+                    if (st === 0x90 && data[2] > 0) this._piano.noteOn(p, src);
+                    else if (st === 0x80 || (st === 0x90 && data[2] === 0)) this._piano.noteOff(p, src);
+                }
+                // Update playing indicator (visual only, no SR)
+                if (msg.from && st === 0x90 && data[2] > 0) {
+                    this._participants?.setPeerPlaying(msg.from, true);
+                }
             }
             // MIDIOutput.send() requires a typed array, not a plain Array
             const midiBytes = data instanceof Uint8Array ? data : new Uint8Array(data);

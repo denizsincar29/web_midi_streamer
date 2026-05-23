@@ -7,6 +7,7 @@
  *   • role     — 'player' | 'listener'
  *   • color    — one of PEER_COLORS, assigned in join order
  *   • latency  — last RTT/2 from ping, or null
+ *   • playing  — true while the peer has an active note
  *
  * The module owns the Participants <details> panel in the DOM.
  * It renders a row per peer and also exposes the colour palette so
@@ -28,19 +29,24 @@ export class ParticipantsManager {
      * @param {Function} onUpdate  — called with no args whenever roster changes
      */
     constructor(myNickname, onUpdate) {
-        this._peers    = new Map();   // peerId → { nickname, role, color, latency }
+        this._peers    = new Map();   // peerId → { nickname, role, color, latency, playing }
         this._colorIdx = 0;
         this._myNick   = myNickname || 'You';
         this._onUpdate = onUpdate ?? (() => {});
         this._container = document.getElementById('participantsList');
         this._panel     = document.getElementById('participantsSection');
+        this._announcer = document.getElementById('participantAnnouncer');
+        this._myPlaying = false;
+        // Debounce timers for playing state (per peer)
+        this._playingTimers = new Map();
     }
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
     /** Called when a peer's hello message arrives. */
     add(peerId, nickname, role = 'player') {
-        if (this._peers.has(peerId)) {
+        const isNew = !this._peers.has(peerId);
+        if (!isNew) {
             // Update existing (e.g. nickname or role change)
             const p = this._peers.get(peerId);
             p.nickname = nickname || this._fallbackName(peerId);
@@ -53,7 +59,10 @@ export class ParticipantsManager {
                 role,
                 color,
                 latency: null,
+                playing: false,
             });
+            // Announce join via screen reader
+            this._announce((nickname || this._fallbackName(peerId)) + ' joined');
         }
         this._render();
         this._onUpdate();
@@ -61,7 +70,15 @@ export class ParticipantsManager {
 
     /** Called when a peer disconnects. */
     remove(peerId) {
+        const info = this._peers.get(peerId);
+        if (info) {
+            this._announce(info.nickname + ' left');
+        }
         this._peers.delete(peerId);
+        if (this._playingTimers.has(peerId)) {
+            clearTimeout(this._playingTimers.get(peerId));
+            this._playingTimers.delete(peerId);
+        }
         this._render();
         this._onUpdate();
     }
@@ -90,6 +107,8 @@ export class ParticipantsManager {
 
     /** Clear all peers (on disconnect). */
     clear() {
+        for (const tid of this._playingTimers.values()) clearTimeout(tid);
+        this._playingTimers.clear();
         this._peers.clear();
         this._colorIdx = 0;
         this._render();
@@ -97,6 +116,52 @@ export class ParticipantsManager {
     }
 
     get peerCount() { return this._peers.size; }
+
+    /**
+     * Mark a peer as actively playing (has notes on).
+     * Auto-clears after 2 s of silence (debounced).
+     * Does NOT announce via screen reader.
+     */
+    setPeerPlaying(peerId, playing) {
+        const p = this._peers.get(peerId);
+        if (!p) return;
+
+        if (this._playingTimers.has(peerId)) {
+            clearTimeout(this._playingTimers.get(peerId));
+            this._playingTimers.delete(peerId);
+        }
+
+        if (playing) {
+            p.playing = true;
+            this._render();
+            // Auto-clear after 2 s of no further note-on events
+            const tid = setTimeout(() => {
+                const peer = this._peers.get(peerId);
+                if (peer) { peer.playing = false; this._render(); }
+                this._playingTimers.delete(peerId);
+            }, 2000);
+            this._playingTimers.set(peerId, tid);
+        } else {
+            p.playing = false;
+            this._render();
+        }
+    }
+
+    /** Mark "me" as playing (local note activity). */
+    setMePlaying(playing) {
+        if (playing === this._myPlaying) return;
+        this._myPlaying = playing;
+        if (playing) {
+            if (this._playingTimers.has('__me')) clearTimeout(this._playingTimers.get('__me'));
+            const tid = setTimeout(() => {
+                this._myPlaying = false;
+                this._render();
+                this._playingTimers.delete('__me');
+            }, 2000);
+            this._playingTimers.set('__me', tid);
+        }
+        this._render();
+    }
 
     // ── Rendering ──────────────────────────────────────────────────────────────
 
@@ -113,15 +178,17 @@ export class ParticipantsManager {
             );
         }
 
-        // Show/hide the section
+        // Always show the section when we're in a room (panel visibility managed by app)
         if (this._panel) {
-            this._panel.hidden = this._peers.size === 0;
+            this._panel.hidden = false;
         }
     }
 
     _makeRow(peerId, nickname, role, info, isMe = false) {
         const row = document.createElement('div');
         row.className = 'participant-row' + (isMe ? ' participant-row--me' : '');
+        const isPlaying = isMe ? this._myPlaying : info?.playing;
+        if (isPlaying) row.classList.add('participant-row--playing');
 
         // Colour swatch
         const swatch = document.createElement('span');
@@ -139,6 +206,16 @@ export class ParticipantsManager {
         name.className = 'participant-name';
         name.textContent = nickname + (isMe ? ' (you)' : '');
         row.appendChild(name);
+
+        // Playing indicator (visual only, no SR)
+        if (isPlaying) {
+            const playing = document.createElement('span');
+            playing.className = 'participant-playing';
+            playing.setAttribute('aria-hidden', 'true');
+            playing.textContent = '🎵';
+            playing.title = 'Playing';
+            row.appendChild(playing);
+        }
 
         // Role badge
         if (!isMe) {
@@ -163,4 +240,19 @@ export class ParticipantsManager {
     _fallbackName(peerId) {
         return 'Peer ' + peerId.slice(0, 6);
     }
+
+    /** Announce text via the dedicated SR-only live region. */
+    _announce(text) {
+        if (!this._announcer) return;
+        // Clear then set to ensure re-announcement even if same text
+        this._announcer.textContent = '';
+        requestAnimationFrame(() => {
+            this._announcer.textContent = text;
+        });
+    }
 }
+
+// Standalone helper added after class definition
+ParticipantsManager.prototype.showPanel = function(visible) {
+    if (this._panel) this._panel.hidden = !visible;
+};
