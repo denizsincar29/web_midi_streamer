@@ -73,6 +73,14 @@
 
                 <span id="synthStatus" class="synth-status" aria-live="polite"></span>
 
+                <div id="synthReverbGroup" class="device-group synth-reverb-group" hidden>
+                    <label for="synthReverbSlider">Reverb</label>
+                    <div class="synth-reverb-row">
+                        <input type="range" id="synthReverbSlider" min="0" max="100" value="30" aria-label="Browser piano reverb amount">
+                        <span id="synthReverbValue" class="synth-reverb-value">30%</span>
+                    </div>
+                </div>
+
                 <button id="refreshDevices" class="btn btn-secondary" data-i18n="midi.refreshDevices">Refresh Devices</button>
 
                 <!-- Shown on mobile / no Web MIDI instead of the selects -->

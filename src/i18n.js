@@ -8,8 +8,8 @@ export const translations = {
         'header.tools': '🎹 Mini Apps',
         
         // Browser Synth
-        'synth.name'     : 'Browser Piano',
-        'synth.enable'   : 'Browser Synth',
+        'synth.name'     : 'Grand Piano',
+        'synth.enable'   : 'Grand Piano',
         'synth.loading'  : 'Loading piano samples…',
         'synth.ready'    : '🎹 Grand piano ready',
         'synth.off'      : '',

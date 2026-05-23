@@ -302,6 +302,30 @@ h2 {
     border-color: #667eea;
 }
 
+.synth-reverb-group[hidden] {
+    display: none;
+}
+
+.synth-reverb-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.synth-reverb-row input[type="range"] {
+    width: 100%;
+    flex: 1;
+    accent-color: #667eea;
+}
+
+.synth-reverb-value {
+    min-width: 3.5rem;
+    text-align: right;
+    font-weight: 600;
+    color: #667eea;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Buttons */
 .btn {
     padding: 12px 24px;

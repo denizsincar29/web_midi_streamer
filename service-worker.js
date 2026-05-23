@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.2';  // feat: synth uses soundfont-player/FluidR3 instead of Tone.js
+const CACHE_NAME = 'jamrtc-v2.0.3';  // feat: synth switched to Tone.js Salamander sampler
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
@@ -21,6 +21,7 @@ const STATIC_ASSETS = [
   basePath + 'src/webrtc.js',
   basePath + 'src/midi-worker.js',
   basePath + 'src/piano.js',
+  basePath + 'src/synth.js',
   basePath + 'src/midi.js',
   basePath + 'src/ui.js',
   basePath + 'src/utils.js',

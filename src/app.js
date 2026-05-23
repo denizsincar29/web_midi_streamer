@@ -142,6 +142,10 @@ export class MIDIStreamer {
         try {
             await this.midi.init();
             this.ui.addMessage(t('midi.accessGranted'), 'success');
+            // Browser synth is available alongside hardware output.
+            this._synth = new BrowserSynth();
+            this.midi.synth = this._synth;
+            this._initSynthUI();
             this.midi.refreshDevices();
             // Play startup logo chime once MIDI output is ready
             this.midi.playStatusChime('startup');
@@ -166,13 +170,6 @@ export class MIDIStreamer {
             this._myNickname(),
             () => {} // future: could sync peer count badge here
         );
-
-        // Browser synth
-        this._synth = new BrowserSynth();
-        this.midi.synth = this._synth;
-        this._initSynthUI();
-
-        // Synth loads lazily on first note; nothing to pre-load here.
 
         // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
         // Chosen because Firefox does not intercept it even when the page is focused
@@ -324,6 +321,10 @@ export class MIDIStreamer {
 
         document.getElementById('midiOutput').addEventListener('change', (e) => {
             this.midi.selectOutput(e.target.value);
+            this._syncSynthUI();
+            if (e.target.value === this.midi.SYNTH_OUTPUT_VALUE) {
+                this._loadSynth();
+            }
         });
 
         document.getElementById('refreshDevices').addEventListener('click', () => {
@@ -603,6 +604,100 @@ export class MIDIStreamer {
         if (section) {
             section.hidden = !visible;
         }
+    }
+
+    _initSynthUI() {
+        this._synthStatusEl = document.getElementById('synthStatus');
+        this._synthReverbGroupEl = document.getElementById('synthReverbGroup');
+        this._synthReverbSliderEl = document.getElementById('synthReverbSlider');
+        this._synthReverbValueEl = document.getElementById('synthReverbValue');
+
+        const savedWet = Number(localStorage.getItem('jamrtc_synth_reverb'));
+        const initialWet = Number.isFinite(savedWet) ? Math.max(0, Math.min(100, savedWet)) : 30;
+        if (this._synthReverbSliderEl) {
+            this._synthReverbSliderEl.value = String(initialWet);
+        }
+        if (this._synthReverbValueEl) {
+            this._synthReverbValueEl.textContent = `${initialWet}%`;
+        }
+        if (this._synth) {
+            this._synth.setReverb(initialWet / 100);
+        }
+
+        this._synthReverbSliderEl?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value, 10);
+            if (this._synthReverbValueEl) {
+                this._synthReverbValueEl.textContent = `${value}%`;
+            }
+            localStorage.setItem('jamrtc_synth_reverb', String(value));
+            this._synth?.setReverb(value / 100);
+        });
+
+        this._syncSynthUI();
+    }
+
+    _isSynthSelected() {
+        const outputSelect = document.getElementById('midiOutput');
+        return !outputSelect || outputSelect.value === this.midi.SYNTH_OUTPUT_VALUE;
+    }
+
+    _setSynthStatus(text) {
+        if (this._synthStatusEl) {
+            this._synthStatusEl.textContent = text;
+        }
+    }
+
+    _syncSynthUI() {
+        const synthSelected = this._isSynthSelected();
+        if (this._synthReverbGroupEl) {
+            this._synthReverbGroupEl.hidden = !synthSelected;
+        }
+        if (this._synthStatusEl) {
+            this._synthStatusEl.hidden = !synthSelected;
+        }
+
+        if (!synthSelected) {
+            this._setSynthStatus('');
+            return;
+        }
+
+        if (this._synth?.loaded) {
+            this._setSynthStatus(t('synth.ready'));
+        } else {
+            this._setSynthStatus(t('synth.loading'));
+        }
+    }
+
+    async _loadSynth() {
+        if (!this._synth || !this._isSynthSelected()) {
+            this._syncSynthUI();
+            return;
+        }
+        this._setSynthStatus(t('synth.loading'));
+        try {
+            await this._synth.load();
+            this._setSynthStatus(t('synth.ready'));
+        } catch (error) {
+            console.warn('[BrowserSynth] preload failed:', error);
+            this._setSynthStatus(t('synth.off'));
+        }
+    }
+
+    _activateNoMidiMode() {
+        const notice = document.getElementById('noMidiNotice');
+        if (notice) notice.hidden = false;
+        const inputGroup = document.getElementById('midiInputGroup');
+        const outputGroup = document.getElementById('midiOutputGroup');
+        if (inputGroup) inputGroup.hidden = true;
+        if (outputGroup) outputGroup.hidden = true;
+
+        if (!this._synth) {
+            this._synth = new BrowserSynth();
+            this.midi.synth = this._synth;
+            this._initSynthUI();
+        }
+        this._synth.setEnabled(true);
+        this._loadSynth();
     }
 
     handleMIDIInput(data) {
