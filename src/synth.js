@@ -1,180 +1,187 @@
 /**
- * synth.js — Browser piano synthesiser using Tone.js + Salamander Grand Piano samples.
+ * synth.js — Lightweight browser piano using soundfont-player + FluidR3_GM.
  *
- * Samples are loaded from the well-known CDN hosted by @gleitz/midi-js-soundfonts.
- * Only the notes that are actually played are fetched (Tone.Sampler lazy-loads).
- * Total download for a typical session: ~1–3 MB of MP3s.
+ * soundfont-player (danigb) is a tiny (~10 KB) Web Audio wrapper that loads
+ * individual note MP3s from the gleitz CDN on demand — no Tone.js, no main
+ * thread blocking, no Reverb.generate() hanging Firefox.
  *
- * Usage:
- *   const synth = new BrowserSynth();
- *   await synth.load();          // loads Tone.js + samples (call once)
- *   synth.noteOn(60, 100);       // middle C, velocity 100
- *   synth.noteOff(60);
- *   synth.allNotesOff();
- *   synth.setEnabled(true/false);
+ * Sample source: FluidR3_GM / acoustic_grand_piano via gleitz.github.io
+ *   - ~20–40 KB per note MP3, loaded lazily when first played
+ *   - Warm, natural piano sound; well-known open-source soundfont
+ *   - No server setup required
+ *
+ * Fallback reverb: a tiny mathematically-generated IR convolved in Web Audio —
+ * synchronous math, zero render thread cost.
  */
 
-// Salamander Grand Piano — every C + F# across 7 octaves, MP3, ~100 KB each
-const SAMPLE_BASE = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/acoustic_grand_piano-mp3/';
+const SOUNDFONT_PLAYER_CDN =
+    'https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js';
 
-// The sampler only needs a sparse set of reference notes; Tone.js pitch-shifts the rest
-const SAMPLE_NOTES = {
-    'A0' : SAMPLE_BASE + 'A0.mp3',
-    'C1' : SAMPLE_BASE + 'C1.mp3',
-    'D#1': SAMPLE_BASE + 'Ds1.mp3',
-    'F#1': SAMPLE_BASE + 'Fs1.mp3',
-    'A1' : SAMPLE_BASE + 'A1.mp3',
-    'C2' : SAMPLE_BASE + 'C2.mp3',
-    'D#2': SAMPLE_BASE + 'Ds2.mp3',
-    'F#2': SAMPLE_BASE + 'Fs2.mp3',
-    'A2' : SAMPLE_BASE + 'A2.mp3',
-    'C3' : SAMPLE_BASE + 'C3.mp3',
-    'D#3': SAMPLE_BASE + 'Ds3.mp3',
-    'F#3': SAMPLE_BASE + 'Fs3.mp3',
-    'A3' : SAMPLE_BASE + 'A3.mp3',
-    'C4' : SAMPLE_BASE + 'C4.mp3',
-    'D#4': SAMPLE_BASE + 'Ds4.mp3',
-    'F#4': SAMPLE_BASE + 'Fs4.mp3',
-    'A4' : SAMPLE_BASE + 'A4.mp3',
-    'C5' : SAMPLE_BASE + 'C5.mp3',
-    'D#5': SAMPLE_BASE + 'Ds5.mp3',
-    'F#5': SAMPLE_BASE + 'Fs5.mp3',
-    'A5' : SAMPLE_BASE + 'A5.mp3',
-    'C6' : SAMPLE_BASE + 'C6.mp3',
-    'D#6': SAMPLE_BASE + 'Ds6.mp3',
-    'F#6': SAMPLE_BASE + 'Fs6.mp3',
-    'A6' : SAMPLE_BASE + 'A6.mp3',
-    'C7' : SAMPLE_BASE + 'C7.mp3',
-    'D#7': SAMPLE_BASE + 'Ds7.mp3',
-    'F#7': SAMPLE_BASE + 'Fs7.mp3',
-    'A7' : SAMPLE_BASE + 'A7.mp3',
-    'C8' : SAMPLE_BASE + 'C8.mp3',
-};
+const SOUNDFONT_URL =
+    'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_grand_piano-mp3.js';
 
 const STORAGE_KEY = 'jamrtc_browser_synth_enabled';
-const TONE_CDN    = 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
 
-// MIDI note number → Tone.js note name (e.g. 60 → "C4")
-function midiToNote(midi) {
-    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-    const octave = Math.floor(midi / 12) - 1;
-    return names[midi % 12] + octave;
+/** Build a short reverb IR entirely in JS — no offline render needed. */
+function makeReverbIR(ctx, secs = 1.2, decay = 3.0) {
+    const len = Math.floor(ctx.sampleRate * secs);
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+        const ch = buf.getChannelData(c);
+        for (let i = 0; i < len; i++) {
+            ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+        }
+    }
+    return buf;
 }
 
 export class BrowserSynth {
     constructor() {
-        this._sampler  = null;
-        this._loaded   = false;
-        this._loading  = false;
-        this._enabled  = localStorage.getItem(STORAGE_KEY) === 'true';
-        this._active   = new Set();   // currently held MIDI note numbers
-        this._onReady  = null;        // callback when sampler finishes loading
+        this._instrument = null;   // soundfont-player instrument
+        this._ctx        = null;   // AudioContext
+        this._reverb     = null;   // ConvolverNode (wet)
+        this._dryBus     = null;   // GainNode (dry)
+        this._wetBus     = null;   // GainNode (wet level)
+        this._loaded     = false;
+        this._loading    = false;
+        this._loadPromise = null;
+        this._enabled    = localStorage.getItem(STORAGE_KEY) === 'true';
+        this._active     = new Map();  // midiNote → soundfont-player node
+        this._onReady    = null;
     }
 
     get enabled() { return this._enabled; }
-    get loaded()  { return this._loaded;  }
+    get loaded()  { return this._loaded; }
 
-    /**
-     * Load Tone.js from CDN then initialise the sampler.
-     * Safe to call multiple times — only loads once.
-     * @returns {Promise<void>}
-     */
-    async load() {
-        if (this._loaded || this._loading) return;
+    setEnabled(enabled) {
+        this._enabled = !!enabled;
+        localStorage.setItem(STORAGE_KEY, String(this._enabled));
+        if (!this._enabled) this.allNotesOff();
+    }
+
+    onReady(fn) { this._onReady = fn; }
+
+    load() {
+        if (this._loadPromise) return this._loadPromise;
+        this._loadPromise = this._doLoad().catch(err => {
+            console.error('[BrowserSynth] Load failed:', err);
+            this._loading = false;
+            this._loadPromise = null;  // allow retry
+            throw err;
+        });
+        return this._loadPromise;
+    }
+
+    async _doLoad() {
+        if (this._loaded) return;
         this._loading = true;
 
-        // 1. Load Tone.js from CDN if not already present
-        if (!window.Tone) {
+        // 1. AudioContext — must exist before any Web Audio work
+        this._ctx = new (window.AudioContext || window.webkitAudioContext)(
+            { latencyHint: 'interactive' }
+        );
+        if (this._ctx.state === 'suspended') {
+            await this._ctx.resume().catch(() => {});
+        }
+
+        // 2. Reverb chain (math IR — no thread blocking)
+        this._reverb = this._ctx.createConvolver();
+        this._reverb.buffer = makeReverbIR(this._ctx);
+
+        this._dryBus = this._ctx.createGain();
+        this._dryBus.gain.value = 1.0;
+        this._dryBus.connect(this._ctx.destination);
+
+        this._wetBus = this._ctx.createGain();
+        this._wetBus.gain.value = 0.20;  // subtle room, not a cathedral
+        this._reverb.connect(this._wetBus);
+        this._wetBus.connect(this._ctx.destination);
+
+        // 3. Load soundfont-player from CDN if not present
+        if (!window.Soundfont) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
-                s.src = TONE_CDN;
+                s.src = SOUNDFONT_PLAYER_CDN;
                 s.onload  = resolve;
-                s.onerror = () => reject(new Error('Failed to load Tone.js from CDN'));
+                s.onerror = () => reject(new Error('soundfont-player CDN failed'));
                 document.head.appendChild(s);
             });
         }
 
-        const Tone = window.Tone;
-
-        // 2. Create reverb for a natural room sound
-        const reverb = new Tone.Reverb({ decay: 1.8, wet: 0.25 }).toDestination();
-        await reverb.generate();
-
-        // 3. Create the sampler
-        await new Promise((resolve, reject) => {
-            this._sampler = new Tone.Sampler(SAMPLE_NOTES, {
-                release : 1.2,
-                onload  : resolve,
-                onerror : reject,
-            }).connect(reverb);
-        });
+        // 4. Load the instrument — soundfont-player fetches note MP3s lazily
+        this._instrument = await window.Soundfont.instrument(
+            this._ctx,
+            'acoustic_grand_piano',
+            {
+                format   : 'mp3',
+                soundfont: 'FluidR3_GM',
+                nameToUrl: (name, sf, format) =>
+                    `https://gleitz.github.io/midi-js-soundfonts/${sf}/${name}-${format}.js`,
+            }
+        );
 
         this._loaded  = true;
         this._loading = false;
         if (this._onReady) this._onReady();
     }
 
-    /**
-     * Enable or disable the browser synth.
-     * Persists to localStorage.
-     */
-    setEnabled(enabled) {
-        this._enabled = !!enabled;
-        localStorage.setItem(STORAGE_KEY, this._enabled);
-        if (!this._enabled) this.allNotesOff();
-    }
-
-    /**
-     * Play a note. velocity 0–127.
-     * Triggers load() automatically if not yet loaded.
-     */
     noteOn(midiNote, velocity = 80) {
         if (!this._enabled) return;
-        this._ensureAudioContext();
+
+        if (this._ctx?.state === 'suspended') {
+            this._ctx.resume().catch(() => {});
+        }
+
         if (!this._loaded) {
-            // Queue: load then replay this note
-            this.load().then(() => this.noteOn(midiNote, velocity));
+            this.load().then(() => this.noteOn(midiNote, velocity)).catch(() => {});
             return;
         }
-        const noteName = midiToNote(midiNote);
-        const vol = Tone.gainToDb(velocity / 127);
+
+        // Stop any existing node on this pitch (retrigger)
+        this._stopNote(midiNote, true);
+
+        const gain = velocity / 127;
         try {
-            this._sampler.triggerAttack(noteName, Tone.now(), velocity / 127);
-            this._active.add(midiNote);
+            // soundfont-player returns an AudioNode; we route it through our bus
+            const node = this._instrument.play(midiNote, this._ctx.currentTime, {
+                gain,
+                destination: this._dryBus,  // dry path
+            });
+            // Also send to reverb
+            if (node && this._reverb) {
+                node.connect(this._reverb);
+            }
+            this._active.set(midiNote, node);
         } catch (e) {
             console.warn('[BrowserSynth] noteOn error:', e);
         }
     }
 
-    /**
-     * Release a held note.
-     */
     noteOff(midiNote) {
-        if (!this._loaded || !this._sampler) return;
-        const noteName = midiToNote(midiNote);
-        try {
-            this._sampler.triggerRelease(noteName, Tone.now());
-            this._active.delete(midiNote);
-        } catch (e) {
-            console.warn('[BrowserSynth] noteOff error:', e);
-        }
+        this._stopNote(midiNote, false);
     }
 
-    /**
-     * Release all held notes immediately.
-     */
+    _stopNote(midiNote, immediate = false) {
+        const node = this._active.get(midiNote);
+        if (!node) return;
+        try {
+            if (immediate) {
+                node.stop(0);
+            } else {
+                // Natural piano release: ~300 ms fade
+                node.stop(this._ctx.currentTime + 0.3);
+            }
+        } catch (_) {}
+        this._active.delete(midiNote);
+    }
+
     allNotesOff() {
-        if (!this._loaded || !this._sampler) return;
-        for (const note of this._active) {
-            try { this._sampler.triggerRelease(midiToNote(note), Tone.now()); } catch (_) {}
+        for (const note of [...this._active.keys()]) {
+            this._stopNote(note, true);
         }
         this._active.clear();
     }
 
-    /**
-     * Process a raw MIDI byte array [status, note, velocity].
-     * Call this from midi.js send() to route output through synth.
-     */
     processMidi(data) {
         if (!this._enabled || data.length < 2) return;
         const status   = data[0] & 0xF0;
@@ -186,18 +193,7 @@ export class BrowserSynth {
         } else if (status === 0x80 || (status === 0x90 && velocity === 0)) {
             this.noteOff(note);
         } else if (status === 0xB0 && note === 123) {
-            // All notes off CC
             this.allNotesOff();
         }
     }
-
-    /** Ensure AudioContext is running (must be triggered from a user gesture). */
-    _ensureAudioContext() {
-        if (window.Tone && Tone.context.state !== 'running') {
-            Tone.start().catch(() => {});
-        }
-    }
-
-    /** Register a callback to fire when samples are fully loaded. */
-    onReady(fn) { this._onReady = fn; }
 }
