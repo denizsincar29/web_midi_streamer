@@ -12,8 +12,10 @@ export class MIDIManager {
         this.chimesLoading = this.loadChimes(); // Start loading immediately
         
         // Storage keys for device persistence
-        this.STORAGE_KEY_INPUT = 'webmidi_selectedInputId';
-        this.STORAGE_KEY_OUTPUT = 'webmidi_selectedOutputId';
+        this.STORAGE_KEY_INPUT      = 'webmidi_selectedInputId';
+        this.STORAGE_KEY_OUTPUT     = 'webmidi_selectedOutputId';
+        this.STORAGE_KEY_INPUT_NAME  = 'webmidi_selectedInputName';
+        this.STORAGE_KEY_OUTPUT_NAME = 'webmidi_selectedOutputName';
     }
 
     async loadChimes() {
@@ -86,82 +88,81 @@ export class MIDIManager {
     }
 
     refreshDevices() {
-        const inputSelect = document.getElementById('midiInput');
+        const inputSelect  = document.getElementById('midiInput');
         const outputSelect = document.getElementById('midiOutput');
-        
         if (!this.access) return;
-        
-        // Clear existing options
-        inputSelect.innerHTML = '';
-        outputSelect.innerHTML = '';
-        
-        // Collect devices into arrays
-        const inputs = Array.from(this.access.inputs.values());
+
+        const inputs  = Array.from(this.access.inputs.values());
         const outputs = Array.from(this.access.outputs.values());
-        
-        // Get previously saved device IDs from storage
-        const savedInputId = localStorage.getItem(this.STORAGE_KEY_INPUT);
-        const savedOutputId = localStorage.getItem(this.STORAGE_KEY_OUTPUT);
-        
-        let selectedInputId = null;
-        let selectedOutputId = null;
-        
-        // Only show "No device selected" if there are no devices
-        if (inputs.length === 0) {
+
+        const savedInputId    = localStorage.getItem(this.STORAGE_KEY_INPUT);
+        const savedInputName  = localStorage.getItem(this.STORAGE_KEY_INPUT_NAME);
+        const savedOutputId   = localStorage.getItem(this.STORAGE_KEY_OUTPUT);
+        const savedOutputName = localStorage.getItem(this.STORAGE_KEY_OUTPUT_NAME);
+
+        // ── Helper: find best match for a device list ──────────────────────
+        // Priority: exact ID match → name match → first available → null
+        const findBest = (devices, savedId, savedName) => {
+            if (!savedId && !savedName) return devices[0] ?? null;
+            const byId   = savedId   ? devices.find(d => d.id === savedId)     : null;
+            const byName = savedName ? devices.find(d => d.name === savedName) : null;
+            return byId ?? byName ?? null;
+        };
+
+        // ── Build input selector ───────────────────────────────────────────
+        inputSelect.innerHTML = '';
+        const bestInput = findBest(inputs, savedInputId, savedInputName);
+
+        if (savedInputName && !bestInput) {
+            // Preferred device is gone — show a "waiting" placeholder
+            const waiting = document.createElement('option');
+            waiting.value = '';
+            waiting.textContent = '⏳ ' + savedInputName;
+            waiting.disabled = false;
+            waiting.selected = true;
+            inputSelect.appendChild(waiting);
+        }
+        if (inputs.length === 0 && !savedInputName) {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = this._t('midi.noDevice');
             inputSelect.appendChild(option);
-        } else {
-            // Add all input devices
-            inputs.forEach((input, index) => {
-                const option = document.createElement('option');
-                option.value = input.id;
-                option.textContent = input.name;
-                inputSelect.appendChild(option);
-                
-                // Try to restore saved device, otherwise use first
-                if (input.id === savedInputId) {
-                    selectedInputId = input.id;
-                    option.selected = true;
-                } else if (!selectedInputId && index === 0) {
-                    selectedInputId = input.id;
-                    option.selected = true;
-                }
-            });
-            // Auto-select chosen input device
-            if (selectedInputId) {
-                this.selectInput(selectedInputId);
-            }
         }
-        
-        if (outputs.length === 0) {
+        inputs.forEach(input => {
+            const option = document.createElement('option');
+            option.value = input.id;
+            option.textContent = input.name;
+            if (bestInput && input.id === bestInput.id) option.selected = true;
+            inputSelect.appendChild(option);
+        });
+        if (bestInput) this.selectInput(bestInput.id);
+
+        // ── Build output selector ──────────────────────────────────────────
+        outputSelect.innerHTML = '';
+        const bestOutput = findBest(outputs, savedOutputId, savedOutputName);
+
+        if (savedOutputName && !bestOutput) {
+            const waiting = document.createElement('option');
+            waiting.value = '';
+            waiting.textContent = '⏳ ' + savedOutputName;
+            waiting.disabled = false;
+            waiting.selected = true;
+            outputSelect.appendChild(waiting);
+        }
+        if (outputs.length === 0 && !savedOutputName) {
             const option = document.createElement('option');
             option.value = '';
             option.textContent = this._t('midi.noDevice');
             outputSelect.appendChild(option);
-        } else {
-            // Add all output devices
-            outputs.forEach((output, index) => {
-                const option = document.createElement('option');
-                option.value = output.id;
-                option.textContent = output.name;
-                outputSelect.appendChild(option);
-                
-                // Try to restore saved device, otherwise use first
-                if (output.id === savedOutputId) {
-                    selectedOutputId = output.id;
-                    option.selected = true;
-                } else if (!selectedOutputId && index === 0) {
-                    selectedOutputId = output.id;
-                    option.selected = true;
-                }
-            });
-            // Auto-select chosen output device
-            if (selectedOutputId) {
-                this.selectOutput(selectedOutputId);
-            }
         }
+        outputs.forEach(output => {
+            const option = document.createElement('option');
+            option.value = output.id;
+            option.textContent = output.name;
+            if (bestOutput && output.id === bestOutput.id) option.selected = true;
+            outputSelect.appendChild(option);
+        });
+        if (bestOutput) this.selectOutput(bestOutput.id);
     }
 
     selectInput(deviceId) {
@@ -183,8 +184,9 @@ export class MIDIManager {
                     this.onMessage(Array.from(event.data));
                 }
             };
-            // Save to localStorage
+            // Save ID and name — name-based matching survives replug with new ID
             localStorage.setItem(this.STORAGE_KEY_INPUT, deviceId);
+            localStorage.setItem(this.STORAGE_KEY_INPUT_NAME, input.name);
         } else {
             this.selectedInput = null;
             localStorage.removeItem(this.STORAGE_KEY_INPUT);
@@ -194,8 +196,11 @@ export class MIDIManager {
     selectOutput(deviceId) {
         if (deviceId && this.access) {
             this.selectedOutput = this.access.outputs.get(deviceId);
-            // Save to localStorage
+            // Save ID and name — name-based matching survives replug with new ID
             localStorage.setItem(this.STORAGE_KEY_OUTPUT, deviceId);
+            if (this.selectedOutput) {
+                localStorage.setItem(this.STORAGE_KEY_OUTPUT_NAME, this.selectedOutput.name);
+            }
         } else {
             this.selectedOutput = null;
             localStorage.removeItem(this.STORAGE_KEY_OUTPUT);
