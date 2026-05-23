@@ -172,7 +172,7 @@ export class MIDIStreamer {
         if (stabStop)  stabStop.addEventListener('click',  () => this._stopStabilityTest());
 
         if (this.roomName) {
-            this.ui.updateRoomName(`${t('status.title')} ${this.roomName}`);
+            this.ui.updateRoomName(this.roomName);
             const savedNick = localStorage.getItem('midi_nickname');
             const nickInput = document.getElementById('nicknameInput');
             const hasNick = (nickInput?.value?.trim()) || savedNick;
@@ -529,7 +529,7 @@ export class MIDIStreamer {
             if (shareUrl) {
                 this.currentRoomName = roomName;
                 this.stopRoomAutoRefresh();
-                this.ui.updateRoomName(`${t('status.title')} ${roomName}`);
+                this.ui.updateRoomName(roomName);
                 this.ui.addMessage(`${t('connection.connectedToRoom')} '${roomName}'`, 'success');
                 this.ui.addMessage(`${t('connection.shareUrl')} ${shareUrl}`, 'info');
                 this.midi.playStatusChime('room_connection');

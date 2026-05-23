@@ -3,14 +3,14 @@ export const translations = {
     en: {
         // Header
         'app.title': 'JamRTC',
-        'app.subtitle': 'Real-time MIDI streaming over WebRTC',
-        'app.tagline': 'Jam with friends in real time — <strong>under 50 ms latency</strong>, not the 200–500 ms you get on a video call. Play together like you\'re in the same room.',
+        'app.subtitle': 'Real-time piano jamming over the internet',
+        'app.tagline': '🎹 Connect your digital piano via USB, invite a friend, and jam together in real time — <strong>5× lower latency than a regular audio or video call.</strong> Start playing in seconds.',
         'header.tools': '🎹 Mini Apps',
         
         // Status
         'status.title': 'Status:',
         'status.notConnected': 'Not connected',
-        'status.enterRoomName': 'Enter Room Name',
+        'status.enterRoomName': 'Enter a room name to get started',
         'status.disconnected': 'Disconnected',
         'status.waitingForPeer': 'Waiting for other participant...',
         'status.connectedToPeer': 'Connected',
@@ -284,15 +284,15 @@ export const translations = {
     ru: {
         // Header
         'app.title': 'JamRTC',
-        'app.subtitle': 'Потоковая передача MIDI в реальном времени через WebRTC',
-        'app.tagline': 'Играйте вместе с друзьями в реальном времени — <strong>меньше 50 мс задержки</strong>, а не 200–500 мс как в видеозвонках. Как будто вы в одной комнате.',
+        'app.subtitle': 'Совместная игра на пианино через интернет',
+        'app.tagline': '🎹 Подключите цифровое пианино по USB, пригласите друга и играйте вместе в реальном времени — <strong>задержка в 5 раз меньше, чем в аудио или видеозвонках.</strong> Начните играть за секунды.',
         
         'header.tools': '🎹 Мини-приложения',
 
         // Status
         'status.title': 'Статус:',
         'status.notConnected': 'Не подключено',
-        'status.enterRoomName': 'Введите название комнаты',
+        'status.enterRoomName': 'Введите название комнаты для начала',
         'status.disconnected': 'Отключено',
         'status.waitingForPeer': 'Ожидание партнёра...',
         'status.connectedToPeer': 'Подключено к партнёру',
