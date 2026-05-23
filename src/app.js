@@ -136,6 +136,8 @@ export class MIDIStreamer {
             await this.midi.init();
             this.ui.addMessage(t('midi.accessGranted'), 'success');
             this.midi.refreshDevices();
+            // Play startup logo chime once MIDI output is ready
+            this.midi.playStatusChime('startup');
         } catch (error) {
             this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
         }

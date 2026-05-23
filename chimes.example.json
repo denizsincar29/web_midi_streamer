@@ -55,5 +55,12 @@
   },
   "_instructions": {
     "comment": "See CHIMES.md for full documentation on customizing chimes. Use + to play simultaneous notes."
+  },
+  "startup": {
+    "type": "notes",
+    "notes": "C5 E5 G5 C6",
+    "velocity": 65,
+    "duration": 70,
+    "comment": "Startup logo chime — ascending C major arpeggio played once on app load"
   }
 }

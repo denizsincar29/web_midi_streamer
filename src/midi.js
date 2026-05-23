@@ -67,6 +67,12 @@ export class MIDIManager {
                     notes: 'Ab6 Db6 F6 Db7',
                     velocity: 75,
                     duration: 60
+                },
+                'startup': {
+                    type: 'notes',
+                    notes: 'C5 E5 G5 C6',
+                    velocity: 65,
+                    duration: 70
                 }
             };
             this.chimesLoaded = true;
