@@ -4,8 +4,9 @@ export class MIDIManager {
     constructor(translateFn) {
         this._t    = translateFn ?? ((k) => k);  // i18n helper, injected by app
         this.access = null;
-        this.selectedInput = null;
+        this.selectedInput  = null;
         this.selectedOutput = null;
+        this.synth          = null;   // BrowserSynth instance, set by app.js
         this.onMessage = null;
         this.chimes = null; // Loaded from chimes.json
         this.chimesLoaded = false;
@@ -208,15 +209,19 @@ export class MIDIManager {
     }
 
     send(data) {
+        const arr = Array.from((data instanceof Uint8Array) ? data : new Uint8Array(data));
+
+        // Route through browser synth if enabled
+        if (this.synth?.enabled) {
+            this.synth.processMidi(arr);
+        }
+
+        // Also send to hardware output if connected
         if (this.selectedOutput) {
-            // MIDIOutput.send() requires a Uint8Array or array-like of integers
-            const bytes = (data instanceof Uint8Array) ? data : new Uint8Array(data);
             try {
-                this.selectedOutput.send(bytes);
+                this.selectedOutput.send(new Uint8Array(arr));
             } catch (error) {
                 console.error('MIDI send error:', error);
-                // Only refresh device list if the output port disappeared;
-                // don't spam refreshDevices() on every data-format error
                 if (error instanceof DOMException || this.selectedOutput.state === 'disconnected') {
                     this.refreshDevices();
                 }
@@ -285,7 +290,7 @@ export class MIDIManager {
      * @param {string} type - Type of chime: 'success', 'info', 'warning', 'error', 'connecting'
      */
     async playStatusChime(type) {
-        if (!this.selectedOutput) return;
+        if (!this.selectedOutput && !this.synth?.enabled) return;
         
         // Wait for chimes to finish loading with timeout
         if (!this.chimesLoaded) {

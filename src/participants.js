@@ -62,7 +62,7 @@ export class ParticipantsManager {
                 playing: false,
             });
             // Announce join via screen reader
-            this._announce((nickname || this._fallbackName(peerId)) + ' joined');
+            this._announce((nickname || this._fallbackName(peerId)) + ' joined the room');
         }
         this._render();
         this._onUpdate();
@@ -72,7 +72,7 @@ export class ParticipantsManager {
     remove(peerId) {
         const info = this._peers.get(peerId);
         if (info) {
-            this._announce(info.nickname + ' left');
+            this._announce(info.nickname + ' left the room');
         }
         this._peers.delete(peerId);
         if (this._playingTimers.has(peerId)) {
@@ -246,10 +246,13 @@ export class ParticipantsManager {
     /** Announce text via the dedicated SR-only live region. */
     _announce(text) {
         if (!this._announcer) return;
-        // Clear then set to ensure re-announcement even if same text
+        // Double-rAF: first frame clears, second frame sets.
+        // Required for NVDA/JAWS to re-announce identical consecutive messages.
         this._announcer.textContent = '';
         requestAnimationFrame(() => {
-            this._announcer.textContent = text;
+            requestAnimationFrame(() => {
+                this._announcer.textContent = text;
+            });
         });
     }
 }

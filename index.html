@@ -35,7 +35,7 @@
         </header>
 
         <!-- Hero tagline -->
-        <div class="hero-tagline" id="heroTagline" aria-live="off"></div>
+        <div class="hero-tagline" id="heroTagline"></div>
 
         <main>
             <!-- Room Information -->
@@ -51,7 +51,7 @@
             <div id="statusBar" class="sr-only" role="status" aria-live="polite" aria-atomic="false"></div>
 
             <!-- Screen Reader Participant Announcements (join/leave only) -->
-            <div id="participantAnnouncer" class="sr-only" role="status" aria-live="assertive" aria-atomic="true"></div>
+            <div id="participantAnnouncer" class="sr-only" aria-live="assertive" aria-atomic="true" aria-relevant="additions text"></div>
 
             <!-- MIDI Devices -->
             <section class="midi-devices">
@@ -72,6 +72,14 @@
                 </div>
 
                 <button id="refreshDevices" class="btn btn-secondary" data-i18n="midi.refreshDevices">Refresh Devices</button>
+
+                <!-- Browser Synth toggle -->
+                <div class="synth-row" id="synthRow">
+                    <button id="synthToggleBtn" class="btn btn-synth" aria-pressed="false" title="Play notes through your browser speakers using a sampled grand piano">
+                        🔊 <span id="synthLabel" data-i18n="synth.enable">Browser Synth</span>
+                    </button>
+                    <span id="synthStatus" class="synth-status" aria-live="polite"></span>
+                </div>
             </section>
 
             <!-- Connection Controls -->

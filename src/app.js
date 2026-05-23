@@ -7,6 +7,7 @@ import { MIDIRecorder } from './recorder.js';
 import { t, setLanguage, getCurrentLanguage, getAvailableLanguages } from './i18n.js';
 import { PianoKeyboard } from './piano.js';
 import { ParticipantsManager } from './participants.js';
+import { BrowserSynth } from './synth.js';
 
 export class MIDIStreamer {
     constructor() {
@@ -154,6 +155,20 @@ export class MIDIStreamer {
             this._myNickname(),
             () => {} // future: could sync peer count badge here
         );
+
+        // Browser synth
+        this._synth = new BrowserSynth();
+        this.midi.synth = this._synth;
+        this._initSynthUI();
+
+        // Auto-enable synth if no output device saved
+        const savedOut = localStorage.getItem('webmidi_selectedOutputName');
+        if (!savedOut && !this._synth.enabled) {
+            this._synth.setEnabled(true);
+            this._loadSynth();
+        } else if (this._synth.enabled) {
+            this._loadSynth();
+        }
 
         // Global hotkey: Ctrl+Shift+F4 → Emergency All Notes Off
         // Chosen because Firefox does not intercept it even when the page is focused

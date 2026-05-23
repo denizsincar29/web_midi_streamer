@@ -7,6 +7,13 @@ export const translations = {
         'app.tagline': '🎹 Connect your digital piano via USB, invite a friend, and jam together in real time — <strong>5× lower latency than a regular audio or video call.</strong> Start playing in seconds.',
         'header.tools': '🎹 Mini Apps',
         
+        // Browser Synth
+        'synth.enable'   : 'Browser Synth',
+        'synth.loading'  : 'Loading piano samples…',
+        'synth.ready'    : '🎹 Grand piano ready',
+        'synth.off'      : '',
+        'synth.tooltip'  : 'Play notes through your speakers (Salamander Grand Piano)',
+
         // Status
         'status.title': 'Status:',
         'status.notConnected': 'Not connected',

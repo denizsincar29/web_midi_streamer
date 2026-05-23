@@ -1266,3 +1266,39 @@ footer a:hover {
     color: var(--color-primary, #6366f1);
     font-weight: 700;
 }
+
+/* ── Browser Synth toggle ───────────────────────────────────────────────────── */
+.synth-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.6rem;
+}
+
+.btn-synth {
+    background: var(--color-surface, #1e1e2e);
+    border: 1.5px solid var(--color-border, #444);
+    color: var(--color-text, #e2e8f0);
+    padding: 0.4rem 1rem;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-synth--on,
+.btn-synth[aria-pressed="true"] {
+    background: #1a3a2a;
+    border-color: #4caf50;
+    color: #81c784;
+}
+
+.btn-synth:hover {
+    border-color: #6366f1;
+}
+
+.synth-status {
+    font-size: 0.82rem;
+    color: var(--color-muted, #94a3b8);
+    font-style: italic;
+}
