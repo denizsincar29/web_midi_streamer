@@ -1246,3 +1246,20 @@ footer a:hover {
     margin-left: 0.4em;
     font-family: monospace;
 }
+
+/* ── Hero tagline ───────────────────────────────────────────────────────────── */
+.hero-tagline {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 100%);
+    border-left: 3px solid var(--color-primary, #6366f1);
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 0.85rem 1.25rem;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--color-text, inherit);
+    margin: 0 0 1.25rem 0;
+}
+
+.hero-tagline strong {
+    color: var(--color-primary, #6366f1);
+    font-weight: 700;
+}

@@ -4,6 +4,7 @@ export const translations = {
         // Header
         'app.title': 'Web MIDI Streamer',
         'app.subtitle': 'Real-time MIDI streaming over WebRTC',
+        'app.tagline': 'Jam with friends in real time — <strong>under 50 ms latency</strong>, not the 200–500 ms you get on a video call. Play together like you\'re in the same room.',
         'header.tools': '🎹 Mini Apps',
         
         // Status
@@ -284,6 +285,7 @@ export const translations = {
         // Header
         'app.title': 'Web MIDI Стример',
         'app.subtitle': 'Потоковая передача MIDI в реальном времени через WebRTC',
+        'app.tagline': 'Играйте вместе с друзьями в реальном времени — <strong>меньше 50 мс задержки</strong>, а не 200–500 мс как в видеозвонках. Как будто вы в одной комнате.',
         
         'header.tools': '🎹 Мини-приложения',
 

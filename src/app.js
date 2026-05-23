@@ -222,6 +222,10 @@ export class MIDIStreamer {
             element.placeholder = t(key);
         });
 
+        // Re-render hero tagline (uses innerHTML for <strong> support)
+        const taglineEl = document.getElementById('heroTagline');
+        if (taglineEl) taglineEl.innerHTML = t('app.tagline');
+
         this.updateDynamicTranslations();
     }
 
