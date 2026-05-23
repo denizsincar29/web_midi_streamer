@@ -32,9 +32,46 @@ echo    "    old     : $OLD_DIR"
 echo    "    new     : $NEW_DIR"
 echo
 
-# ── Step 1: Deploy new app ─────────────────────────────────────────────────────
-echo -e "${GREEN}--> Step 1: Deploy JamRTC to $NEW_DIR${NC}"
+# ── Step 1: Copy server-only config from old location ─────────────────────────
+# These files are gitignored and never in the repo — they only exist on the server.
+# We must carry them over BEFORE rsync runs so they land in the new location.
+echo -e "${GREEN}--> Step 1: Copy server-only config from $OLD_DIR → $NEW_DIR${NC}"
+mkdir -p "$NEW_DIR"
+
+# Files that live on the server but are never committed to git:
+SERVER_ONLY_FILES=(
+    "config.php"        # TURN server credentials (gitignored)
+    "chimes.json"       # Custom chime sounds (excluded from rsync)
+)
+
+if [[ -d "$OLD_DIR" ]]; then
+    for f in "${SERVER_ONLY_FILES[@]}"; do
+        if [[ -f "$OLD_DIR/$f" ]]; then
+            cp "$OLD_DIR/$f" "$NEW_DIR/$f"
+            echo "    copied: $f"
+        else
+            echo -e "${YELLOW}    not found in old location (skipped): $f${NC}"
+        fi
+    done
+else
+    echo -e "${YELLOW}    $OLD_DIR does not exist — no config to copy${NC}"
+fi
+
+# ── Step 2: Deploy new app ─────────────────────────────────────────────────────
+# rebuild.sh uses rsync --delete but excludes chimes.json, so the copy above is safe.
+echo -e "${GREEN}--> Step 2: Deploy JamRTC to $NEW_DIR${NC}"
 bash "$SCRIPT_DIR/rebuild.sh" "$NEW_DIR"
+
+# Sanity check: warn loudly if config.php is still missing after deploy
+if [[ ! -f "$NEW_DIR/config.php" ]]; then
+    echo -e "${YELLOW}"
+    echo    "    ⚠️  WARNING: $NEW_DIR/config.php is missing!"
+    echo    "    TURN server credentials are not configured."
+    echo    "    Peers behind NAT may fail to connect."
+    echo    "    Copy config.php manually, or run:"
+    echo    "      cp $OLD_DIR/config.php $NEW_DIR/config.php"
+    echo -e "${NC}"
+fi
 
 # ── Step 2: Tombstone service worker ──────────────────────────────────────────
 # The old SW (midi-streamer-v*) may still be installed in users' browsers.
@@ -43,7 +80,7 @@ bash "$SCRIPT_DIR/rebuild.sh" "$NEW_DIR"
 #   - On install: opens and deletes ALL caches (including old midi-streamer-v* ones)
 #   - On fetch: redirects every navigation request to /jamrtc/
 #   - After 24 h the browser will re-check and find… nothing, so it unregisters.
-echo -e "${GREEN}--> Step 2: Install tombstone service worker into old location${NC}"
+echo -e "${GREEN}--> Step 3: Install tombstone service worker into old location${NC}"
 if [[ -d "$OLD_DIR" ]]; then
     cat > "$OLD_DIR/service-worker.js" << 'SWEOF'
 // Tombstone service worker for the old web_midi_streamer location.
@@ -82,7 +119,7 @@ else
 fi
 
 # ── Step 3: Replace old directory with redirect page ──────────────────────────
-echo -e "${GREEN}--> Step 3: Write redirect page to $OLD_DIR${NC}"
+echo -e "${GREEN}--> Step 4: Write redirect page to $OLD_DIR${NC}"
 mkdir -p "$OLD_DIR"
 
 cat > "$OLD_DIR/index.html" << 'HTMLEOF'
