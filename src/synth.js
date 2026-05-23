@@ -23,8 +23,8 @@ const SAMPLED_NOTES = {
 };
 
 const LOW_LATENCY_LOOKAHEAD = 0;
-const SAMPLER_RELEASE = 0.08;
-const FALLBACK_RELEASE = 0.12;
+const SAMPLER_RELEASE = 0.35;
+const FALLBACK_RELEASE = 0.45;
 
 const STORAGE_KEY = 'jamrtc_browser_synth_enabled';
 
