@@ -41,8 +41,8 @@ const SAMPLED_MIDI_NOTES = {
 const SAMPLE_KEYS = Object.keys(SAMPLED_MIDI_NOTES).map(Number).sort((a, b) => a - b);
 
 // ─── Tuning constants ─────────────────────────────────────────────────────────
-const RELEASE_TIME   = 0.3;   // seconds — gain ramp to 0 on noteOff
-const PEDAL_RELEASE  = 0.5;   // seconds — longer release when pedal lifts
+const RELEASE_TIME   = 0.12;  // seconds — gain ramp to 0 on noteOff
+const PEDAL_RELEASE  = 0.25;  // seconds — longer release when pedal lifts
 const ATTACK_CLIP    = 0.003; // seconds — tiny gain ramp to avoid clicks on noteOn
 const STORAGE_KEY    = 'jamrtc_browser_synth_enabled';
 
@@ -229,7 +229,6 @@ export class BrowserSynth {
         // Create context with lowest possible latency hint
         this._ctx = new (window.AudioContext || window.webkitAudioContext)({
             latencyHint: 'interactive',
-            sampleRate: 44100,
         });
 
         await this._resumeCtx();
