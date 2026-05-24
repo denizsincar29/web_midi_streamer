@@ -1,92 +1,222 @@
 /**
- * synth.js — Browser piano output backed by Tone.js Sampler + Salamander Grand Piano.
+ * synth.js — Ultra-low-latency browser piano engine.
  *
- * This mirrors the Piano repo's sound engine: load Tone.js on demand, use a
- * sampled grand piano with a small hall reverb, and fall back to a synthesized
- * piano if samples fail to load.
+ * ARCHITECTURE: Bypasses Tone.js's scheduler entirely. Uses raw Web Audio API
+ * with AudioContext.currentTime for near-zero scheduling overhead.
+ *
+ * Latency sources we eliminate vs Tone.js approach:
+ *  1. Tone.js lookAhead/updateInterval clock tick (10–50 ms)  → gone: direct scheduling
+ *  2. Tone.js Reverb ConvolverNode (async generate())          → replaced: lightweight
+ *     FeedbackDelay + Freeverb-style comb network, or optional ConvolverNode
+ *  3. AudioContext latencyHint default ('interactive' not set) → fixed: force 'interactive'
+ *  4. AudioContext auto-suspend                                → fixed: keep-alive oscillator
+ *  5. Sample loading stall on noteOn                           → fixed: pre-cache all buffers
+ *
+ * Result target: ≤ 5 ms from noteOn() call to audible output on a modern browser.
+ *
+ * Sustain/Release model (mirrors real piano + Tone.js Sampler behaviour):
+ *  - noteOn()  → starts AudioBufferSourceNode at currentTime + SCHEDULE_AHEAD (0 s)
+ *  - noteOff() → if sustain pedal DOWN: mark as pending, don't release
+ *              → if sustain pedal UP: ramp gain to 0 over RELEASE_TIME
+ *  - pedalOff()→ release all pending notes
+ *
+ * Fallback: if samples fail to load, creates a small FM synth via OscillatorNode.
  */
 
-const TONE_CDN =
-    'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js';
+// ─── Sample source ────────────────────────────────────────────────────────────
+const SAMPLE_BASE_URL = 'https://tonejs.github.io/audio/salamander/';
 
-const SAMPLE_BASE_URL =
-    'https://tonejs.github.io/audio/salamander/';
-
-const SAMPLED_NOTES = {
-    A0: 'A0.mp3', C1: 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
-    A1: 'A1.mp3', C2: 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
-    A2: 'A2.mp3', C3: 'C3.mp3', 'D#3': 'Ds3.mp3', 'F#3': 'Fs3.mp3',
-    A3: 'A3.mp3', C4: 'C4.mp3', 'D#4': 'Ds4.mp3', 'F#4': 'Fs4.mp3',
-    A4: 'A4.mp3', C5: 'C5.mp3', 'D#5': 'Ds5.mp3', 'F#5': 'Fs5.mp3',
-    A5: 'A5.mp3', C6: 'C6.mp3', 'D#6': 'Ds6.mp3', 'F#6': 'Fs6.mp3',
-    A6: 'A6.mp3', C7: 'C7.mp3',
+// Sparse map — the engine pitch-shifts to fill missing notes (±6 semitones max)
+const SAMPLED_MIDI_NOTES = {
+    21: 'A0', 24: 'C1', 27: 'Ds1', 30: 'Fs1',
+    33: 'A1', 36: 'C2', 39: 'Ds2', 42: 'Fs2',
+    45: 'A2', 48: 'C3', 51: 'Ds3', 54: 'Fs3',
+    57: 'A3', 60: 'C4', 63: 'Ds4', 66: 'Fs4',
+    69: 'A4', 72: 'C5', 75: 'Ds5', 78: 'Fs5',
+    81: 'A5', 84: 'C6', 87: 'Ds6', 90: 'Fs6',
+    93: 'A6', 96: 'C7',
 };
 
-const LOW_LATENCY_LOOKAHEAD = 0.01;
-const SAMPLER_RELEASE = 0.35;
-const FALLBACK_RELEASE = 0.45;
+// Sorted MIDI keys for fast nearest-sample lookup
+const SAMPLE_KEYS = Object.keys(SAMPLED_MIDI_NOTES).map(Number).sort((a, b) => a - b);
 
-const STORAGE_KEY = 'jamrtc_browser_synth_enabled';
+// ─── Tuning constants ─────────────────────────────────────────────────────────
+const RELEASE_TIME   = 0.3;   // seconds — gain ramp to 0 on noteOff
+const PEDAL_RELEASE  = 0.5;   // seconds — longer release when pedal lifts
+const ATTACK_CLIP    = 0.003; // seconds — tiny gain ramp to avoid clicks on noteOn
+const STORAGE_KEY    = 'jamrtc_browser_synth_enabled';
 
-let toneLoadPromise = null;
-
-async function loadTone() {
-    if (window.Tone) return window.Tone;
-    if (!toneLoadPromise) {
-        toneLoadPromise = new Promise((resolve, reject) => {
-            const existing = document.querySelector('script[data-tonejs="true"]');
-            if (existing && window.Tone) {
-                resolve(window.Tone);
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = TONE_CDN;
-            script.async = true;
-            script.dataset.tonejs = 'true';
-            script.onload = () => resolve(window.Tone);
-            script.onerror = () => reject(new Error('Tone.js CDN failed'));
-            document.head.appendChild(script);
-        }).catch((error) => {
-            toneLoadPromise = null;
-            throw error;
-        });
-    }
-    return toneLoadPromise;
+// ─── Keep-alive to prevent AudioContext auto-suspend ─────────────────────────
+// A silent DC-offset oscillator with zero gain holds the graph alive.
+let _keepAliveOsc = null;
+function _startKeepAlive(ctx) {
+    if (_keepAliveOsc) return;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;           // silent — just keeps graph awake
+    gain.connect(ctx.destination);
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 1;
+    osc.connect(gain);
+    osc.start();
+    _keepAliveOsc = osc;
 }
 
+// ─── Lightweight reverb (no async generate()) ─────────────────────────────────
+// Three comb filters + allpass chain — 0 ms setup latency.
+// Optional: swap with ConvolverNode for higher quality (adds ~50 ms setup).
+function _buildReverb(ctx, wet = 0.25) {
+    const dry = ctx.createGain();
+    const wetGain = ctx.createGain();
+    dry.gain.value = 1;
+    wetGain.gain.value = wet;
+
+    // Schroeder reverb: 4 comb filters in parallel, 2 allpass in series
+    const COMB_DELAYS  = [0.0297, 0.0371, 0.0411, 0.0437]; // seconds
+    const COMB_DECAY   = 0.84;
+    const AP_DELAYS    = [0.005, 0.0017];
+    const AP_FEEDBACK  = 0.7;
+
+    const combOut = ctx.createGain();
+    combOut.gain.value = 0.25; // mix 4 combs equally
+
+    for (const delayTime of COMB_DELAYS) {
+        const delay = ctx.createDelay(0.1);
+        delay.delayTime.value = delayTime;
+        const fb = ctx.createGain();
+        fb.gain.value = COMB_DECAY;
+        delay.connect(fb);
+        fb.connect(delay);          // feedback loop
+        delay.connect(combOut);
+        // Input → comb chain is connected below
+        combOut._inputs = combOut._inputs || [];
+        combOut._inputs.push(delay);
+    }
+
+    let lastNode = combOut;
+    for (const ap of AP_DELAYS) {
+        const delay = ctx.createDelay(0.05);
+        delay.delayTime.value = ap;
+        const fbGain = ctx.createGain();
+        fbGain.gain.value = -AP_FEEDBACK;
+        const inGain = ctx.createGain();
+        inGain.gain.value = AP_FEEDBACK;
+        lastNode.connect(delay);
+        delay.connect(inGain);
+        delay.connect(fbGain);
+        fbGain.connect(delay); // feedback
+        lastNode = inGain;
+    }
+    lastNode.connect(wetGain);
+
+    // Public interface
+    return {
+        inputDry: dry,
+        // call .connect(inputNode) for each comb:
+        _combDelays: combOut._inputs,
+        wet: wetGain,
+        setWet(v) { wetGain.gain.value = Math.max(0, Math.min(1, v)); },
+        connectInput(sourceNode) {
+            sourceNode.connect(dry);
+            for (const c of combOut._inputs) sourceNode.connect(c);
+        },
+        connectOutput(destNode) {
+            dry.connect(destNode);
+            wetGain.connect(destNode);
+        },
+    };
+}
+
+// ─── Sample loader ────────────────────────────────────────────────────────────
+async function _loadBuffer(ctx, url) {
+    const resp = await fetch(url);
+    const ab   = await resp.arrayBuffer();
+    return ctx.decodeAudioData(ab);
+}
+
+// ─── Nearest-sample lookup ────────────────────────────────────────────────────
+function _nearestSample(midiNote) {
+    let best = SAMPLE_KEYS[0];
+    let bestDist = Math.abs(midiNote - best);
+    for (const k of SAMPLE_KEYS) {
+        const d = Math.abs(midiNote - k);
+        if (d < bestDist) { bestDist = d; best = k; }
+    }
+    return { baseMidi: best, name: SAMPLED_MIDI_NOTES[best] };
+}
+
+// ─── FM fallback voice ────────────────────────────────────────────────────────
+function _makeFMVoice(ctx, freq, gainValue, dest) {
+    const modFreq = freq * 3.01;
+    const mod = ctx.createOscillator();
+    mod.frequency.value = modFreq;
+    const modGain = ctx.createGain();
+    modGain.gain.value = modFreq * 0.5;
+    mod.connect(modGain);
+
+    const car = ctx.createOscillator();
+    car.type = 'triangle';
+    car.frequency.value = freq;
+    modGain.connect(car.frequency); // FM
+
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, ctx.currentTime);
+    env.gain.linearRampToValueAtTime(gainValue, ctx.currentTime + ATTACK_CLIP);
+    env.gain.setTargetAtTime(gainValue * 0.12, ctx.currentTime + 0.08, 0.3);
+
+    car.connect(env);
+    env.connect(dest);
+
+    mod.start(ctx.currentTime);
+    car.start(ctx.currentTime);
+
+    return {
+        stop(releaseTime = RELEASE_TIME) {
+            const t = ctx.currentTime;
+            env.gain.cancelScheduledValues(t);
+            env.gain.setValueAtTime(env.gain.value, t);
+            env.gain.linearRampToValueAtTime(0, t + releaseTime);
+            mod.stop(t + releaseTime + 0.05);
+            car.stop(t + releaseTime + 0.05);
+        }
+    };
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
 export class BrowserSynth {
     constructor() {
-        this._tone = null;
-        this._sampler = null;
-        this._reverb = null;
-        this._fallback = null;
-        this._wet = 0.3;
-        this._loaded = false;
-        this._loading = false;
+        this._ctx       = null;
+        this._reverb    = null;
+        this._buffers   = new Map();   // midiNote → AudioBuffer
+        this._voices    = new Map();   // midiNote → { gainNode, source, stop() }
+        this._sustained = new Set();   // notes awaiting pedal release
+        this._pedalDown = false;
+        this._wet       = 0.25;
+        this._loaded    = false;
+        this._loading   = false;
         this._loadPromise = null;
-        this._enabled    = localStorage.getItem(STORAGE_KEY) === 'true';
-        this._active = new Map();  // midiNote → currently sounding note handle
-        this._onReady = null;
+        this._usingSampler = false;
+        this._enabled   = localStorage.getItem(STORAGE_KEY) === 'true';
+        this._onReady   = null;
     }
 
     get enabled() { return this._enabled; }
     get loaded()  { return this._loaded; }
 
-    setEnabled(enabled) {
-        this._enabled = !!enabled;
+    setEnabled(v) {
+        this._enabled = !!v;
         localStorage.setItem(STORAGE_KEY, String(this._enabled));
         if (!this._enabled) this.allNotesOff();
     }
 
     onReady(fn) { this._onReady = fn; }
 
+    // ── Loading ───────────────────────────────────────────────────────────────
     load() {
         if (this._loadPromise) return this._loadPromise;
         this._loadPromise = this._doLoad().catch(err => {
             console.error('[BrowserSynth] Load failed:', err);
             this._loading = false;
-            this._loadPromise = null;  // allow retry
+            this._loadPromise = null;
             throw err;
         });
         return this._loadPromise;
@@ -96,39 +226,44 @@ export class BrowserSynth {
         if (this._loaded) return;
         this._loading = true;
 
-        this._tone = await loadTone();
-        await this._resumeAudio();
-
-        if (this._tone?.context) {
-            this._tone.context.lookAhead = LOW_LATENCY_LOOKAHEAD;
-            this._tone.context.updateInterval = LOW_LATENCY_LOOKAHEAD;
-        }
-
-        const reverb = new this._tone.Reverb({
-            decay: 3.5,
-            wet: this._wet,
-            preDelay: 0.01,
-        }).toDestination();
-        await reverb.generate();
-        this._reverb = reverb;
-        this._reverb.wet.value = this._wet;
-
-        const sampler = new this._tone.Sampler({
-            urls: SAMPLED_NOTES,
-            release: SAMPLER_RELEASE,
-            baseUrl: SAMPLE_BASE_URL,
-        }).connect(this._reverb);
-
-        const sampleTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Sample load timed out')), 20000);
+        // Create context with lowest possible latency hint
+        this._ctx = new (window.AudioContext || window.webkitAudioContext)({
+            latencyHint: 'interactive',
+            sampleRate: 44100,
         });
 
+        await this._resumeCtx();
+        _startKeepAlive(this._ctx);
+
+        this._reverb = _buildReverb(this._ctx, this._wet);
+        this._reverb.connectOutput(this._ctx.destination);
+
+        // Load all sample buffers in parallel (parallel fetch, not sequential)
+        let samplesOk = true;
         try {
-            await Promise.race([sampler.loaded, sampleTimeout]);
-            this._sampler = sampler;
-        } catch (error) {
-            try { sampler.dispose(); } catch (_) {}
-            await this._createFallbackSynth();
+            const entries = Object.entries(SAMPLED_MIDI_NOTES);
+            const timeout = new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 25000));
+            await Promise.race([
+                Promise.all(entries.map(async ([midi, name]) => {
+                    const url = `${SAMPLE_BASE_URL}${name}.mp3`;
+                    try {
+                        const buf = await _loadBuffer(this._ctx, url);
+                        this._buffers.set(Number(midi), buf);
+                    } catch (e) {
+                        console.warn(`[BrowserSynth] sample ${name} failed:`, e);
+                        samplesOk = false;
+                    }
+                })),
+                timeout,
+            ]);
+        } catch (e) {
+            console.warn('[BrowserSynth] Sample loading problem:', e);
+            samplesOk = false;
+        }
+
+        this._usingSampler = this._buffers.size > 10; // at least some loaded
+        if (!this._usingSampler) {
+            console.warn('[BrowserSynth] Falling back to FM synth');
         }
 
         this._loaded  = true;
@@ -136,120 +271,110 @@ export class BrowserSynth {
         if (this._onReady) this._onReady();
     }
 
-    async _createFallbackSynth() {
-        if (!this._tone) return;
-
-        if (!this._reverb) {
-            this._reverb = new this._tone.Reverb({
-                decay: 3.5,
-                wet: this._wet,
-                preDelay: 0.01,
-            }).toDestination();
-            await this._reverb.generate();
-            this._reverb.wet.value = this._wet;
-        }
-
-        this._fallback = new this._tone.PolySynth(this._tone.Synth, {
-            maxPolyphony: 16,
-            options: {
-                oscillator: {
-                    type: 'fmtriangle',
-                    modulationType: 'sine',
-                    harmonicity: 3.01,
-                    modulationIndex: 0.5,
-                },
-                envelope: {
-                    attack: 0.005,
-                    decay: 1.8,
-                    sustain: 0.12,
-                    release: FALLBACK_RELEASE,
-                },
-                volume: -6,
-            },
-        }).connect(this._reverb);
-    }
-
-    _engine() {
-        return this._sampler ?? this._fallback;
-    }
-
-    _midiToNote(midiNote) {
-        return this._tone?.Frequency(midiNote, 'midi').toNote() ?? null;
-    }
-
-    async _resumeAudio() {
-        if (!this._tone) return;
-        if (this._tone.context?.state === 'suspended') {
-            await this._tone.start().catch(() => {});
+    async _resumeCtx() {
+        if (!this._ctx) return;
+        if (this._ctx.state === 'suspended') {
+            try { await this._ctx.resume(); } catch (_) {}
         }
     }
 
-    setReverb(wet) {
-        const nextWet = Math.max(0, Math.min(1, Number(wet)));
-        this._wet = Number.isFinite(nextWet) ? nextWet : this._wet;
-        if (this._reverb?.wet) {
-            this._reverb.wet.value = this._wet;
+    // ── Sustain pedal ─────────────────────────────────────────────────────────
+    pedalOn()  { this._pedalDown = true; }
+    pedalOff() {
+        this._pedalDown = false;
+        for (const note of this._sustained) {
+            this._releaseVoice(note, PEDAL_RELEASE);
         }
+        this._sustained.clear();
     }
 
+    // ── Note on ───────────────────────────────────────────────────────────────
     noteOn(midiNote, velocity = 80) {
         if (!this._enabled) return;
-
-        void this._resumeAudio();
+        void this._resumeCtx();
 
         if (!this._loaded) {
             this.load().then(() => this.noteOn(midiNote, velocity)).catch(() => {});
             return;
         }
 
-        // Stop any existing note on this pitch before retriggering.
-        this._stopNote(midiNote, true);
+        // Retrigger: stop existing voice immediately (no ramp — avoid click via gain 0)
+        this._killVoice(midiNote);
+        this._sustained.delete(midiNote);
 
-        const engine = this._engine();
-        const note = this._midiToNote(midiNote);
-        if (!engine || !note) return;
+        const gain = (velocity / 127) * 0.9;
+        const ctx  = this._ctx;
+        const now  = ctx.currentTime;
 
-        const gain = velocity / 127;
-        try {
-            engine.triggerAttack(note, undefined, gain);
-            this._active.set(midiNote, {
-                note,
-                engine: engine === this._sampler ? 'sampler' : 'fallback',
-            });
-        } catch (e) {
-            console.warn('[BrowserSynth] noteOn error:', e);
-        }
-    }
+        const envGain = ctx.createGain();
+        envGain.gain.setValueAtTime(0, now);
+        envGain.gain.linearRampToValueAtTime(gain, now + ATTACK_CLIP);
+        this._reverb.connectInput(envGain);
 
-    noteOff(midiNote) {
-        this._stopNote(midiNote, false);
-    }
-
-    _stopNote(midiNote, immediate = false) {
-        const entry = this._active.get(midiNote);
-        if (!entry) return;
-        try {
-            const engine = this._engine();
-            if (!engine) {
-                this._active.delete(midiNote);
-                return;
-            }
-            if (immediate) {
-                engine.triggerRelease(entry.note);
+        let voice;
+        if (this._usingSampler) {
+            const { baseMidi } = _nearestSample(midiNote);
+            const buffer = this._buffers.get(baseMidi);
+            if (!buffer) {
+                // Sample missing — fall through to FM
+                voice = _makeFMVoice(ctx, this._midiToHz(midiNote), gain, envGain);
+                voice._envGain = envGain;
             } else {
-                engine.triggerRelease(entry.note);
+                const src = ctx.createBufferSource();
+                src.buffer = buffer;
+                // Pitch-shift via playbackRate: 2^(semitones/12)
+                src.playbackRate.value = Math.pow(2, (midiNote - baseMidi) / 12);
+                src.connect(envGain);
+                src.start(now);
+                voice = {
+                    stop(releaseTime = RELEASE_TIME) {
+                        const t = ctx.currentTime;
+                        envGain.gain.cancelScheduledValues(t);
+                        envGain.gain.setValueAtTime(envGain.gain.value, t);
+                        envGain.gain.linearRampToValueAtTime(0, t + releaseTime);
+                        src.stop(t + releaseTime + 0.05);
+                    },
+                    _envGain: envGain,
+                };
             }
-        } catch (_) {}
-        this._active.delete(midiNote);
+        } else {
+            voice = _makeFMVoice(ctx, this._midiToHz(midiNote), gain, envGain);
+            voice._envGain = envGain;
+        }
+
+        this._voices.set(midiNote, voice);
+    }
+
+    // ── Note off ──────────────────────────────────────────────────────────────
+    noteOff(midiNote) {
+        if (this._pedalDown) {
+            this._sustained.add(midiNote);
+            return;
+        }
+        this._releaseVoice(midiNote, RELEASE_TIME);
+    }
+
+    _releaseVoice(midiNote, releaseTime) {
+        const voice = this._voices.get(midiNote);
+        if (!voice) return;
+        try { voice.stop(releaseTime); } catch (_) {}
+        this._voices.delete(midiNote);
+    }
+
+    _killVoice(midiNote) {
+        const voice = this._voices.get(midiNote);
+        if (!voice) return;
+        try { voice.stop(0.005); } catch (_) {}
+        this._voices.delete(midiNote);
     }
 
     allNotesOff() {
-        for (const note of [...this._active.keys()]) {
-            this._stopNote(note, true);
-        }
-        this._active.clear();
+        for (const note of this._voices.keys()) this._killVoice(note);
+        this._voices.clear();
+        this._sustained.clear();
     }
 
+    // ── MIDI dispatcher ───────────────────────────────────────────────────────
     processMidi(data) {
         if (!this._enabled || data.length < 2) return;
         const status   = data[0] & 0xF0;
@@ -260,8 +385,23 @@ export class BrowserSynth {
             this.noteOn(note, velocity);
         } else if (status === 0x80 || (status === 0x90 && velocity === 0)) {
             this.noteOff(note);
-        } else if (status === 0xB0 && note === 123) {
-            this.allNotesOff();
+        } else if (status === 0xB0) {
+            if (note === 64) {                 // sustain pedal CC
+                velocity >= 64 ? this.pedalOn() : this.pedalOff();
+            } else if (note === 123 || note === 120) {
+                this.allNotesOff();            // All Notes Off / All Sound Off
+            }
         }
+    }
+
+    // ── Reverb control ────────────────────────────────────────────────────────
+    setReverb(wet) {
+        this._wet = Math.max(0, Math.min(1, Number(wet)));
+        this._reverb?.setWet(this._wet);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    _midiToHz(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
     }
 }
