@@ -8,7 +8,7 @@
  *  1. Tone.js lookAhead/updateInterval clock tick (10–50 ms)  → gone: direct scheduling
  *  2. Tone.js Reverb ConvolverNode (async generate())          → replaced: lightweight
  *     FeedbackDelay + Freeverb-style comb network, or optional ConvolverNode
- *  3. AudioContext latencyHint default ('interactive' not set) → fixed: force 'interactive'
+ *  3. AudioContext latencyHint default ('interactive' not set) → fixed: force latencyHint: 0
  *  4. AudioContext auto-suspend                                → fixed: keep-alive oscillator
  *  5. Sample loading stall on noteOn                           → fixed: pre-cache all buffers
  *
@@ -228,11 +228,17 @@ export class BrowserSynth {
 
         // Create context with lowest possible latency hint
         this._ctx = new (window.AudioContext || window.webkitAudioContext)({
-            latencyHint: 'interactive',
+            latencyHint: 0,
         });
 
         await this._resumeCtx();
         _startKeepAlive(this._ctx);
+
+        console.log(
+            `[BrowserSynth] AudioContext ready — sampleRate: ${this._ctx.sampleRate} Hz` +
+            `, baseLatency: ${(this._ctx.baseLatency * 1000).toFixed(2)} ms` +
+            `, outputLatency: ${(this._ctx.outputLatency * 1000).toFixed(2)} ms`
+        );
 
         this._reverb = _buildReverb(this._ctx, this._wet);
         this._reverb.connectOutput(this._ctx.destination);
