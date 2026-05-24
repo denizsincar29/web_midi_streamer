@@ -488,7 +488,9 @@ export class MIDIStreamer {
             return;
         }
 
-        this.refreshAvailableRooms();
+        // Small delay before first fetch — Firefox fires a NetworkError if the
+        // fetch runs before the network stack is fully ready on page load.
+        setTimeout(() => this.refreshAvailableRooms(), 500);
         this.roomRefreshIntervalId = setInterval(() => {
             if (!this.webrtc.isConnected()) {
                 this.refreshAvailableRooms();
@@ -592,7 +594,7 @@ export class MIDIStreamer {
         this.setRoomsVisibility(true);
         this.midi.refreshDevices();
         this.startRoomAutoRefresh();
-        this.refreshAvailableRooms();
+        // startRoomAutoRefresh already schedules the first fetch — no need to call here too
         this.ui.setConnectionUIVisible(true);
         this._participants?.showPanel(false);
     }
