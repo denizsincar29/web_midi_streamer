@@ -142,15 +142,23 @@ export class MIDIManager {
         // ── Build output selector ──────────────────────────────────────────
         outputSelect.innerHTML = '';
 
-        // Browser Synth is always the first option
-        const synthOption = document.createElement('option');
-        synthOption.value = this.SYNTH_OUTPUT_VALUE;
-        synthOption.textContent = '🔊 ' + this._t('synth.name');
-        outputSelect.appendChild(synthOption);
+        // NOTE: Browser Synth option removed — synth deprecated in favour of
+        // hardware MIDI output + local monitor toggle.
+        // const synthOption = document.createElement('option');
+        // synthOption.value = this.SYNTH_OUTPUT_VALUE;
+        // synthOption.textContent = '🔊 ' + this._t('synth.name');
+        // outputSelect.appendChild(synthOption);
 
         const bestOutput = findBest(outputs, savedOutputId, savedOutputName);
 
-        // If saved output is gone, show waiting placeholder (after synth option)
+        if (outputs.length === 0) {
+            const none = document.createElement('option');
+            none.value = '';
+            none.textContent = this._t('midi.noDevice');
+            outputSelect.appendChild(none);
+        }
+
+        // If saved output is gone, show waiting placeholder
         if (savedOutputName && savedOutputId !== this.SYNTH_OUTPUT_VALUE && !bestOutput) {
             const waiting = document.createElement('option');
             waiting.value = '';
@@ -167,21 +175,11 @@ export class MIDIManager {
             outputSelect.appendChild(option);
         });
 
-        // Decide what to select
-        const savedIsHardware = savedOutputId && savedOutputId !== this.SYNTH_OUTPUT_VALUE;
-        if (bestOutput && savedIsHardware) {
-            // Restore hardware device
-            this.selectOutput(bestOutput.id);
-        } else if (savedOutputId === this.SYNTH_OUTPUT_VALUE || (!savedOutputId && !savedOutputName)) {
-            // Synth was chosen, or nothing was ever saved → default to synth
-            synthOption.selected = true;
-            this.selectOutput(this.SYNTH_OUTPUT_VALUE);
-        } else if (bestOutput) {
+        // Decide what to select — hardware only now
+        if (bestOutput) {
             this.selectOutput(bestOutput.id);
         } else {
-            // Nothing available, fall back to synth
-            synthOption.selected = true;
-            this.selectOutput(this.SYNTH_OUTPUT_VALUE);
+            this.selectedOutput = null;
         }
     }
 
@@ -214,22 +212,12 @@ export class MIDIManager {
     }
 
     selectOutput(deviceId) {
-        if (deviceId === this.SYNTH_OUTPUT_VALUE) {
-            // Browser synth selected
-            this.selectedOutput = null;
-            localStorage.setItem(this.STORAGE_KEY_OUTPUT, this.SYNTH_OUTPUT_VALUE);
-            localStorage.removeItem(this.STORAGE_KEY_OUTPUT_NAME);
-            if (this.synth) this.synth.setEnabled(true);
-            return;
-        }
-        // Hardware device selected — disable synth-as-output (but keep it if user wants monitoring)
-        if (this.synth?.enabled) {
-            const keepMonitor = localStorage.getItem('jamrtc_synth_monitor') === 'true';
-            if (!keepMonitor) this.synth.setEnabled(false);
-        }
+        // NOTE: SYNTH_OUTPUT_VALUE path deprecated — synth no longer appears in dropdown
+        // if (deviceId === this.SYNTH_OUTPUT_VALUE) { ... }
+
+        // Synth monitoring is now handled separately via the monitor toggle in app.js
         if (deviceId && this.access) {
             this.selectedOutput = this.access.outputs.get(deviceId);
-            // Save ID and name — name-based matching survives replug with new ID
             localStorage.setItem(this.STORAGE_KEY_OUTPUT, deviceId);
             if (this.selectedOutput) {
                 localStorage.setItem(this.STORAGE_KEY_OUTPUT_NAME, this.selectedOutput.name);
@@ -243,12 +231,10 @@ export class MIDIManager {
     send(data) {
         const arr = Array.from((data instanceof Uint8Array) ? data : new Uint8Array(data));
 
-        // Route through browser synth if enabled
-        if (this.synth?.enabled) {
-            this.synth.processMidi(arr);
-        }
+        // NOTE: Synth routing removed — monitor toggle in app.js handles local playback
+        // if (this.synth?.enabled) { this.synth.processMidi(arr); }
 
-        // Also send to hardware output if connected
+        // Send to hardware output if connected
         if (this.selectedOutput) {
             try {
                 this.selectedOutput.send(new Uint8Array(arr));

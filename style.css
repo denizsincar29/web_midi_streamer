@@ -326,6 +326,28 @@ h2 {
     font-variant-numeric: tabular-nums;
 }
 
+/* Monitor toggle */
+.monitor-toggle-group {
+    display: flex;
+    align-items: center;
+}
+
+.monitor-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+}
+
+.monitor-toggle-label input[type="checkbox"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: #667eea;
+    cursor: pointer;
+}
+
 /* Buttons */
 .btn {
     padding: 12px 24px;

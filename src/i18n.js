@@ -14,6 +14,7 @@ export const translations = {
         'synth.ready'    : '🎹 Grand piano ready',
         'synth.off'      : '',
         'synth.tooltip'  : 'Play notes through your speakers (Salamander Grand Piano)',
+        'midi.monitor'   : '🎧 Monitor input',
         'midi.noMidiApi' : 'No MIDI keyboard detected — using browser piano 🎹',
 
         // Status

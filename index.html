@@ -71,8 +71,17 @@
                     </select>
                 </div>
 
-                <span id="synthStatus" class="synth-status" aria-live="polite"></span>
+                <span id="synthStatus" class="synth-status" aria-live="polite" hidden></span>
 
+                <!-- Monitor toggle: hear your own MIDI input through the browser synth -->
+                <div class="device-group monitor-toggle-group">
+                    <label class="monitor-toggle-label">
+                        <input type="checkbox" id="monitorToggle" aria-label="Monitor local MIDI input through browser">
+                        <span data-i18n="midi.monitor">🎧 Monitor input</span>
+                    </label>
+                </div>
+
+                <!-- NOTE: Synth reverb controls deprecated — kept hidden for now -->
                 <div id="synthReverbGroup" class="device-group synth-reverb-group" hidden>
                     <label for="synthReverbSlider">Reverb</label>
                     <div class="synth-reverb-row">

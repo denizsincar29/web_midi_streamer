@@ -142,18 +142,17 @@ export class MIDIStreamer {
         try {
             await this.midi.init();
             this.ui.addMessage(t('midi.accessGranted'), 'success');
-            // Browser synth is available alongside hardware output.
-            this._synth = new BrowserSynth();
-            this.midi.synth = this._synth;
-            this._initSynthUI();
+            // NOTE: BrowserSynth as output deprecated — synth now only used for monitor toggle
+            // this._synth = new BrowserSynth();
+            // this.midi.synth = this._synth;
+            // this._initSynthUI();
+            this._initMonitorToggle();
             this.midi.refreshDevices();
             // Play startup logo chime once MIDI output is ready
             this.midi.playStatusChime('startup');
-            // Pre-load synth if it's the selected output
-            const currentOut = localStorage.getItem('webmidi_selectedOutputId');
-            if (!currentOut || currentOut === '__synth__') {
-                this._loadSynth();
-            }
+            // NOTE: Synth pre-load removed
+            // const currentOut = localStorage.getItem('webmidi_selectedOutputId');
+            // if (!currentOut || currentOut === '__synth__') { this._loadSynth(); }
         } catch (error) {
             this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
         }
@@ -321,10 +320,9 @@ export class MIDIStreamer {
 
         document.getElementById('midiOutput').addEventListener('change', (e) => {
             this.midi.selectOutput(e.target.value);
-            this._syncSynthUI();
-            if (e.target.value === this.midi.SYNTH_OUTPUT_VALUE) {
-                this._loadSynth();
-            }
+            // NOTE: _syncSynthUI / _loadSynth removed — synth output deprecated
+            // this._syncSynthUI();
+            // if (e.target.value === this.midi.SYNTH_OUTPUT_VALUE) { this._loadSynth(); }
         });
 
         document.getElementById('refreshDevices').addEventListener('click', () => {
@@ -606,82 +604,40 @@ export class MIDIStreamer {
         }
     }
 
-    _initSynthUI() {
-        this._synthStatusEl = document.getElementById('synthStatus');
-        this._synthReverbGroupEl = document.getElementById('synthReverbGroup');
-        this._synthReverbSliderEl = document.getElementById('synthReverbSlider');
-        this._synthReverbValueEl = document.getElementById('synthReverbValue');
-
-        const savedWet = Number(localStorage.getItem('jamrtc_synth_reverb'));
-        const initialWet = Number.isFinite(savedWet) ? Math.max(0, Math.min(100, savedWet)) : 30;
-        if (this._synthReverbSliderEl) {
-            this._synthReverbSliderEl.value = String(initialWet);
-        }
-        if (this._synthReverbValueEl) {
-            this._synthReverbValueEl.textContent = `${initialWet}%`;
-        }
-        if (this._synth) {
-            this._synth.setReverb(initialWet / 100);
-        }
-
-        this._synthReverbSliderEl?.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value, 10);
-            if (this._synthReverbValueEl) {
-                this._synthReverbValueEl.textContent = `${value}%`;
+    // ── Monitor toggle — play local MIDI input through browser synth ──────────
+    _initMonitorToggle() {
+        this._monitorEnabled = localStorage.getItem('jamrtc_monitor') === 'true';
+        const toggle = document.getElementById('monitorToggle');
+        if (!toggle) return;
+        toggle.checked = this._monitorEnabled;
+        toggle.addEventListener('change', async (e) => {
+            this._monitorEnabled = e.target.checked;
+            localStorage.setItem('jamrtc_monitor', String(this._monitorEnabled));
+            if (this._monitorEnabled) {
+                // Lazy-init synth only when monitor is first enabled
+                if (!this._synth) {
+                    const { BrowserSynth } = await import('./synth.js');
+                    this._synth = new BrowserSynth();
+                }
+                if (!this._synth.loaded) {
+                    this._synth.load().catch(err => console.warn('[Monitor] synth load failed:', err));
+                }
+                this._synth.setEnabled(true);
+            } else {
+                this._synth?.setEnabled(false);
+                this._synth?.allNotesOff();
             }
-            localStorage.setItem('jamrtc_synth_reverb', String(value));
-            this._synth?.setReverb(value / 100);
         });
-
-        this._syncSynthUI();
     }
 
-    _isSynthSelected() {
-        const outputSelect = document.getElementById('midiOutput');
-        return !outputSelect || outputSelect.value === this.midi.SYNTH_OUTPUT_VALUE;
-    }
+    // NOTE: Methods below deprecated — synth as primary output removed.
+    // Kept commented out for reference during cleanup.
 
-    _setSynthStatus(text) {
-        if (this._synthStatusEl) {
-            this._synthStatusEl.textContent = text;
-        }
-    }
-
-    _syncSynthUI() {
-        const synthSelected = this._isSynthSelected();
-        if (this._synthReverbGroupEl) {
-            this._synthReverbGroupEl.hidden = !synthSelected;
-        }
-        if (this._synthStatusEl) {
-            this._synthStatusEl.hidden = !synthSelected;
-        }
-
-        if (!synthSelected) {
-            this._setSynthStatus('');
-            return;
-        }
-
-        if (this._synth?.loaded) {
-            this._setSynthStatus(t('synth.ready'));
-        } else {
-            this._setSynthStatus(t('synth.loading'));
-        }
-    }
-
-    async _loadSynth() {
-        if (!this._synth || !this._isSynthSelected()) {
-            this._syncSynthUI();
-            return;
-        }
-        this._setSynthStatus(t('synth.loading'));
-        try {
-            await this._synth.load();
-            this._setSynthStatus(t('synth.ready'));
-        } catch (error) {
-            console.warn('[BrowserSynth] preload failed:', error);
-            this._setSynthStatus(t('synth.off'));
-        }
-    }
+    // _initSynthUI() { ... }
+    // _isSynthSelected() { ... }
+    // _setSynthStatus(text) { ... }
+    // _syncSynthUI() { ... }
+    // _loadSynth() { ... }
 
     _activateNoMidiMode() {
         const notice = document.getElementById('noMidiNotice');
@@ -691,13 +647,10 @@ export class MIDIStreamer {
         if (inputGroup) inputGroup.hidden = true;
         if (outputGroup) outputGroup.hidden = true;
 
-        if (!this._synth) {
-            this._synth = new BrowserSynth();
-            this.midi.synth = this._synth;
-            this._initSynthUI();
-        }
-        this._synth.setEnabled(true);
-        this._loadSynth();
+        // NOTE: Synth auto-enable in no-MIDI mode removed — synth deprecated as output
+        // if (!this._synth) { this._synth = new BrowserSynth(); ... }
+        // this._synth.setEnabled(true);
+        // this._loadSynth();
     }
 
     handleMIDIInput(data) {
@@ -747,8 +700,8 @@ export class MIDIStreamer {
             }
             // Update playing indicator for "me"
             if (st === 0x90 && data[2] > 0) this._participants?.setMePlaying(true);
-            // Monitor local notes through synth when synth output is selected
-            if (this._synth?.enabled) this._synth.processMidi(Array.from(data));
+            // Monitor local notes through synth when monitor toggle is on
+            if (this._monitorEnabled && this._synth?.loaded) this._synth.processMidi(Array.from(data));
         }
     }
 
