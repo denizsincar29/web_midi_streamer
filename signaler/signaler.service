@@ -8,7 +8,7 @@ Type=simple
 User=denizsincar29
 Group=deniz
 WorkingDirectory=/home/deniz/signaler
-ExecStart=/home/deniz/signaler/signaler -addr :8765
+ExecStart=/home/deniz/signaler/signaler -addr :8987
 
 # Restart on crash, but not on intentional stop
 Restart=on-failure

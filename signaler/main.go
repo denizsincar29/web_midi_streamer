@@ -1,8 +1,8 @@
 // signaler — tiny WebRTC signaling server with room hiding support
 //
 // Build:   go build -o signaler .
-// Run:     ./signaler -addr :8765
-// Protocol: ws://your-host:8765/signal?room=ROOMNAME&peer=PEERID
+// Run:     ./signaler -addr :8987
+// Protocol: ws://your-host:8987/signal?room=ROOMNAME&peer=PEERID
 //
 // Extra:  POST /hide-room?room=NAME  → marks room as hidden (not in /rooms listing)
 //         POST /show-room?room=NAME  → un-hides a room
@@ -193,7 +193,7 @@ func corsJSON(w http.ResponseWriter) {
 }
 
 func main() {
-	addr := flag.String("addr", ":8765", "listen address")
+	addr := flag.String("addr", ":8987", "listen address")
 	flag.Parse()
 
 	hub := newHub()

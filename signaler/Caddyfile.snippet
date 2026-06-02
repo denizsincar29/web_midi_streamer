@@ -9,11 +9,11 @@
 
 jamrtc.denizsincar.ru {
     # WebSocket upgrade + HTTP endpoints for the signaler
-    handle /signal*    { reverse_proxy localhost:8765 }
-    handle /rooms      { reverse_proxy localhost:8765 }
-    handle /hide-room* { reverse_proxy localhost:8765 }
-    handle /show-room* { reverse_proxy localhost:8765 }
-    handle /health     { reverse_proxy localhost:8765 }
+    handle /signal*    { reverse_proxy localhost:8987 }
+    handle /rooms      { reverse_proxy localhost:8987 }
+    handle /hide-room* { reverse_proxy localhost:8987 }
+    handle /show-room* { reverse_proxy localhost:8987 }
+    handle /health     { reverse_proxy localhost:8987 }
 
     # Everything else: static frontend
     handle {
