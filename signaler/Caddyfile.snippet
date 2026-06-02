@@ -1,0 +1,23 @@
+# Caddy snippet for jamrtc.denizsincar.ru
+# Add this block to your Caddyfile (or adapt for your global config).
+#
+# The signaler runs on localhost:8765.
+# Caddy proxies /signal, /rooms, /hide-room, /show-room to it so the
+# frontend can reach them via the same HTTPS subdomain — no port exposure needed.
+#
+# The static frontend files are served from /var/www/html/jamrtc.
+
+jamrtc.denizsincar.ru {
+    # WebSocket upgrade + HTTP endpoints for the signaler
+    handle /signal*    { reverse_proxy localhost:8765 }
+    handle /rooms      { reverse_proxy localhost:8765 }
+    handle /hide-room* { reverse_proxy localhost:8765 }
+    handle /show-room* { reverse_proxy localhost:8765 }
+    handle /health     { reverse_proxy localhost:8765 }
+
+    # Everything else: static frontend
+    handle {
+        root * /var/www/html/jamrtc
+        file_server
+    }
+}
