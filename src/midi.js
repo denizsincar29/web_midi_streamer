@@ -334,7 +334,9 @@ export class MIDIManager {
         if (!chimeConfig) return;
         
         // Handle different chime types
-        if (chimeConfig.type === 'midi') {
+        if (chimeConfig.type === 'silent') {
+            // Intentionally silent — no sound played.
+        } else if (chimeConfig.type === 'midi') {
             this._playMidiFile(chimeConfig.file);
         } else if (chimeConfig.type === 'notes') {
             // Play note sequence

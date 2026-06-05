@@ -101,17 +101,35 @@
             <!-- Connection Controls -->
             <section class="controls">
                 <h2 data-i18n="connection.title">Connection</h2>
-                <div class="room-input-group">
-                    <label for="roomNameInput" data-i18n="connection.roomName">Room Name:</label>
-                    <input type="text" id="roomNameInput" data-i18n-placeholder="connection.roomPlaceholder" placeholder="Enter room name" value="">
-                    <p class="description" data-i18n="connection.roomDescription">Both peers must enter the same room name to connect</p>
-                </div>
+
                 <div class="room-input-group">
                     <label for="nicknameInput" data-i18n="participants.nicknameLabel">Your Nickname:</label>
-                    <input type="text" id="nicknameInput" data-i18n-placeholder="participants.nicknamePlaceholder" placeholder="How others will see you" maxlength="32" autocomplete="nickname">
-                    <p class="description" data-i18n="participants.nicknameDescription">Shown to other participants</p>
+                    <input type="text" id="nicknameInput"
+                           data-i18n-placeholder="participants.nicknamePlaceholder"
+                           placeholder="How others will see you"
+                           maxlength="32" autocomplete="nickname">
                 </div>
-                <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Connect to Room</button>
+
+                <div class="room-input-group">
+                    <label for="roomNameInput" data-i18n="connection.roomName">Room Name:</label>
+                    <input type="text" id="roomNameInput"
+                           data-i18n-placeholder="connection.roomPlaceholder"
+                           placeholder="Enter or pick a room"
+                           value=""
+                           list="roomSuggestions"
+                           autocomplete="off">
+                    <!-- populated dynamically from room list -->
+                    <datalist id="roomSuggestions"></datalist>
+                    <!-- live room list (screen-reader friendly listbox) -->
+                    <ul id="roomsList"
+                        class="rooms-list"
+                        role="listbox"
+                        aria-label="Available rooms"
+                        aria-live="off"></ul>
+                    <div id="roomsStatus" class="rooms-status"></div>
+                </div>
+
+                <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Join Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
                 <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list" data-i18n="room.hide">🙈 Hide Room</button>
                 <span id="peerCountBadge" class="peer-count-badge" aria-live="polite"></span>
@@ -152,15 +170,7 @@
                 <div id="recStatus" class="rec-status" aria-live="polite"></div>
             </section>
 
-            <!-- Available Rooms -->
-            <section class="available-rooms">
-                <h2 data-i18n="connection.availableRooms">Available Rooms</h2>
-                <div id="roomsControls" class="rooms-controls">
-                    <button id="refreshRoomsBtn" class="btn btn-secondary" data-i18n="connection.refreshRooms">Refresh Rooms</button>
-                </div>
-                <div id="roomsList" class="rooms-list" role="region" aria-live="off" aria-label="Available rooms"></div>
-                <div id="roomsStatus" class="rooms-status"></div>
-            </section>
+
 
             <!-- Settings (formerly Advanced) -->
             <details class="advanced">

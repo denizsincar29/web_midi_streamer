@@ -150,8 +150,8 @@ export class MIDIStreamer {
             // this._initSynthUI();
             this._initMonitorToggle();
             this.midi.refreshDevices();
-            // Play startup logo chime once MIDI output is ready
-            this.midi.playStatusChime('startup');
+            // Play startup chime only on the bare landing page (no auto-join)
+            if (!this.roomName) this.midi.playStatusChime('startup');
             // NOTE: Synth pre-load removed
             // const currentOut = localStorage.getItem('webmidi_selectedOutputId');
             // if (!currentOut || currentOut === '__synth__') { this._loadSynth(); }
@@ -602,10 +602,11 @@ export class MIDIStreamer {
     }
 
     setRoomsVisibility(visible) {
-        const section = document.querySelector('.available-rooms');
-        if (section) {
-            section.hidden = !visible;
-        }
+        // Rooms list now lives inside the connection section — show/hide the listbox
+        const listbox = document.getElementById('roomsList');
+        const status  = document.getElementById('roomsStatus');
+        if (listbox) listbox.hidden = !visible;
+        if (status)  status.hidden  = !visible;
     }
 
     // ── Monitor toggle — play local MIDI input through browser synth ──────────

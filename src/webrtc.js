@@ -383,13 +383,22 @@ export class WebRTCManager {
     _wsOpen() {
         return new Promise((resolve, reject) => {
             const url = SIGNALING_URL(this.roomName, this.myId);
+            if (this.reconnectAttempts > 0) {
+                console.log(`[WS] reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} → ${url}`);
+            }
             const ws  = new WebSocket(url);
             this.ws   = ws;
-            const timer = setTimeout(() => reject(new Error(`Cannot reach signaling server at ${url}`)), 8000);
-            ws.onopen    = () => { clearTimeout(timer); this.reconnectAttempts = 0; this._startHeartbeat(); resolve(); };
-            ws.onmessage = async ({ data }) => { try { await this._handleSignal(JSON.parse(data)); } catch(e){ console.error(e); } };
-            ws.onerror   = () => { clearTimeout(timer); reject(new Error('WebSocket error')); };
-            ws.onclose   = () => { this._stopHeartbeat(); if (!this.manualDisconnect) this._scheduleReconnect(); };
+            let settled = false;
+            const settle = (fn, val) => { if (!settled) { settled = true; clearTimeout(timer); fn(val); } };
+            const timer = setTimeout(() => {
+                console.error(`[WS] timeout connecting to ${url}`);
+                ws.close();
+                settle(reject, new Error(`Signaling server timeout: ${url}`));
+            }, 8000);
+            ws.onopen    = () => { this.reconnectAttempts = 0; this._reconnectPending = false; this._startHeartbeat(); settle(resolve); };
+            ws.onmessage = async ({ data }) => { try { await this._handleSignal(JSON.parse(data)); } catch(e){ console.error('[WS] signal parse error:', e); } };
+            ws.onerror   = (e) => { console.error('[WS] error:', e); settle(reject, new Error('WebSocket error')); };
+            ws.onclose   = (ev) => { this._stopHeartbeat(); if (!settled) settle(reject, new Error(`WS closed: ${ev.code}`)); if (!this.manualDisconnect) this._scheduleReconnect(); };
         });
     }
 
@@ -407,11 +416,14 @@ export class WebRTCManager {
 
     _scheduleReconnect() {
         if (this.manualDisconnect) return;
+        if (this._reconnectPending) return;   // already scheduled — don't double-up
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             this.onStatusUpdate(this._t('webrtc.signalFailed'), 'error'); return;
         }
         const delay = Math.min(30000, 1000 * Math.pow(2, ++this.reconnectAttempts));
+        this._reconnectPending = true;
         this.reconnectTimer = setTimeout(async () => {
+            this._reconnectPending = false;
             try { await this._wsOpen(); this._send({ type:'join', from:this.myId }); }
             catch { this._scheduleReconnect(); }
         }, delay);

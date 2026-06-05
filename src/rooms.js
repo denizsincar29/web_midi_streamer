@@ -2,55 +2,47 @@ import { t } from './i18n.js';
 
 /**
  * Room Management Module
- * Handles fetching available rooms from the signaler and displaying them
+ * Handles fetching available rooms from the signaler and displaying them.
+ *
+ * Rooms are shown in two places simultaneously:
+ *   - a <datalist> so the room input gets native autocomplete
+ *   - a <ul role="listbox"> for screen-reader-friendly room picking
+ *
+ * Clicking a room item fills the room input. If a nickname is already saved the
+ * caller's onRoomClick handler is invoked immediately (it should call connect()).
+ * If no nickname exists yet, we only fill the input and focus the nickname field
+ * — the user then types their name and hits the single "Join Room" button.
  */
 
 export class RoomManager {
     constructor(signalerHost) {
-        this.signalerHost = signalerHost;
+        this.signalerHost  = signalerHost;
         this.signalerProto = location.protocol === 'https:' ? 'https' : 'http';
-        this.rooms = [];
-        this.isLoading = false;
+        this.rooms         = [];
+        this.isLoading     = false;
         this.lastRoomNames = new Set();
     }
 
-    /**
-     * Get the base URL for the signaler
-     */
     getSignalerUrl() {
         return `${this.signalerProto}://${this.signalerHost}`;
     }
 
-    /**
-     * Fetch available rooms from the signaler
-     */
     async fetchRooms() {
         if (this.isLoading) return [];
-        
         this.isLoading = true;
         try {
-            const response = await fetch(`${this.getSignalerUrl()}/rooms`, {
+            const res = await fetch(`${this.getSignalerUrl()}/rooms`, {
                 method: 'GET',
                 cache: 'no-store',
-                headers: {
-                    'Accept': 'application/json',
-                },
+                headers: { 'Accept': 'application/json' },
             });
-
-            if (!response.ok) {
-                console.error('Failed to fetch rooms:', response.status);
-                return [];
-            }
-
-            const data = await response.json();
+            if (!res.ok) { console.error('fetchRooms HTTP', res.status); return []; }
+            const data = await res.json();
             this.rooms = Array.isArray(data) ? data : [];
-            
-            // Sort rooms by peer count (descending)
             this.rooms.sort((a, b) => b.peerCount - a.peerCount);
-            
             return this.rooms;
-        } catch (error) {
-            console.error('Error fetching rooms:', error);
+        } catch (err) {
+            console.error('fetchRooms error:', err);
             return [];
         } finally {
             this.isLoading = false;
@@ -58,73 +50,130 @@ export class RoomManager {
     }
 
     /**
-     * Display rooms in the UI
+     * Render rooms into the listbox + datalist.
+     *
+     * @param {Array}    rooms        - array of {name, peerCount}
+     * @param {Function} onRoomClick  - called with roomName when user picks a room
+     *                                  AND already has a nickname saved
+     * @param {Object}   options
+     *   - excludedRoomName {string}  - current room to hide from list
+     *   - announceRoom {Function}    - called for newly appeared rooms
      */
     displayRooms(rooms, onRoomClick, options = {}) {
-        const roomsList = document.getElementById('roomsList');
+        const listbox     = document.getElementById('roomsList');
+        const datalist    = document.getElementById('roomSuggestions');
         const roomsStatus = document.getElementById('roomsStatus');
-        const excludedRoomName = options.excludedRoomName || '';
-        const announceRoom = options.announceRoom || null;
+        const roomInput   = document.getElementById('roomNameInput');
+        const nickInput   = document.getElementById('nicknameInput');
+        const connectBtn  = document.getElementById('connectBtn');
 
-        if (!roomsList) return;
+        if (!listbox) return;
 
-        roomsList.innerHTML = '';
+        const { excludedRoomName = '', announceRoom = null } = options;
+        const visible = (rooms || []).filter(r => r?.name && r.name !== excludedRoomName);
 
-        const visibleRooms = (rooms || []).filter((room) => room && room.name && room.name !== excludedRoomName);
-
-        if (!visibleRooms.length) {
-            roomsStatus.textContent = t('rooms.noActive');
-            roomsStatus.className = 'rooms-status empty';
-            return;
+        // ── datalist (native autocomplete) ────────────────────────────────────
+        if (datalist) {
+            datalist.innerHTML = '';
+            visible.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.name;
+                datalist.appendChild(opt);
+            });
         }
 
-        if (visibleRooms.length === 1) {
-            roomsStatus.textContent = t('rooms.availableCount_singular');
-        } else {
-            roomsStatus.textContent = t('rooms.availableCount_plural').replace('{n}', visibleRooms.length);
+        // ── status line ───────────────────────────────────────────────────────
+        if (roomsStatus) {
+            if (!visible.length) {
+                roomsStatus.textContent = t('rooms.noActive');
+                roomsStatus.className = 'rooms-status empty';
+            } else {
+                roomsStatus.textContent = visible.length === 1
+                    ? t('rooms.availableCount_singular')
+                    : t('rooms.availableCount_plural').replace('{n}', visible.length);
+                roomsStatus.className = 'rooms-status';
+            }
         }
-        roomsStatus.className = 'rooms-status';
 
-        const ul = document.createElement('ul');
-        ul.className = 'rooms-items';
+        // ── listbox ───────────────────────────────────────────────────────────
+        listbox.innerHTML = '';
 
-        visibleRooms.forEach((room) => {
+        visible.forEach(room => {
             const li = document.createElement('li');
             li.className = 'room-item';
+            li.setAttribute('role', 'option');
+            li.setAttribute('aria-selected', 'false');
+            li.tabIndex = 0;
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'room-name';
             nameSpan.textContent = room.name;
 
-            const peerCountSpan = document.createElement('span');
-            peerCountSpan.className = 'room-peer-count';
-            if (room.peerCount === 1) {
-                peerCountSpan.textContent = t('rooms.peerCount_singular');
-            } else {
-                peerCountSpan.textContent = t('rooms.peerCount_plural').replace('{n}', room.peerCount);
-            }
-
-            const joinBtn = document.createElement('button');
-            joinBtn.className = 'btn btn-secondary btn-small';
-            joinBtn.textContent = t('rooms.join');
-            joinBtn.setAttribute('aria-label', `${t('rooms.join')} ${room.name}`);
-            joinBtn.addEventListener('click', () => {
-                if (onRoomClick) {
-                    onRoomClick(room.name);
-                }
-            });
+            const countSpan = document.createElement('span');
+            countSpan.className = 'room-peer-count';
+            countSpan.textContent = room.peerCount === 1
+                ? t('rooms.peerCount_singular')
+                : t('rooms.peerCount_plural').replace('{n}', room.peerCount);
 
             li.appendChild(nameSpan);
-            li.appendChild(peerCountSpan);
-            li.appendChild(joinBtn);
-            ul.appendChild(li);
+            li.appendChild(countSpan);
+
+            const pick = () => {
+                // Fill the room input
+                if (roomInput) roomInput.value = room.name;
+                // Update connect button label to reflect existing room
+                this._updateConnectBtn(connectBtn, room.name, visible);
+                // Mark selection
+                listbox.querySelectorAll('[aria-selected="true"]')
+                    .forEach(el => el.setAttribute('aria-selected', 'false'));
+                li.setAttribute('aria-selected', 'true');
+
+                const hasNick = nickInput?.value?.trim()
+                    || localStorage.getItem('midi_nickname');
+
+                if (hasNick) {
+                    onRoomClick?.(room.name);
+                } else {
+                    // No nick yet — guide the user: focus nickname, don't connect yet
+                    nickInput?.focus();
+                    if (roomsStatus) {
+                        roomsStatus.textContent = t('participants.nicknameRequired');
+                        roomsStatus.className = 'rooms-status info';
+                    }
+                }
+            };
+
+            li.addEventListener('click', pick);
+            li.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); }
+            });
+
+            listbox.appendChild(li);
 
             if (announceRoom && this.lastRoomNames.size > 0 && !this.lastRoomNames.has(room.name)) {
-                announceRoom(room.name, room.peerCount || 0);
+                announceRoom(room.name, room.peerCount ?? 0);
             }
         });
 
-        roomsList.appendChild(ul);
-        this.lastRoomNames = new Set(visibleRooms.map((room) => room.name));
+        this.lastRoomNames = new Set(visible.map(r => r.name));
+
+        // Update button label whenever room input changes
+        if (roomInput && connectBtn && !roomInput._roomLabelListenerAttached) {
+            roomInput._roomLabelListenerAttached = true;
+            roomInput.addEventListener('input', () => {
+                this._updateConnectBtn(connectBtn, roomInput.value.trim(), visible);
+            });
+        }
+    }
+
+    /**
+     * Set the connect button label to "Join Room" if the typed name matches an
+     * existing room, or "Create & Join" if it's a new name.
+     */
+    _updateConnectBtn(btn, typedName, visibleRooms) {
+        if (!btn) return;
+        const exists = visibleRooms.some(r => r.name === typedName);
+        btn.setAttribute('data-i18n', exists ? 'connection.connectBtn' : 'connection.createBtn');
+        btn.textContent = exists ? t('connection.connectBtn') : t('connection.createBtn');
     }
 }

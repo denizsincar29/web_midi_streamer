@@ -145,7 +145,12 @@ def validate_notes(notes: str) -> tuple[bool, str]:
 
 def fmt_chime(key: str, entry: dict[str, Any]) -> str:
     ctype = entry.get("type", "?")
-    if ctype == "notes":
+    if ctype == "silent":
+        comment = entry.get("comment", "")
+        line = dim("(silent)")
+        if comment:
+            line += f"  {dim('# ' + comment)}"
+    elif ctype == "notes":
         notes    = entry.get("notes", "")
         vel      = entry.get("velocity", "?")
         dur      = entry.get("duration", "?")
@@ -168,8 +173,10 @@ def print_chimes(chimes: dict[str, Any], highlight_missing: bool = False) -> Non
     present = {k for k in chimes if not k.startswith("_")}
     for key in KNOWN_KEYS:
         if key in chimes:
-            mark = green("✓")
-            print(f" {mark} {fmt_chime(key, chimes[key])}")
+            entry = chimes[key]
+            is_silent = entry.get("type") == "silent"
+            mark = dim("—") if is_silent else green("✓")
+            print(f" {mark} {fmt_chime(key, entry)}")
         elif highlight_missing:
             mark = yellow("✗")
             print(f" {mark} {bold(key):30s} {yellow('MISSING')}")
@@ -265,9 +272,11 @@ def edit_chime(key: str, chimes: dict[str, Any]) -> bool:
     print()
     hr()
     if existing:
+        is_silent = existing.get("type") == "silent"
         print(f" Editing {bold(key)}:")
         print(f"   {fmt_chime(key, existing)}")
     else:
+        is_silent = False
         print(f" Creating {bold(yellow(key))} (currently missing)")
 
     ctype = choose_type(existing.get("type") if existing else None)
@@ -275,12 +284,13 @@ def edit_chime(key: str, chimes: dict[str, Any]) -> bool:
         return False
 
     if ctype == "silent":
-        if key in chimes:
-            if confirm(f"  Remove '{key}' entirely?", default=False):
-                del chimes[key]
-                print(green(f"  Removed '{key}'."))
-                return True
-        return False
+        comment = ask("  Comment (optional)", existing.get("comment", "") if existing else "")
+        entry: dict[str, Any] = {"type": "silent"}
+        if comment:
+            entry["comment"] = comment
+        chimes[key] = entry
+        print(green(f"  Set '{key}' to silent."))
+        return True
 
     if ctype == "notes":
         entry = edit_notes_chime(existing if existing and existing.get("type") == "notes" else None)
@@ -299,12 +309,18 @@ def edit_chime(key: str, chimes: dict[str, Any]) -> bool:
 
 def fill_missing(chimes: dict[str, Any], example: dict[str, Any]) -> bool:
     """Walk through missing keys, offer to copy from example or create custom."""
-    missing = [k for k in KNOWN_KEYS if k not in chimes]
+    missing = [k for k in KNOWN_KEYS
+               if k not in chimes or chimes[k].get("type") == "silent"]
+    truly_missing = [k for k in missing if k not in chimes]
+    silenced      = [k for k in missing if k in chimes]
     if not missing:
         print(green("  All known chime keys are present. Nothing missing!"))
         return False
 
-    print(yellow(f"\n  {len(missing)} missing chime(s): {', '.join(missing)}"))
+    parts = []
+    if truly_missing: parts.append(f"{len(truly_missing)} missing")
+    if silenced:      parts.append(f"{len(silenced)} silenced")
+    print(yellow(f"\n  {', '.join(parts)}: {', '.join(missing)}"))
     changed = False
 
     for key in missing:
@@ -381,14 +397,14 @@ def main_menu(chimes: dict[str, Any], example: dict[str, Any],
         elif choice == "3":
             present = [k for k in chimes if not k.startswith("_")]
             if not present:
-                print(yellow("  No chimes to delete."))
+                print(yellow("  No chimes to silence."))
                 continue
             print("  Present keys:", ", ".join(present))
-            key = ask("  Key to delete").strip()
+            key = ask("  Key to silence").strip()
             if key in chimes:
-                if confirm(f"  Delete '{key}'?", default=False):
-                    del chimes[key]
-                    print(green(f"  Deleted '{key}'."))
+                if confirm(f"  Set '{key}' to silent (type: silent)?", default=True):
+                    chimes[key] = {"type": "silent"}
+                    print(green(f"  '{key}' set to silent."))
                     if confirm("  Save now?", default=True):
                         save_json(chimes_path, chimes)
                         print(green("  Saved."))
