@@ -24,6 +24,8 @@ export class MIDIStreamer {
         };
         this.isUpdatingFromRemote = false;
         this.MAX_TIMESTAMP_DELAY_MS = 10000;
+        // Task 3: per-peer rolling note buffer for easter egg detection
+        this._peerNoteBuffers = new Map(); // peerId → number[]
 
         this.recorder        = new MIDIRecorder();
         this.currentTake     = null;
@@ -768,6 +770,22 @@ export class MIDIStreamer {
         }
     }
 
+    // Task 3: C D E C D C (pitches mod 12: 0 2 4 0 2 0) — detected per peer
+    _checkFuckYouSequence(peerId, midiNote) {
+        const SEQ = [0, 2, 4, 0, 2, 0];
+        if (!this._peerNoteBuffers.has(peerId)) {
+            this._peerNoteBuffers.set(peerId, []);
+        }
+        const buf = this._peerNoteBuffers.get(peerId);
+        buf.push(midiNote % 12);
+        if (buf.length > SEQ.length) buf.shift();
+        if (buf.length === SEQ.length && buf.every((v, i) => v === SEQ[i])) {
+            buf.length = 0; // reset so it doesn't fire again immediately
+            const nick = this._participants?.get(peerId)?.nickname ?? t('chat.peer');
+            this.ui.addMessage(t('easter.fuckYou').replace('{nick}', nick), 'info');
+        }
+    }
+
     handleWebRTCMessage(msg) {
         if (msg.type === 'chat') {
             // Look up the sender's nickname from the participants panel
@@ -866,6 +884,8 @@ export class MIDIStreamer {
                 // Update playing indicator (visual only, no SR)
                 if (msg.from && st === 0x90 && data[2] > 0) {
                     this._participants?.setPeerPlaying(msg.from, true);
+                    // Task 3: easter egg detection
+                    this._checkFuckYouSequence(msg.from, data[1]);
                 }
             }
             // MIDIOutput.send() requires a typed array, not a plain Array

@@ -212,6 +212,7 @@ export const translations = {
         'chat.send': 'Send',
         'chat.you': 'You',
         'chat.peer': 'Partner',
+        'easter.fuckYou': '🎹 {nick} says go pound sand',
 
         // Participants
         'participants.title': 'Participants',
@@ -503,6 +504,7 @@ export const translations = {
         'chat.send': 'Отправить',
         'chat.you': 'Вы',
         'chat.peer': 'Собеседник',
+        'easter.fuckYou': '🎹 {nick} вас послал',
 
         // Participants
         'participants.title': 'Участники',
