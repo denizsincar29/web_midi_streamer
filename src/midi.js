@@ -323,7 +323,7 @@ export class MIDIManager {
             }
         }
         
-        const chimeConfig = this.chimes[type] || this.chimes['info'];
+        const chimeConfig = this.chimes[type];
         if (!chimeConfig) return;
         
         // Handle different chime types
