@@ -96,6 +96,9 @@ git pull
 # (no build step — static files served directly)
 ```
 
+> **Rule:** bump `CACHE_NAME` in `service-worker.js` in every commit that touches JS/HTML/CSS.
+> Current version: `jamrtc-v2.0.12`
+
 ## How to run chimes manager
 
 ```bash
