@@ -1,0 +1,34 @@
+# JamRTC Room Monitor — English translation
+# This file is the default (source) language.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "JamRTC Room Monitor"
+msgstr "JamRTC Room Monitor"
+
+msgid "Open JamRTC in the default browser"
+msgstr "Open JamRTC in the default browser"
+
+msgid "Join the last announced JamRTC room in the browser"
+msgstr "Join the last announced JamRTC room in the browser"
+
+msgid "Opening JamRTC"
+msgstr "Opening JamRTC"
+
+msgid "Opening room {name}"
+msgstr "Opening room {name}"
+
+msgid "No room announced yet. Wait for a room to appear."
+msgstr "No room announced yet. Wait for a room to appear."
+
+msgid "New room {name}, {n} player(s)"
+msgstr "New room {name}, {n} player(s)"
+
+msgid "Room {name} closed"
+msgstr "Room {name} closed"
+
+msgid "Room {name}: now {n} player(s)"
+msgstr "Room {name}: now {n} player(s)"

@@ -1,0 +1,33 @@
+# JamRTC Room Monitor — Russian translation
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ru\n"
+
+msgid "JamRTC Room Monitor"
+msgstr "Монитор комнат JamRTC"
+
+msgid "Open JamRTC in the default browser"
+msgstr "Открыть JamRTC в браузере по умолчанию"
+
+msgid "Join the last announced JamRTC room in the browser"
+msgstr "Войти в последнюю объявленную комнату JamRTC в браузере"
+
+msgid "Opening JamRTC"
+msgstr "Открываю JamRTC"
+
+msgid "Opening room {name}"
+msgstr "Открываю комнату {name}"
+
+msgid "No room announced yet. Wait for a room to appear."
+msgstr "Пока ни одна комната не объявлялась. Подождите появления комнаты."
+
+msgid "New room {name}, {n} player(s)"
+msgstr "Новая комната {name}, участников: {n}"
+
+msgid "Room {name} closed"
+msgstr "Комната {name} закрыта"
+
+msgid "Room {name}: now {n} player(s)"
+msgstr "Комната {name}: теперь участников {n}"

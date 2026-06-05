@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.13';  // feat: incoming synth, CC filter, easter egg, brb, chat shortcuts
+const CACHE_NAME = 'jamrtc-v2.0.14';  // feat: nvda addon task6
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
