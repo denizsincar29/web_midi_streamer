@@ -211,6 +211,8 @@ export class WebRTCManager {
             if (p.isOpen()) {
                 if (data instanceof Uint8Array) {
                     p.dataChannel.send(data);
+                } else if (typeof data === 'string') {
+                    p.dataChannel.send(data);
                 } else {
                     p.dataChannel.send(JSON.stringify(data));
                 }
@@ -223,7 +225,13 @@ export class WebRTCManager {
     sendTo(remoteId, data) {
         const p = this.peers.get(remoteId);
         if (p?.isOpen()) {
-            p.dataChannel.send(data instanceof Uint8Array ? data : JSON.stringify(data));
+            if (data instanceof Uint8Array) {
+                p.dataChannel.send(data);
+            } else if (typeof data === 'string') {
+                p.dataChannel.send(data);
+            } else {
+                p.dataChannel.send(JSON.stringify(data));
+            }
             return true;
         }
         return false;

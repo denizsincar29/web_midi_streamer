@@ -86,11 +86,12 @@ export class MIDIStreamer {
         };
 
         this.webrtc.onPeerConnect = (peerId) => {
-            // Send our hello so the remote side knows our nickname + role
-            this.webrtc.sendTo(peerId, JSON.stringify({
+            // Send our hello so the remote side knows our nickname + role.
+            // Both sides send hello on DC open, so the exchange is always mutual.
+            this.webrtc.sendTo(peerId, {
                 type: 'hello',
                 data: { nickname: this._myNickname(), role: 'player' },
-            }));
+            });
         };
 
         this.webrtc.onPeerDisconnect = (peerId) => {
@@ -379,7 +380,7 @@ export class MIDIStreamer {
         this.ui.onSendChat = (message) => {
             if (this.webrtc.isConnected()) {
                 this.webrtc.send({ type: 'chat', data: message });
-                this.ui.addChatMessage(message, 'you');
+                this.ui.addChatMessage(message, 'you', this._myNickname());
             } else {
                 this.ui.addMessage(t('chat.notConnected'), 'error');
             }
@@ -709,18 +710,31 @@ export class MIDIStreamer {
 
     handleWebRTCMessage(msg) {
         if (msg.type === 'chat') {
-            this.ui.addChatMessage(msg.data, 'peer');
-            this.ui.announceStatus(`${t('chat.peer')}: ${msg.data}`);
+            // Look up the sender's nickname from the participants panel
+            const peerNick = this._participants?.get(msg.from)?.nickname ?? null;
+            this.ui.addChatMessage(msg.data, 'peer', peerNick);
+            this.ui.announceStatus(`${peerNick ?? t('chat.peer')}: ${msg.data}`);
             return;
         }
 
         if (msg.type === 'hello') {
             const { nickname, role } = msg.data ?? {};
+            const isNew = !this._participants?.get(msg.from);
             this._participants?.add(msg.from, nickname, role);
             // Register the peer's colour with the piano so their notes light up
             const color = this._participants?.colorFor(msg.from);
             if (color && this._piano) {
                 this._piano.setPeerColor(msg.from, color.css);
+            }
+            // If this is the first hello from this peer, reply with ours.
+            // onPeerConnect already sends hello at DC-open time on the initiator side,
+            // but the responder side (polite peer) may not have sent one yet —
+            // this ensures the exchange is always symmetric without infinite loops.
+            if (isNew) {
+                this.webrtc.sendTo(msg.from, {
+                    type: 'hello',
+                    data: { nickname: this._myNickname(), role: 'player' },
+                });
             }
             return;
         }

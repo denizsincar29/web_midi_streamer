@@ -95,6 +95,11 @@ export class ParticipantsManager {
         this._render();
     }
 
+    /** Returns the full peer info object for a peerId, or null if not found. */
+    get(peerId) {
+        return this._peers.get(peerId) ?? null;
+    }
+
     /** Returns the color object for a peerId, or null if not found. */
     colorFor(peerId) {
         return this._peers.get(peerId)?.color ?? null;

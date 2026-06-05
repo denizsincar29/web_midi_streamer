@@ -58,7 +58,7 @@ export class UIManager {
         }
     }
 
-    addChatMessage(message, sender = 'peer') {
+    addChatMessage(message, sender = 'peer', nickname = null) {
         // Auto-expand the chat panel when a peer message arrives
         if (sender === 'peer') {
             const chatDetails = document.querySelector('.chat-section');
@@ -70,7 +70,8 @@ export class UIManager {
 
         const senderSpan = document.createElement('div');
         senderSpan.className = 'chat-message-sender';
-        senderSpan.textContent = sender === 'you' ? t('chat.you') : t('chat.peer');
+        // Use provided nickname if available, else fall back to i18n label
+        senderSpan.textContent = nickname ?? (sender === 'you' ? t('chat.you') : t('chat.peer'));
 
         const textSpan = document.createElement('div');
         textSpan.className = 'chat-message-text';
