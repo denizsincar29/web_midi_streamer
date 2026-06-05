@@ -1,4 +1,5 @@
 import { getNoteName } from './utils.js';
+import { MIDIRecorder } from './recorder.js';
 
 export class MIDIManager {
     constructor(translateFn) {
@@ -377,8 +378,7 @@ export class MIDIManager {
     // ── MIDI file chime playback ────────────────────────────────────────────────
 
     /**
-     * Fetch and play a Standard MIDI File (SMF type 0 or 1).
-     * Only channel-voice messages are forwarded; meta/sysex are skipped.
+     * Fetch and play a Standard MIDI File via the existing MIDIRecorder machinery.
      * @param {string} url - path relative to the page (e.g. "./chimes/logo.mid")
      */
     async _playMidiFile(url) {
@@ -392,19 +392,21 @@ export class MIDIManager {
             console.warn('[chime] failed to load MIDI file:', url, e);
             return;
         }
+
+        // Parse SMF into the same {data, deltaMs} format that MIDIRecorder produces
         const events = this._parseSMF(buf);
         if (!events.length) { console.warn('[chime] no playable events in', url); return; }
-        // Cancel any in-progress MIDI file chime
-        if (this._midiFileTimers) this._midiFileTimers.forEach(clearTimeout);
-        this._midiFileTimers = [];
-        for (const ev of events) {
-            const tid = setTimeout(() => this.send(ev.data), ev.ms);
-            this._midiFileTimers.push(tid);
-        }
+
+        // Cancel any in-progress MIDI file chime, then play via MIDIRecorder.playback
+        this._midiFilePlayback?.cancel();
+        this._midiFilePlayback = MIDIRecorder.playback(
+            events,
+            (data) => this.send(data),
+        );
     }
 
     /**
-     * Minimal SMF parser — returns [{ms, data}] sorted by time.
+     * Minimal SMF parser — returns [{deltaMs, data}] matching MIDIRecorder's format.
      * Handles type-0 and type-1 files. Ignores sysex and meta events.
      * Tempo meta events (FF 51) ARE tracked so timing is accurate.
      */
@@ -435,17 +437,16 @@ export class MIDIManager {
         const division  = read16();
 
         if (division & 0x8000) { console.warn('[SMF] SMPTE time code not supported'); return []; }
-        const tpq = division; // ticks per quarter note
+        const tpq = division;
 
-        // Pass 1: collect tick-stamped events from all tracks
-        const rawEvents = []; // {tick, data} for voice events; {tick, tempo} for tempo changes
+        // Pass 1: collect {tick, data} voice events and {tick, tempo} tempo changes
+        const rawEvents = [];
 
         for (let tr = 0; tr < numTracks; tr++) {
             if (pos + 8 > u8.length) break;
             if (tag(pos) !== 'MTrk') { console.warn('[SMF] missing MTrk at', pos); break; }
             pos += 4;
-            const chunkLen = read32();
-            const chunkEnd = pos + chunkLen;
+            const chunkEnd = pos + read32();
             let tick    = 0;
             let running = 0;
 
@@ -454,12 +455,10 @@ export class MIDIManager {
                 let status = u8[pos];
 
                 if (status === 0xFF) {
-                    // Meta event
                     pos++;
                     const metaType = read8();
                     const len      = readVLQ();
                     if (metaType === 0x51 && len === 3) {
-                        // Tempo: 3-byte microseconds-per-beat
                         const usPerBeat = (u8[pos] << 16) | (u8[pos+1] << 8) | u8[pos+2];
                         rawEvents.push({ tick, tempo: usPerBeat });
                     }
@@ -468,8 +467,7 @@ export class MIDIManager {
                     continue;
                 }
                 if (status === 0xF0 || status === 0xF7) {
-                    pos++;
-                    pos += readVLQ(); // skip sysex body
+                    pos++; pos += readVLQ();
                     running = 0;
                     continue;
                 }
@@ -479,12 +477,9 @@ export class MIDIManager {
                 else               { cmd = running; }
 
                 const type = cmd & 0xF0;
-                let data;
-                if (type === 0xC0 || type === 0xD0) {
-                    data = [cmd, read8()];
-                } else {
-                    data = [cmd, read8(), read8()];
-                }
+                const data = (type === 0xC0 || type === 0xD0)
+                    ? [cmd, read8()]
+                    : [cmd, read8(), read8()];
                 rawEvents.push({ tick, data });
             }
             pos = chunkEnd;
@@ -493,21 +488,22 @@ export class MIDIManager {
         if (!rawEvents.length) return [];
         rawEvents.sort((a, b) => a.tick - b.tick);
 
-        // Pass 2: convert ticks → ms honouring tempo changes
-        const voiceEvents = [];
-        let curTick   = 0;
-        let curMs     = 0;
-        let usPerBeat = 500000; // default 120 BPM
+        // Pass 2: ticks → deltaMs, honouring tempo changes
+        const result = [];
+        let prevTick  = 0;
+        let prevMs    = 0;
+        let usPerBeat = 500000; // 120 BPM default
 
         for (const ev of rawEvents) {
-            const elapsed = ev.tick - curTick;
-            curMs   += (elapsed / tpq) * (usPerBeat / 1000);
-            curTick  = ev.tick;
+            const ms = prevMs + ((ev.tick - prevTick) / tpq) * (usPerBeat / 1000);
+            prevMs   = ms;
+            prevTick = ev.tick;
             if (ev.tempo !== undefined) { usPerBeat = ev.tempo; continue; }
-            voiceEvents.push({ ms: Math.round(curMs), data: ev.data });
+            result.push({ deltaMs: Math.round(ms - (result.at(-1)?._absMs ?? 0)), data: ev.data, _absMs: ms });
         }
 
-        return voiceEvents;
+        // Strip internal _absMs helper field
+        return result.map(({ deltaMs, data }) => ({ deltaMs, data }));
     }
 
     allNotesOff() {
