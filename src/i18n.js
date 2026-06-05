@@ -213,6 +213,13 @@ export const translations = {
         'chat.you': 'You',
         'chat.peer': 'Partner',
         'easter.fuckYou': '🎹 {nick} says go pound sand',
+        'chat.brb': '{nick} had to step away and will be back soon',
+        'chat.brbBtn': '🚶 BRB',
+        'settings.chatShortcuts': 'Chat Shortcuts',
+        'settings.chatShortcutsDesc': 'Quick messages sent with Ctrl+1 … Ctrl+9 when connected.',
+        'chat.shortcut1': "What's this tune?",
+        'chat.shortcut2': 'I know this standard!',
+        'chat.shortcut3': 'What key?',
 
         // Participants
         'participants.title': 'Participants',
@@ -505,6 +512,13 @@ export const translations = {
         'chat.you': 'Вы',
         'chat.peer': 'Собеседник',
         'easter.fuckYou': '🎹 {nick} вас послал',
+        'chat.brb': '{nick} отошёл по непредвиденным обстоятельствам и скоро вернётся',
+        'chat.brbBtn': '🚶 Скоро вернусь',
+        'settings.chatShortcuts': 'Шаблоны чата',
+        'settings.chatShortcutsDesc': 'Быстрые сообщения: Ctrl+1 … Ctrl+9 при подключении.',
+        'chat.shortcut1': 'Что за тема?',
+        'chat.shortcut2': 'Знаю этот стандарт!',
+        'chat.shortcut3': 'Какая тональность?',
 
         // Participants
         'participants.title': 'Участники',

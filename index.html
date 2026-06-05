@@ -131,6 +131,7 @@
 
                 <button id="connectBtn" class="btn btn-primary" data-i18n="connection.connectBtn">Join Room</button>
                 <button id="disconnectBtn" class="btn btn-danger" disabled data-i18n="connection.disconnectBtn">Disconnect</button>
+                <button id="brbBtn" class="btn btn-secondary" disabled data-i18n="chat.brbBtn" title="Alt+B">🚶 BRB</button>
                 <button id="hideRoomBtn" class="btn btn-secondary" disabled title="Hide this room from the public room list" data-i18n="room.hide">🙈 Hide Room</button>
                 <span id="peerCountBadge" class="peer-count-badge" aria-live="polite"></span>
                 <span id="ipVersionBadge" class="ip-version-badge" aria-hidden="true" hidden title="Active ICE path type and IP version"></span>
@@ -262,6 +263,12 @@
                     <p class="description" data-i18n="debug.description">Test WebRTC data channel connectivity and MIDI echo</p>
 
                     
+                    <!-- Task 5: Chat shortcuts -->
+                    <h3 data-i18n="settings.chatShortcuts">Chat Shortcuts</h3>
+                    <p class="description" data-i18n="settings.chatShortcutsDesc">Send with Ctrl+1 … Ctrl+9 when connected.</p>
+                    <div id="chatShortcutsEditor" class="chat-shortcuts-editor">
+                    </div>
+
                     <!-- Signal Stability Test -->
                     <h3 data-i18n="stability.title">📶 Signal Stability Test</h3>
                     <p class="description" data-i18n="stability.howto">Connect to a peer, set interval and duration, then press Start. Measures packet arrival jitter — low jitter means a stable connection.</p>

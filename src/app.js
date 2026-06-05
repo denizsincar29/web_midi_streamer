@@ -76,6 +76,8 @@ export class MIDIStreamer {
                 this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
                 const el = document.getElementById('peerCountBadge');
                 if (el) el.textContent = '';
+                const brbEl = document.getElementById('brbBtn');
+                if (brbEl) brbEl.disabled = true;
             }
         };
 
@@ -183,7 +185,32 @@ export class MIDIStreamer {
                 e.preventDefault();
                 this.emergencyAllNotesOff();
             }
+            // Task 4: Alt+B → BRB
+            if (e.altKey && !e.ctrlKey && !e.shiftKey && e.key === 'b') {
+                e.preventDefault();
+                this._sendBRB();
+            }
+            // Task 5: Ctrl+1…Ctrl+9 → chat shortcuts
+            if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key >= '1' && e.key <= '9') {
+                const idx = parseInt(e.key) - 1;
+                const shortcuts = this._getChatShortcuts();
+                if (shortcuts[idx]) {
+                    e.preventDefault();
+                    if (this.webrtc.isConnected()) {
+                        const msg = shortcuts[idx];
+                        this.webrtc.send({ type: 'chat', data: msg });
+                        this.ui.addChatMessage(msg, 'you', this._myNickname());
+                    }
+                }
+            }
         });
+
+        // Task 4: BRB button
+        const brbBtn = document.getElementById('brbBtn');
+        if (brbBtn) brbBtn.addEventListener('click', () => this._sendBRB());
+
+        // Task 5: chat shortcuts editor
+        this._initChatShortcutsEditor();
 
         // Wire stability test callbacks
         this.webrtc.onStabilityUpdate = (ev) => this._onStabilityUpdate(ev);
@@ -613,6 +640,8 @@ export class MIDIStreamer {
                 });
                 this.ui.setConnectionUIVisible(false);
                 this._participants?.showPanel(true);
+                const brbBtnEl = document.getElementById('brbBtn');
+                if (brbBtnEl) brbBtnEl.disabled = false;
             }
             this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
             this.ui.updateButtonStates(true, false);
@@ -767,7 +796,74 @@ export class MIDIStreamer {
             if (st === 0x90 && data[2] > 0) this._participants?.setMePlaying(true);
             // Monitor local notes through synth when monitor toggle is on
             if (this._monitorEnabled && this._synth?.loaded) this._synth.processMidi(Array.from(data));
+            // Task 4: BRB pedal combo — sustain (64) + sostenuto (66) held 3 s
+            if (st === 0xB0) {
+                const cc = data[1], val = data[2];
+                if (cc === 64) this._brbPedal64 = val >= 64;
+                if (cc === 66) this._brbPedal66 = val >= 64;
+                if (this._brbPedal64 && this._brbPedal66) {
+                    if (!this._brbPedalTimer) {
+                        this._brbPedalTimer = setTimeout(() => {
+                            this._brbPedalTimer = null;
+                            this._sendBRB();
+                        }, 3000);
+                    }
+                } else {
+                    clearTimeout(this._brbPedalTimer);
+                    this._brbPedalTimer = null;
+                }
+            }
         }
+    }
+
+    // Task 5: render chat shortcuts editor
+    _initChatShortcutsEditor() {
+        const container = document.getElementById('chatShortcutsEditor');
+        if (!container) return;
+        container.innerHTML = '';
+        const shortcuts = this._getChatShortcuts();
+        for (let i = 0; i < 9; i++) {
+            const row = document.createElement('div');
+            row.className = 'shortcut-row';
+            const lbl = document.createElement('label');
+            lbl.textContent = `Ctrl+${i + 1}  `;
+            lbl.setAttribute('for', `shortcut_${i}`);
+            const inp = document.createElement('input');
+            inp.type = 'text';
+            inp.id = `shortcut_${i}`;
+            inp.value = shortcuts[i] ?? '';
+            inp.setAttribute('aria-label', `${t('settings.chatShortcuts')} ${i + 1}`);
+            inp.maxLength = 200;
+            inp.addEventListener('change', () => {
+                const all = this._getChatShortcuts();
+                all[i] = inp.value.trim();
+                localStorage.setItem('jamrtc_chat_shortcuts', JSON.stringify(all));
+            });
+            row.appendChild(lbl);
+            row.appendChild(inp);
+            container.appendChild(row);
+        }
+    }
+
+    // Task 4: BRB broadcast
+    _sendBRB() {
+        if (!this.webrtc.isConnected()) return;
+        const nick = this._myNickname();
+        const msg = t('chat.brb').replace('{nick}', nick);
+        this.webrtc.send({ type: 'chat', data: msg });
+        this.ui.addChatMessage(msg, 'you', nick);
+    }
+
+    // Task 5: get chat shortcuts array from localStorage
+    _getChatShortcuts() {
+        try {
+            const raw = localStorage.getItem('jamrtc_chat_shortcuts');
+            if (raw) return JSON.parse(raw);
+        } catch {}
+        return [
+            t('chat.shortcut1'), t('chat.shortcut2'), t('chat.shortcut3'),
+            '', '', '', '', '', ''
+        ];
     }
 
     // Task 3: C D E C D C (pitches mod 12: 0 2 4 0 2 0) — detected per peer
