@@ -328,10 +328,7 @@ export class MIDIManager {
         
         // Handle different chime types
         if (chimeConfig.type === 'midi') {
-            // MIDI file playback not yet implemented
-            console.warn('MIDI file playback not yet implemented, using default chime');
-            // Fall back to playing a simple note
-            this.playNoteSequence({ notes: 'A4', velocity: 90, duration: 150 });
+            this._playMidiFile(chimeConfig.file);
         } else if (chimeConfig.type === 'notes') {
             // Play note sequence
             this.playNoteSequence(chimeConfig);
@@ -377,6 +374,142 @@ export class MIDIManager {
      * Send "All Notes Off" CC to all 16 MIDI channels
      * This ensures no stuck notes when page unloads or disconnects
      */
+    // ── MIDI file chime playback ────────────────────────────────────────────────
+
+    /**
+     * Fetch and play a Standard MIDI File (SMF type 0 or 1).
+     * Only channel-voice messages are forwarded; meta/sysex are skipped.
+     * @param {string} url - path relative to the page (e.g. "./chimes/logo.mid")
+     */
+    async _playMidiFile(url) {
+        if (!url) { console.warn('[chime] midi type requires a "file" field'); return; }
+        let buf;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            buf = await res.arrayBuffer();
+        } catch (e) {
+            console.warn('[chime] failed to load MIDI file:', url, e);
+            return;
+        }
+        const events = this._parseSMF(buf);
+        if (!events.length) { console.warn('[chime] no playable events in', url); return; }
+        // Cancel any in-progress MIDI file chime
+        if (this._midiFileTimers) this._midiFileTimers.forEach(clearTimeout);
+        this._midiFileTimers = [];
+        for (const ev of events) {
+            const tid = setTimeout(() => this.send(ev.data), ev.ms);
+            this._midiFileTimers.push(tid);
+        }
+    }
+
+    /**
+     * Minimal SMF parser — returns [{ms, data}] sorted by time.
+     * Handles type-0 and type-1 files. Ignores sysex and meta events.
+     * Tempo meta events (FF 51) ARE tracked so timing is accurate.
+     */
+    _parseSMF(buf) {
+        const u8 = new Uint8Array(buf);
+        const dv = new DataView(buf);
+        let pos  = 0;
+
+        const read8   = () => u8[pos++];
+        const read16  = () => { const v = dv.getUint16(pos, false); pos += 2; return v; };
+        const read32  = () => { const v = dv.getUint32(pos, false); pos += 4; return v; };
+        const readVLQ = () => {
+            let val = 0;
+            for (let i = 0; i < 4; i++) {
+                const b = read8();
+                val = (val << 7) | (b & 0x7f);
+                if (!(b & 0x80)) break;
+            }
+            return val;
+        };
+        const tag = (p) => String.fromCharCode(u8[p], u8[p+1], u8[p+2], u8[p+3]);
+
+        if (tag(0) !== 'MThd') { console.warn('[SMF] not a MIDI file'); return []; }
+        pos = 4;
+        read32(); // header length (always 6)
+        read16(); // format (0 or 1, both handled)
+        const numTracks = read16();
+        const division  = read16();
+
+        if (division & 0x8000) { console.warn('[SMF] SMPTE time code not supported'); return []; }
+        const tpq = division; // ticks per quarter note
+
+        // Pass 1: collect tick-stamped events from all tracks
+        const rawEvents = []; // {tick, data} for voice events; {tick, tempo} for tempo changes
+
+        for (let tr = 0; tr < numTracks; tr++) {
+            if (pos + 8 > u8.length) break;
+            if (tag(pos) !== 'MTrk') { console.warn('[SMF] missing MTrk at', pos); break; }
+            pos += 4;
+            const chunkLen = read32();
+            const chunkEnd = pos + chunkLen;
+            let tick    = 0;
+            let running = 0;
+
+            while (pos < chunkEnd) {
+                tick += readVLQ();
+                let status = u8[pos];
+
+                if (status === 0xFF) {
+                    // Meta event
+                    pos++;
+                    const metaType = read8();
+                    const len      = readVLQ();
+                    if (metaType === 0x51 && len === 3) {
+                        // Tempo: 3-byte microseconds-per-beat
+                        const usPerBeat = (u8[pos] << 16) | (u8[pos+1] << 8) | u8[pos+2];
+                        rawEvents.push({ tick, tempo: usPerBeat });
+                    }
+                    pos += len;
+                    running = 0;
+                    continue;
+                }
+                if (status === 0xF0 || status === 0xF7) {
+                    pos++;
+                    pos += readVLQ(); // skip sysex body
+                    running = 0;
+                    continue;
+                }
+
+                let cmd;
+                if (status & 0x80) { cmd = running = status; pos++; }
+                else               { cmd = running; }
+
+                const type = cmd & 0xF0;
+                let data;
+                if (type === 0xC0 || type === 0xD0) {
+                    data = [cmd, read8()];
+                } else {
+                    data = [cmd, read8(), read8()];
+                }
+                rawEvents.push({ tick, data });
+            }
+            pos = chunkEnd;
+        }
+
+        if (!rawEvents.length) return [];
+        rawEvents.sort((a, b) => a.tick - b.tick);
+
+        // Pass 2: convert ticks → ms honouring tempo changes
+        const voiceEvents = [];
+        let curTick   = 0;
+        let curMs     = 0;
+        let usPerBeat = 500000; // default 120 BPM
+
+        for (const ev of rawEvents) {
+            const elapsed = ev.tick - curTick;
+            curMs   += (elapsed / tpq) * (usPerBeat / 1000);
+            curTick  = ev.tick;
+            if (ev.tempo !== undefined) { usPerBeat = ev.tempo; continue; }
+            voiceEvents.push({ ms: Math.round(curMs), data: ev.data });
+        }
+
+        return voiceEvents;
+    }
+
     allNotesOff() {
         if (!this.selectedOutput) return;
         
