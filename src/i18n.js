@@ -86,6 +86,14 @@ export const translations = {
         'settings.lowLatencyDesc': 'Uses an unordered, no-retransmit DataChannel to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.',
         'settings.lowLatencyOn': '⚡ Low-Latency Mode ON (unordered, no retransmits) — reconnect to apply',
         'settings.lowLatencyOff': '🔁 Low-Latency Mode OFF — reconnect to apply',
+        'settings.incomingSynth': '🔊 Play incoming MIDI through browser synth',
+        'settings.incomingSynthDesc': 'Hear remote players without a MIDI output device (e.g. on iPhone). Uses the built-in browser piano.',
+        'settings.incomingSynthOn': '🔊 Incoming synth ON — you will hear remote players through the browser piano',
+        'settings.incomingSynthOff': '🔊 Incoming synth OFF',
+        'settings.sendCC': 'Send MIDI controllers (CC) to peers',
+        'settings.sendCCDesc': 'When off, CC messages are not sent. Sustain, sostenuto and soft pedals are always sent.',
+        'settings.sendCCOn': 'CC messages will be sent to peers',
+        'settings.sendCCOff': 'CC messages blocked (pedals still sent)',
 
         // Emergency
         'debug.emergencyHotkey': 'Ctrl+Shift+F4',
@@ -369,6 +377,14 @@ export const translations = {
         'settings.lowLatencyDesc': 'Использует неупорядоченный канал данных без повторных передач для минимизации джиттера. Переподключитесь после переключения. Потеря пакетов ожидаема — залипшие ноты обрабатываются автоматически.',
         'settings.lowLatencyOn': '⚡ Режим минимальной задержки ВКЛЮЧЁН — переподключитесь для применения',
         'settings.lowLatencyOff': '🔁 Режим минимальной задержки ВЫКЛЮЧЕН — переподключитесь для применения',
+        'settings.incomingSynth': '🔊 Играть входящий MIDI через браузерный синтезатор',
+        'settings.incomingSynthDesc': 'Слышать удалённых игроков без MIDI-устройства (например, на iPhone). Использует встроенное фортепиано.',
+        'settings.incomingSynthOn': '🔊 Входящий синтезатор ВКЛ — вы будете слышать других игроков через браузерное фортепиано',
+        'settings.incomingSynthOff': '🔊 Входящий синтезатор ВЫКЛ',
+        'settings.sendCC': 'Отправлять MIDI-контроллеры (CC) участникам',
+        'settings.sendCCDesc': 'Если выкл, CC-сообщения не отправляются. Педали сустейна, сосtenuto и мягкая педаль отправляются всегда.',
+        'settings.sendCCOn': 'CC-сообщения будут отправляться участникам',
+        'settings.sendCCOff': 'CC-сообщения заблокированы (педали всё равно отправляются)',
 
         // Emergency
         'debug.emergencyHotkey': 'Ctrl+Shift+F4',

@@ -228,6 +228,24 @@
                         <p id="llm-desc" class="description" data-i18n="settings.lowLatencyDesc">Uses an unordered, no-retransmit DataChannel (unreliable) to minimise jitter. Reconnect after toggling. Packet loss is expected — stuck notes are handled automatically.</p>
                     </div>
 
+                    <!-- Task 1: Incoming MIDI → Browser Synth -->
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="incomingSynthEnabled" aria-describedby="incoming-synth-desc">
+                            <span data-i18n="settings.incomingSynth">🔊 Play incoming MIDI through browser synth</span>
+                        </label>
+                        <p id="incoming-synth-desc" class="description" data-i18n="settings.incomingSynthDesc">Lets you hear remote players even without a MIDI output device (e.g. on iPhone). Uses the built-in browser piano.</p>
+                    </div>
+
+                    <!-- Task 2: Send CC messages -->
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="sendCCEnabled" aria-describedby="send-cc-desc" checked>
+                            <span data-i18n="settings.sendCC">Send MIDI controllers (CC) to peers</span>
+                        </label>
+                        <p id="send-cc-desc" class="description" data-i18n="settings.sendCCDesc">When off, CC messages (mod wheel, expression, etc.) are not sent. Sustain, sostenuto and soft pedals are always sent.</p>
+                    </div>
+
                     <h3 data-i18n="settings.debugTools">Debug Tools</h3>
 
                     <!-- Emergency All Notes Off -->

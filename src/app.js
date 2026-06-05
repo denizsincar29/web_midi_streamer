@@ -19,6 +19,8 @@ export class MIDIStreamer {
             midiEchoEnabled: false,
             ipv6Enabled: true,
             lowLatencyMode: false,
+            sendCC: true,              // Task 2: filter outgoing CC
+            incomingSynth: false,      // Task 1: play incoming MIDI through browser synth
         };
         this.isUpdatingFromRemote = false;
         this.MAX_TIMESTAMP_DELAY_MS = 10000;
@@ -372,6 +374,51 @@ export class MIDIStreamer {
             });
         }
 
+        // Task 1: incoming synth toggle
+        const incomingSynthToggle = document.getElementById('incomingSynthEnabled');
+        if (incomingSynthToggle) {
+            // Restore persisted value
+            const saved = localStorage.getItem('jamrtc_incoming_synth');
+            if (saved === 'true') {
+                incomingSynthToggle.checked = true;
+                this.settings.incomingSynth = true;
+            }
+            incomingSynthToggle.addEventListener('change', async (e) => {
+                this.settings.incomingSynth = e.target.checked;
+                localStorage.setItem('jamrtc_incoming_synth', String(e.target.checked));
+                if (e.target.checked) {
+                    if (!this._synth) {
+                        const { BrowserSynth } = await import('./synth.js');
+                        this._synth = new BrowserSynth();
+                    }
+                    if (!this._synth.loaded) {
+                        this._synth.load().catch(err => console.warn('[IncomingSynth] load failed:', err));
+                    }
+                    this._synth.setEnabled(true);
+                    this.ui.addMessage(t('settings.incomingSynthOn'), 'info');
+                } else {
+                    this._synth?.setEnabled(false);
+                    this._synth?.allNotesOff();
+                    this.ui.addMessage(t('settings.incomingSynthOff'), 'info');
+                }
+            });
+        }
+
+        // Task 2: send CC toggle
+        const sendCCToggle = document.getElementById('sendCCEnabled');
+        if (sendCCToggle) {
+            const savedCC = localStorage.getItem('jamrtc_send_cc');
+            // Default ON — only disable if explicitly stored as 'false'
+            const ccEnabled = savedCC !== 'false';
+            sendCCToggle.checked = ccEnabled;
+            this.settings.sendCC = ccEnabled;
+            sendCCToggle.addEventListener('change', (e) => {
+                this.settings.sendCC = e.target.checked;
+                localStorage.setItem('jamrtc_send_cc', String(e.target.checked));
+                this.ui.addMessage(e.target.checked ? t('settings.sendCCOn') : t('settings.sendCCOff'), 'info');
+            });
+        }
+
         // Emergency All Notes Off
         const emergencyBtn = document.getElementById('emergencyAllNotesOff');
         if (emergencyBtn) {
@@ -660,6 +707,17 @@ export class MIDIStreamer {
 
     handleMIDIInput(data) {
         if (!this.settings.sysexEnabled && data[0] === 0xF0) return;
+
+        // Task 2: optionally block outgoing CC messages (except pedals 64/66/67)
+        if (!this.settings.sendCC) {
+            const st = data[0] & 0xF0;
+            if (st === 0xB0) {
+                const cc = data[1];
+                // Always pass sustain (64), sostenuto (66), soft pedal (67)
+                if (cc !== 64 && cc !== 66 && cc !== 67) return;
+            }
+        }
+
         this.recorder.feed(data);
 
         // Stuck Note Prevention (outgoing)
@@ -815,6 +873,10 @@ export class MIDIStreamer {
             // Record incoming MIDI alongside local notes for collaborative recording
             this.recorder.feed(midiBytes);
             this.midi.send(midiBytes);
+            // Task 1: play incoming MIDI through browser synth (listener mode)
+            if (this.settings.incomingSynth && this._synth) {
+                this._synth.processMidi(Array.from(midiBytes));
+            }
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
                 const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
                 this.webrtc.send(echoMessage);
