@@ -626,7 +626,7 @@ export class WebRTCManager {
         peer.pc?.close();
         this.peers.delete(remoteId);
         const n = this.connectedCount();
-        this.onStatusUpdate(this._t('webrtc.peerLeft').replace('{peer}', remoteId.slice(0,6)).replace('{n}', n), 'warning', false);
+        this.onStatusUpdate(this._t('webrtc.peerLeft').replace('{peer}', remoteId.slice(0,6)).replace('{n}', n), 'info', false);
         this.onConnectionStateChange?.(n > 0);
         this.onPeerCountChange?.(n);
         this.onPeerDisconnect?.(remoteId);   // let app update participants panel

@@ -65,29 +65,29 @@ export class MIDIStreamer {
         this.webrtc.onConnectionStateChange = (connected) => {
             this.ui.updateButtonStates(true, connected);
             this.ui.enableChat(connected);
-            this._onConnectionChange(connected);   // piano + stability buttons
-            if (connected) {
-                this.stopRoomAutoRefresh();
-                this.midi.playStatusChime('peer_connection');
-                const n = this.webrtc.connectedCount();
-                this.ui.updateConnectionStatus(t('status.connectedPeers').replace('{n}', n), 'connected');
-            } else {
+            this._onConnectionChange(connected);
+            if (!connected) {
+                // Last peer left — stay in room, show "waiting" not "disconnected"
                 this.startRoomAutoRefresh();
-                this.ui.updateConnectionStatus(t('status.disconnected'), 'disconnected');
+                this.ui.updateConnectionStatus(t('status.waitingForPeer'), 'connecting');
+                const el = document.getElementById('peerCountBadge');
+                if (el) el.textContent = '';
             }
         };
 
         this.webrtc.onPeerCountChange = (n) => {
             const el = document.getElementById('peerCountBadge');
             if (el) el.textContent = n > 0 ? `${n} peer${n>1?'s':''}` : '';
-            if (n > 0) {
-                this.ui.updateConnectionStatus(t('status.connectedPeers').replace('{n}', n), 'connected');
-            }
+            this.ui.updateConnectionStatus(
+                n > 0
+                    ? t('status.connectedPeers').replace('{n}', n)
+                    : t('status.waitingForPeer'),
+                n > 0 ? 'connected' : 'connecting'
+            );
         };
 
         this.webrtc.onPeerConnect = (peerId) => {
-            // Send our hello so the remote side knows our nickname + role.
-            // Both sides send hello on DC open, so the exchange is always mutual.
+            this.midi.playStatusChime('peer_connection');
             this.webrtc.sendTo(peerId, {
                 type: 'hello',
                 data: { nickname: this._myNickname(), role: 'player' },
@@ -95,6 +95,7 @@ export class MIDIStreamer {
         };
 
         this.webrtc.onPeerDisconnect = (peerId) => {
+            this.midi.playStatusChime('peer_disconnection');
             this._participants?.remove(peerId);
             this._piano?.removePeer(peerId);
         };

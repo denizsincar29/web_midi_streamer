@@ -73,6 +73,12 @@ export class MIDIManager {
                     velocity: 75,
                     duration: 60
                 },
+                'peer_disconnection': {
+                    type: 'notes',
+                    notes: 'Db7 F6 Db6 Ab6',
+                    velocity: 55,
+                    duration: 60
+                },
                 'startup': {
                     type: 'notes',
                     notes: 'C5 E5 G5 C6',
