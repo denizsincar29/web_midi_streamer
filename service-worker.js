@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.11';  // fix: participants list, chat nicknames, double-stringify
+const CACHE_NAME = 'jamrtc-v2.0.12';  // feat: room list overhaul, nick flow, reconnect fix
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
