@@ -886,7 +886,7 @@ export class MIDIStreamer {
         const msg  = t('version.stalePeer')
             .replace('{nick}', nick)
             .replace('{version}', theirVersion ?? '?');
-        this.ui.addMessage(msg, 'warning', true);
+        this.ui.addMessage(msg, 'warning');  // visual only — SR via announceAssertive below
         this.ui.announceAssertive(msg);
         // Mark the participant row with a stale-cache badge
         this._participants?.setStaleBadge(peerId, theirVersion);
@@ -914,7 +914,7 @@ export class MIDIStreamer {
             const nick = this._participants?.get(peerId)?.nickname
                       ?? ('Peer ' + peerId.slice(0, 6));
             const eggMsg = t('easter.fuckYou').replace('{nick}', nick);
-            this.ui.addMessage(eggMsg, 'info', true);
+            this.ui.addMessage(eggMsg, 'info');  // visual only — SR via announceAssertive below
             this.ui.announceAssertive(eggMsg);
         }
     }
