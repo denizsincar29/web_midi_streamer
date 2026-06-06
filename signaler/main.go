@@ -53,7 +53,16 @@ func (h *Hub) join(c *Client) {
 		h.rooms[c.room] = make(map[string]*Client)
 	}
 	h.rooms[c.room][c.id] = c
-	log.Printf("join  room=%-20s peer=%s  peers_now=%d", c.room, c.id, len(h.rooms[c.room]))
+	count := len(h.rooms[c.room])
+	log.Printf("join  room=%-20s peer=%s  peers_now=%d", c.room, c.id, count)
+	switch count {
+	case 1:
+		// First peer — room just opened
+		notify("🎹 Room opened", "Room "+c.room+" is now open", "low", "musical_keyboard")
+	case 2:
+		// Second peer joined — someone was waiting
+		notify("🎵 Jam started!", "Room "+c.room+": 2 players connected", "default", "musical_keyboard", "tada")
+	}
 }
 
 func (h *Hub) leave(c *Client) {
@@ -65,6 +74,7 @@ func (h *Hub) leave(c *Client) {
 		if len(peers) == 0 {
 			delete(h.rooms, c.room)
 			delete(h.hiddenRooms, c.room) // auto-clean hidden flag
+			notify("🔇 Room closed", "Room "+c.room+" is now empty", "low", "wave")
 		}
 	}
 }
@@ -233,6 +243,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": ok, "room": room, "hidden": false})
 	})
 
+	initNtfy()
 	log.Printf("signaler listening on %s", *addr)
 	log.Fatal(http.ListenAndServe(*addr, mux))
 }

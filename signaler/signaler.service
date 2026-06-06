@@ -8,6 +8,7 @@ Type=simple
 User=denizsincar29
 Group=deniz
 WorkingDirectory=/home/deniz/signaler
+EnvironmentFile=-/home/deniz/signaler/.env
 ExecStart=/home/deniz/signaler/signaler -addr :8987
 
 # Restart on crash, but not on intentional stop
