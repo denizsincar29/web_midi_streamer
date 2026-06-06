@@ -75,6 +75,14 @@ def build_addon():
     print(f"\nBuilt: {OUTPUT_FILE.name}  ({size_kb} KB)")
     print(f"Install: copy to %APPDATA%\\nvda\\addons\\ or double-click in Windows")
 
+    # Also copy to downloads/ at repo root so the web server can serve it
+    import shutil
+    downloads_dir = Path(__file__).resolve().parent.parent / "downloads"
+    downloads_dir.mkdir(exist_ok=True)
+    dest = downloads_dir / OUTPUT_FILE.name
+    shutil.copy2(OUTPUT_FILE, dest)
+    print(f"Deployed to: downloads/{OUTPUT_FILE.name}")
+
 
 if __name__ == "__main__":
     build_addon()

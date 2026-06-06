@@ -4,7 +4,7 @@
 
 // Keep this in sync with CACHE_NAME in service-worker.js.
 // Used in hello handshake so peers can detect stale clients.
-export const APP_VERSION = 'jamrtc-v2.0.20';
+export const APP_VERSION = 'jamrtc-v2.0.21';
 
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 

@@ -145,25 +145,40 @@ export class MIDIStreamer {
         // Check if Web MIDI API is available at all (not on iOS Safari, most mobiles)
         if (!navigator.requestMIDIAccess) {
             this._activateNoMidiMode();
-            return;
-        }
-
-        try {
-            await this.midi.init();
-            this.ui.addMessage(t('midi.accessGranted'), 'success');
-            // NOTE: BrowserSynth as output deprecated — synth now only used for monitor toggle
-            // this._synth = new BrowserSynth();
-            // this.midi.synth = this._synth;
-            // this._initSynthUI();
-            this._initMonitorToggle();
-            this.midi.refreshDevices();
-            // Play startup chime only on the bare landing page (no auto-join)
-            if (!this.roomName) this.midi.playStatusChime('startup');
-            // NOTE: Synth pre-load removed
-            // const currentOut = localStorage.getItem('webmidi_selectedOutputId');
-            // if (!currentOut || currentOut === '__synth__') { this._loadSynth(); }
-        } catch (error) {
-            this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
+            // Auto-load the browser synth for incoming MIDI playback on no-MIDI devices.
+            // We can't wait for a user gesture to load it here since we're already in
+            // an async init — but we can instantiate and load it; AudioContext.resume()
+            // will be retried on first user touch via the document listener in synth.js.
+            {
+                const savedSynth = localStorage.getItem('jamrtc_incoming_synth');
+                const autoEnable = savedSynth === 'true' || savedSynth === null; // default on for no-MIDI
+                if (autoEnable) {
+                    import('./synth.js').then(({ BrowserSynth }) => {
+                        if (!this._synth) {
+                            this._synth = new BrowserSynth();
+                            this._synth.load().catch(err => console.warn('[NoMidi] Synth load failed:', err));
+                            this._synth.setEnabled(true);
+                            localStorage.setItem('jamrtc_incoming_synth', 'true');
+                            // Sync the toggle checkbox if it exists
+                            const tog = document.getElementById('incomingSynthEnabled');
+                            if (tog) { tog.checked = true; this.settings.incomingSynth = true; }
+                        }
+                    });
+                }
+            }
+            // Do NOT return — the rest of init() must still run so that
+            // WebRTC, participants, auto-connect, and event wiring all work.
+        } else {
+            try {
+                await this.midi.init();
+                this.ui.addMessage(t('midi.accessGranted'), 'success');
+                this._initMonitorToggle();
+                this.midi.refreshDevices();
+                // Play startup chime only on the bare landing page (no auto-join)
+                if (!this.roomName) this.midi.playStatusChime('startup');
+            } catch (error) {
+                this.ui.addMessage(`${t('midi.accessFailed')}: ${error.message}`, 'error');
+            }
         }
 
         this.midi.onMessage = (data) => this.handleMIDIInput(data);
