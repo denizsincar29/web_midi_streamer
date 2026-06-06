@@ -89,6 +89,12 @@ export class ParticipantsManager {
         if (p) { p.latency = latencyMs; this._render(); }
     }
 
+    /** Mark a peer's row with a stale-cache warning badge. */
+    setStaleBadge(peerId, theirVersion) {
+        const p = this._peers.get(peerId);
+        if (p) { p.staleVersion = theirVersion; this._render(); }
+    }
+
     /** Update our own displayed nickname (e.g. after the user edits it). */
     setMyNickname(name) {
         this._myNick = name || 'You';
@@ -239,6 +245,16 @@ export class ParticipantsManager {
             lat.className = 'participant-latency';
             lat.textContent = Math.round(info.latency) + ' ms';
             row.appendChild(lat);
+        }
+
+        // Stale cache badge
+        if (!isMe && info?.staleVersion) {
+            const badge = document.createElement('span');
+            badge.className = 'participant-stale';
+            badge.textContent = '⚠️ old';
+            badge.title = 'Old client version: ' + info.staleVersion;
+            badge.setAttribute('aria-label', 'old client version ' + info.staleVersion);
+            row.appendChild(badge);
         }
 
         return row;

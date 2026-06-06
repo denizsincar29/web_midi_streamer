@@ -2,6 +2,10 @@
 // WebRTC signaling is now handled entirely in webrtc.js via WebSocket/MQTT.
 // This file only exports NOTE_NAMES used by other modules.
 
+// Keep this in sync with CACHE_NAME in service-worker.js.
+// Used in hello handshake so peers can detect stale clients.
+export const APP_VERSION = 'jamrtc-v2.0.18';
+
 export const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // Legacy exports (no longer used by webrtc.js but kept to avoid import errors)

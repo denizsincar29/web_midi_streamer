@@ -1252,6 +1252,17 @@ footer a:hover {
     font-variant-numeric: tabular-nums;
 }
 
+.participant-stale {
+    font-size: 0.75em;
+    background: #fffbe6;
+    color: #7a5c00;
+    border: 1px solid #f0c040;
+    border-radius: 4px;
+    padding: 0 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 /* Nickname input in connection section */
 #nicknameInput {
     width: 100%;

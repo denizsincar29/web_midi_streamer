@@ -1,4 +1,5 @@
 import { getRoomNameFromURL, getNameFromURL, copyToClipboard } from './utils.js';
+import { APP_VERSION } from './config.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
 import { WebRTCManager } from './webrtc.js';
@@ -96,7 +97,7 @@ export class MIDIStreamer {
             this.midi.playStatusChime('peer_connection');
             this.webrtc.sendTo(peerId, {
                 type: 'hello',
-                data: { nickname: this._myNickname(), role: 'player' },
+                data: { nickname: this._myNickname(), role: 'player', cacheVersion: APP_VERSION },
             });
         };
 
@@ -322,7 +323,7 @@ export class MIDIStreamer {
                 if (this.webrtc.isConnected()) {
                     this.webrtc.send({
                         type: 'hello',
-                        data: { nickname: nick, role: 'player' },
+                        data: { nickname: nick, role: 'player', cacheVersion: APP_VERSION },
                     });
                 }
             });
@@ -865,6 +866,32 @@ export class MIDIStreamer {
         ];
     }
 
+    // ── Stale cache warning ───────────────────────────────────────────────────
+    _warnStalePeer(peerId, nickname, theirVersion) {
+        // Parse version numbers for comparison: 'jamrtc-vX.Y.Z' → [X,Y,Z]
+        const parse = (v) => {
+            const m = (v ?? '').match(/v(\d+)\.(\d+)\.(\d+)/);
+            return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
+        };
+        const mine  = parse(APP_VERSION);
+        const theirs = parse(theirVersion);
+        // Only warn if their version is strictly older than ours
+        for (let i = 0; i < 3; i++) {
+            if (theirs[i] < mine[i]) break;
+            if (theirs[i] > mine[i]) return; // they're newer — no warning
+        }
+        if (mine.join() === theirs.join()) return; // same version — no warning
+
+        const nick = nickname ?? ('Peer ' + peerId.slice(0, 6));
+        const msg  = t('version.stalePeer')
+            .replace('{nick}', nick)
+            .replace('{version}', theirVersion ?? '?');
+        this.ui.addMessage(msg, 'warning', true);
+        this.ui.announceAssertive(msg);
+        // Mark the participant row with a stale-cache badge
+        this._participants?.setStaleBadge(peerId, theirVersion);
+    }
+
     // Task 3: C D E C D C (pitches mod 12: 0 2 4 0 2 0) — detected per peer
     // This sequence is a well-known Soviet musical joke: playing До-Ре-Ми-До-Ре-До
     // on a piano was a common way to musically say «да пошёл ты на...» —
@@ -882,7 +909,10 @@ export class MIDIStreamer {
         if (buf.length > SEQ.length) buf.shift();
         if (buf.length === SEQ.length && buf.every((v, i) => v === SEQ[i])) {
             buf.length = 0; // reset so it doesn't fire again immediately
-            const nick = this._participants?.get(peerId)?.nickname ?? t('chat.peer');
+            // Nickname should be known by the time a full sequence is played,
+            // but fall back to a short peer ID rather than the generic word.
+            const nick = this._participants?.get(peerId)?.nickname
+                      ?? ('Peer ' + peerId.slice(0, 6));
             const eggMsg = t('easter.fuckYou').replace('{nick}', nick);
             this.ui.addMessage(eggMsg, 'info', true);
             this.ui.announceAssertive(eggMsg);
@@ -899,13 +929,17 @@ export class MIDIStreamer {
         }
 
         if (msg.type === 'hello') {
-            const { nickname, role } = msg.data ?? {};
+            const { nickname, role, cacheVersion } = msg.data ?? {};
             const isNew = !this._participants?.get(msg.from);
             this._participants?.add(msg.from, nickname, role);
             // Register the peer's colour with the piano so their notes light up
             const color = this._participants?.colorFor(msg.from);
             if (color && this._piano) {
                 this._piano.setPeerColor(msg.from, color.css);
+            }
+            // Check if peer is running an older client version
+            if (cacheVersion && cacheVersion !== APP_VERSION) {
+                this._warnStalePeer(msg.from, nickname, cacheVersion);
             }
             // If this is the first hello from this peer, reply with ours.
             // onPeerConnect already sends hello at DC-open time on the initiator side,
@@ -914,7 +948,7 @@ export class MIDIStreamer {
             if (isNew) {
                 this.webrtc.sendTo(msg.from, {
                     type: 'hello',
-                    data: { nickname: this._myNickname(), role: 'player' },
+                    data: { nickname: this._myNickname(), role: 'player', cacheVersion: APP_VERSION },
                 });
             }
             return;
