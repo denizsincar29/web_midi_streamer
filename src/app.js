@@ -320,10 +320,10 @@ export class MIDIStreamer {
                 if (nick) localStorage.setItem('midi_nickname', nick);
                 // If already connected, broadcast the new nickname to all peers
                 if (this.webrtc.isConnected()) {
-                    this.webrtc.send(JSON.stringify({
+                    this.webrtc.send({
                         type: 'hello',
                         data: { nickname: nick, role: 'player' },
-                    }));
+                    });
                 }
             });
         }
@@ -362,9 +362,6 @@ export class MIDIStreamer {
             this.midi.refreshDevices();
             this.ui.addMessage(t('midi.devicesRefreshed'), 'info');
         });
-
-        const refreshRoomsBtn = document.getElementById('refreshRoomsBtn');
-        if (refreshRoomsBtn) refreshRoomsBtn.addEventListener('click', () => this.refreshAvailableRooms());
 
         const helpBtn = document.getElementById('helpBtn');
         helpBtn.addEventListener('click', () => {

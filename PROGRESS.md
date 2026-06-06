@@ -105,3 +105,43 @@ git pull
 python3 scripts/chimes_manager.py          # default /var/www/html/jamrtc
 python3 scripts/chimes_manager.py /path    # custom deploy dir
 ```
+
+---
+
+## Audit & fix pass (June 2026)
+
+### Bugs found and fixed
+
+**`fix: double-stringify in nickname broadcast (app.js)`**
+- `send(JSON.stringify({type:'hello',...}))` — pre-stringifying before `send()` caused the hello to arrive as a raw string; `_handleData` parsed it to a string (not object), so `msg.type` was undefined → message silently dropped. Peer's nickname never updated after the user edited it while connected.
+- Fixed: removed `JSON.stringify` wrapper.
+
+**`fix: i18n — participants.nicknameRequired missing from EN and RU`**
+- Used in two places in app.js; was guarded with `|| 'fallback'` so the missing key didn't crash but the fallback text wasn't translated.
+- Added to both EN and RU.
+
+**`fix: i18n — midi.monitor, midi.noMidiApi, synth.* keys missing from RU`**
+- Both keys are in `data-i18n` attributes in index.html but only defined in EN.
+- Added full RU translations for all 8 missing synth/monitor keys.
+
+**`fix: NVDA addon — time.sleep() on main thread`**
+- `_announce()` called `time.sleep(SPEECH_DELAY)` which, when invoked via `wx.CallAfter`, ran on NVDA's main thread → froze NVDA UI for 500 ms on every room change.
+- Fixed: replaced with `wx.CallLater(500, ui.message, message)`.
+
+**`feat: NVDA addon — default keyboard shortcuts`**
+- `script_openJamRTC` → `NVDA+Shift+M` (open JamRTC in browser)
+- `script_joinLastRoom` → `NVDA+Shift+R` (join last announced room)
+- Both shortcuts can be rebound in NVDA's Input Gestures dialog.
+
+**`chore: removed dead refreshRoomsBtn listener (app.js)`**
+- Element no longer exists in HTML; the guarded no-op was cleaned up.
+
+### Validation
+- All `src/*.js` syntax-valid: acorn --ecma2022 --module ✅
+- `service-worker.js` syntax-valid: acorn --ecma2022 ✅
+- All `*.py` files: `python3 -m py_compile` ✅
+- NVDA addon: builds to valid `.nvda-addon` zip ✅
+- EN/RU i18n key parity: ✅ (after fixes)
+
+### Current SW cache version
+`jamrtc-v2.0.15`

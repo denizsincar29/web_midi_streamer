@@ -58,10 +58,14 @@ def _rooms_dict(rooms_list):
 
 
 def _announce(message):
-    """Beep, wait SPEECH_DELAY, then speak."""
+    """Beep then speak (speech delayed by SPEECH_DELAY_MS on the main thread)."""
     tones.beep(BEEP_FREQ, BEEP_DUR)
-    time.sleep(SPEECH_DELAY)
-    ui.message(message)
+    # wx.CallLater schedules the speech after the beep without blocking.
+    try:
+        import wx
+        wx.CallLater(int(SPEECH_DELAY * 1000), ui.message, message)
+    except Exception:
+        ui.message(message)
 
 
 # ── Plugin ─────────────────────────────────────────────────────────────────────
@@ -144,7 +148,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     @script(
         # Translators: Description shown in Input Gestures dialog
         description=_("Open JamRTC in the default browser"),
-        gesture=None,
+        gesture="kb:NVDA+shift+m",
     )
     def script_openJamRTC(self, gesture):
         webbrowser.open(BASE_URL)
@@ -154,7 +158,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
     @script(
         # Translators: Description shown in Input Gestures dialog
         description=_("Join the last announced JamRTC room in the browser"),
-        gesture=None,
+        gesture="kb:NVDA+shift+r",
     )
     def script_joinLastRoom(self, gesture):
         if self._last_room:

@@ -19,5 +19,8 @@
   "homepage": "https://github.com/denizsincar29/web_jamrtc#readme",
   "devDependencies": {
     "@playwright/test": "^1.60.0"
+  },
+  "dependencies": {
+    "acorn": "^8.16.0"
   }
 }

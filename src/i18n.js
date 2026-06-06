@@ -227,6 +227,7 @@ export const translations = {
         'participants.nicknamePlaceholder': 'How others will see you',
         'participants.nicknameDescription': 'Shown to other participants',
         'participants.defaultNickname': 'Player',
+        'participants.nicknameRequired': 'Please enter a nickname to join the room.',
         
         // Footer
         'footer.help': 'Help',
@@ -315,6 +316,16 @@ export const translations = {
         'app.tagline': '🎹 Подключите цифровое пианино по USB, пригласите друга и играйте вместе в реальном времени — <strong>задержка в 5 раз меньше, чем в аудио или видеозвонках.</strong> Начните играть за секунды.',
         
         'header.tools': '🎹 Мини-приложения',
+
+        // Browser Synth
+        'synth.name'     : 'Рояль',
+        'synth.enable'   : 'Рояль',
+        'synth.loading'  : 'Загрузка сэмплов пианино…',
+        'synth.ready'    : '🎹 Рояль готов',
+        'synth.off'      : '',
+        'synth.tooltip'  : 'Играть ноты через динамики (Salamander Grand Piano)',
+        'midi.monitor'   : '🎧 Мониторинг входа',
+        'midi.noMidiApi' : 'MIDI-клавиатура не обнаружена — используется браузерное пианино 🎹',
 
         // Status
         'status.title': 'Статус:',
@@ -526,6 +537,7 @@ export const translations = {
         'participants.nicknamePlaceholder': 'Как вас видят другие',
         'participants.nicknameDescription': 'Виден другим участникам',
         'participants.defaultNickname': 'Игрок',
+        'participants.nicknameRequired': 'Введите никнейм для входа в комнату.',
         
         // Footer
         'footer.help': 'Справка',
