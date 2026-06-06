@@ -56,8 +56,12 @@ def apply(path: Path, pattern: re.Pattern, new_version: str, dry: bool) -> str:
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != '--dry-run']
     dry  = '--dry-run' in sys.argv
+    args = [a for a in sys.argv[1:] if a not in ('--dry-run', '--help', '-h')]
+
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print(__doc__)
+        sys.exit(0)
 
     current = read_current_version()
 
