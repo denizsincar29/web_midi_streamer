@@ -875,7 +875,9 @@ export class MIDIStreamer {
         if (buf.length === SEQ.length && buf.every((v, i) => v === SEQ[i])) {
             buf.length = 0; // reset so it doesn't fire again immediately
             const nick = this._participants?.get(peerId)?.nickname ?? t('chat.peer');
-            this.ui.addMessage(t('easter.fuckYou').replace('{nick}', nick), 'info');
+            const eggMsg = t('easter.fuckYou').replace('{nick}', nick);
+            this.ui.addMessage(eggMsg, 'info', true);
+            this.ui.announceAssertive(eggMsg);
         }
     }
 
@@ -884,7 +886,7 @@ export class MIDIStreamer {
             // Look up the sender's nickname from the participants panel
             const peerNick = this._participants?.get(msg.from)?.nickname ?? null;
             this.ui.addChatMessage(msg.data, 'peer', peerNick);
-            this.ui.announceStatus(`${peerNick ?? t('chat.peer')}: ${msg.data}`);
+            this.ui.announceAssertive(`${peerNick ?? t('chat.peer')}: ${msg.data}`);
             return;
         }
 

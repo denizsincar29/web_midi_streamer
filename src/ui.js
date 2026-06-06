@@ -160,6 +160,20 @@ export class UIManager {
         }
     }
 
+    /**
+     * Announce text via the assertive live region (participantAnnouncer).
+     * Use for time-sensitive events that must interrupt NVDA/JAWS: BRB, easter egg, etc.
+     * Double-rAF ensures re-announcement of identical consecutive text.
+     */
+    announceAssertive(text) {
+        const el = document.getElementById('participantAnnouncer');
+        if (!el) { this.announceStatus(text); return; }
+        el.textContent = '';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => { el.textContent = text; });
+        });
+    }
+
     updateButtonStates(connected, debugEnabled = false) {
         this.elements.connectBtn.disabled = connected;
         this.elements.disconnectBtn.disabled = !connected;

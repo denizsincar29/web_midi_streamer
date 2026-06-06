@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.15';  // fix: i18n parity, addon gestures
+const CACHE_NAME = 'jamrtc-v2.0.16';  // fix: assertive SR announcements for BRB+easter egg
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
