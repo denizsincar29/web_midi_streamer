@@ -39,6 +39,12 @@ if [[ ! -d "$DEST" ]]; then
     mkdir -p "$DEST"
 fi
 
+# ── Build NVDA addon ───────────────────────────────────────────────────────────
+# Rebuilds the .nvda-addon zip from source so the deployed file is always fresh.
+echo "  building NVDA addon..."
+python3 "$SRC/scripts/build_nvda_addon.py"
+echo
+
 # ── Copy static files with rsync ───────────────────────────────────────────────
 # --checksum        only copy when content differs (no unnecessary mtime updates)
 # --delete          remove stale files from dest that are gone from src
@@ -58,6 +64,7 @@ rsync -av --checksum --delete \
     --exclude='chimes.json'       \
     --exclude='chimes.example.json' \
     --exclude='*.bak'             \
+    --exclude='nvda_addon/addon/__pycache__/' \
     --exclude='package.json'      \
     --exclude='package-lock.json' \
     "$SRC/" "$DEST/"
