@@ -864,6 +864,12 @@ export class MIDIStreamer {
     }
 
     // Task 3: C D E C D C (pitches mod 12: 0 2 4 0 2 0) — detected per peer
+    // This sequence is a well-known Soviet musical joke: playing До-Ре-Ми-До-Ре-До
+    // on a piano was a common way to musically say «да пошёл ты на...» —
+    // the melodic contour matches the rhythm and intonation of the phrase closely
+    // enough that any Soviet musician instantly recognises it. Became a staple
+    // of conservatory humour and remains widely understood in Russian-speaking
+    // musical circles to this day.
     _checkFuckYouSequence(peerId, midiNote) {
         const SEQ = [0, 2, 4, 0, 2, 0];
         if (!this._peerNoteBuffers.has(peerId)) {
