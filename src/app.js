@@ -150,7 +150,7 @@ export class MIDIStreamer {
             // an async init — but we can instantiate and load it; AudioContext.resume()
             // will be retried on first user touch via the document listener in synth.js.
             {
-                const savedSynth = localStorage.getItem('jamrtc_incoming_synth');
+                const savedSynth = localStorage.getItem('jamrtc_browser_synth_enabled');
                 const autoEnable = savedSynth === 'true' || savedSynth === null; // default on for no-MIDI
                 if (autoEnable) {
                     import('./synth.js').then(({ BrowserSynth }) => {
@@ -158,7 +158,7 @@ export class MIDIStreamer {
                             this._synth = new BrowserSynth();
                             this._synth.load().catch(err => console.warn('[NoMidi] Synth load failed:', err));
                             this._synth.setEnabled(true);
-                            localStorage.setItem('jamrtc_incoming_synth', 'true');
+                            localStorage.setItem('jamrtc_browser_synth_enabled', 'true');
                             // Sync the toggle checkbox if it exists
                             const tog = document.getElementById('incomingSynthEnabled');
                             if (tog) { tog.checked = true; this.settings.incomingSynth = true; }
@@ -420,14 +420,14 @@ export class MIDIStreamer {
         const incomingSynthToggle = document.getElementById('incomingSynthEnabled');
         if (incomingSynthToggle) {
             // Restore persisted value
-            const saved = localStorage.getItem('jamrtc_incoming_synth');
+            const saved = localStorage.getItem('jamrtc_browser_synth_enabled');
             if (saved === 'true') {
                 incomingSynthToggle.checked = true;
                 this.settings.incomingSynth = true;
             }
             incomingSynthToggle.addEventListener('change', async (e) => {
                 this.settings.incomingSynth = e.target.checked;
-                localStorage.setItem('jamrtc_incoming_synth', String(e.target.checked));
+                localStorage.setItem('jamrtc_browser_synth_enabled', String(e.target.checked));
                 if (e.target.checked) {
                     if (!this._synth) {
                         const { BrowserSynth } = await import('./synth.js');
