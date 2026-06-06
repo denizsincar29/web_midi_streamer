@@ -1,49 +1,63 @@
 #!/usr/bin/env bash
-# install.sh — build and install the WebRTC signaling server on Debian
-# Run as root:  sudo bash install.sh
+# install.sh — build and install the JamRTC signaling server
+# Run from the signaler directory: sudo bash install.sh
 set -euo pipefail
 
-INSTALL_DIR=/home/deniz/signaler
-SERVICE_USER=denizsincar29
-SERVICE_GROUP=deniz
-SERVICE_FILE=/etc/systemd/system/signaler.service
-BINARY=$INSTALL_DIR/signaler
+SERVICE_USER=$(logname 2>/dev/null || echo "${SUDO_USER:-$(whoami)}")
+WORK_DIR="$(cd "$(dirname "$0")" && pwd)"
+SERVICE_FILE=/etc/systemd/system/jamrtc-signaler.service
 
-echo "==> Installing Go (if not present)…"
+echo "==> Working directory: $WORK_DIR"
+echo "==> Service user: $SERVICE_USER"
+
+echo "==> Checking Go..."
 if ! command -v go &>/dev/null; then
-    apt-get update -q
-    apt-get install -y golang
+    apt-get update -q && apt-get install -y golang
 fi
-echo "    Go $(go version)"
+echo "    $(go version)"
 
-echo "==> Creating install directory…"
-mkdir -p "$INSTALL_DIR"
-chown "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR"
+echo "==> Building..."
+cd "$WORK_DIR"
+go mod download
+go build -o signaler .
+echo "    Built $WORK_DIR/signaler"
 
-echo "==> Copying source…"
-cp main.go go.mod go.sum "$INSTALL_DIR/"
-chown "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR"/{main.go,go.mod,go.sum}
+echo "==> Writing service file..."
+cat > "$SERVICE_FILE" << UNIT
+[Unit]
+Description=JamRTC WebRTC Signaling Server
+After=network.target
 
-echo "==> Building binary…"
-cd "$INSTALL_DIR"
-# Download dependency and build as the service user so module cache is correct
-sudo -u "$SERVICE_USER" go mod download
-sudo -u "$SERVICE_USER" go build -o "$BINARY" .
-echo "    Built $BINARY"
+[Service]
+Type=simple
+User=$SERVICE_USER
+WorkingDirectory=$WORK_DIR
+EnvironmentFile=-$WORK_DIR/.env
+ExecStart=$WORK_DIR/signaler -addr :8987
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jamrtc-signaler
+NoNewPrivileges=yes
+PrivateTmp=yes
 
-echo "==> Installing systemd service…"
-cp "$(dirname "$0")/signaler.service" "$SERVICE_FILE"
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+echo "==> Enabling and starting service..."
 systemctl daemon-reload
-systemctl enable signaler
-systemctl restart signaler
+systemctl enable jamrtc-signaler
+systemctl restart jamrtc-signaler
 
 echo ""
 echo "✅ Done!"
-echo "   Status : $(systemctl is-active signaler)"
-echo "   Logs   : journalctl -u signaler -f"
-echo "   Port   : 8987  (ws://$(hostname -I | awk '{print $1}'):8987/signal)"
-echo ""
-echo "   If you have a firewall, open port 8765:"
-echo "     ufw allow 8987/tcp"
-echo ""
-echo "   To use TLS (wss://), put nginx/caddy in front and proxy to localhost:8987."
+echo "   Status : $(systemctl is-active jamrtc-signaler)"
+echo "   Logs   : journalctl -u jamrtc-signaler -f"
+echo "   Port   : 8987"
+if [[ ! -f "$WORK_DIR/.env" ]]; then
+    echo ""
+    echo "   💡 For ntfy notifications, copy and edit .env:"
+    echo "      cp $WORK_DIR/.env.example $WORK_DIR/.env"
+fi

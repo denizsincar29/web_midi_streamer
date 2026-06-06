@@ -1,31 +1,20 @@
 [Unit]
-Description=WebRTC Signaling Server (jamrtc)
+Description=JamRTC WebRTC Signaling Server
 After=network.target
-Documentation=https://github.com/denizsincar29/web_jamrtc
 
 [Service]
 Type=simple
 User=denizsincar29
-Group=deniz
-WorkingDirectory=/home/deniz/signaler
-EnvironmentFile=-/home/deniz/signaler/.env
-ExecStart=/home/deniz/signaler/signaler -addr :8987
-
-# Restart on crash, but not on intentional stop
+WorkingDirectory=/home/denizsincar29/web_midi_streamer/signaler
+EnvironmentFile=-/home/denizsincar29/web_midi_streamer/signaler/.env
+ExecStart=/home/denizsincar29/web_midi_streamer/signaler/signaler -addr :8987
 Restart=on-failure
 RestartSec=5
-
-# Logging — journalctl -u signaler -f
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=signaler
-
-# Security hardening
+SyslogIdentifier=jamrtc-signaler
 NoNewPrivileges=yes
 PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/deniz/signaler
 
 [Install]
 WantedBy=multi-user.target
