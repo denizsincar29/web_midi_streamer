@@ -27,7 +27,7 @@ from pathlib import Path
 ADDON_DIR   = Path(__file__).resolve().parent.parent / "nvda_addon" / "addon"
 OUTPUT_DIR  = Path(__file__).resolve().parent.parent / "nvda_addon"
 ADDON_NAME  = "jamrtc_room_monitor"
-VERSION     = "1.0.0"
+VERSION     = "1.0.1"
 OUTPUT_FILE = OUTPUT_DIR / f"{ADDON_NAME}-{VERSION}.nvda-addon"
 
 
@@ -56,10 +56,10 @@ def build_addon():
     # Collect all files from the addon directory
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    # Remove old build if present
-    if OUTPUT_FILE.exists():
-        OUTPUT_FILE.unlink()
-        print(f"Removed old: {OUTPUT_FILE.name}")
+    # Remove all old .nvda-addon builds (handles version renames)
+    for old_file in OUTPUT_DIR.glob(f"{ADDON_NAME}-*.nvda-addon"):
+        old_file.unlink()
+        print(f"Removed old: {old_file.name}")
 
     with zipfile.ZipFile(OUTPUT_FILE, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(ADDON_DIR.rglob("*")):
