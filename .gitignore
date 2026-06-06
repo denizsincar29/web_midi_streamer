@@ -59,3 +59,4 @@ signaling_data/
 *.old
 README.md.old
 node_modules/
+*.nvda-addon
