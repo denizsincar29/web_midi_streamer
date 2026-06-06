@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.19';  // feat: stale-cache peer warning + easter egg nick fix
+const CACHE_NAME = 'jamrtc-v2.0.20';  // feat: stale-cache peer warning + easter egg nick fix
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
@@ -47,28 +47,51 @@ const HTML_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets');
-      // Cache static assets. HTML is intentionally NOT pre-cached so first
-      // load always hits the network.
-      return cache.addAll(STATIC_ASSETS);
-    }).catch((err) => console.error('[SW] Install cache failed:', err))
+      console.log('[SW] Caching static assets for', CACHE_NAME);
+      // Cache assets one-by-one so a single 404 doesn't abort the whole install.
+      // Each failure is logged but does not prevent the SW from activating.
+      return Promise.allSettled(
+        STATIC_ASSETS.map(url =>
+          cache.add(url).catch(err => console.warn('[SW] Could not cache:', url, err))
+        )
+      );
+    })
+    .then(() => {
+      console.log('[SW] Install complete:', CACHE_NAME);
+      // Take control immediately — don't wait for all tabs to close.
+      return self.skipWaiting();
+    })
   );
-  self.skipWaiting();
 });
 
 // ── Activate ──────────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(names.map((name) => {
-        if (name !== CACHE_NAME) {
-          console.log('[SW] Deleting old cache:', name);
-          return caches.delete(name);
-        }
-      }))
-    )
+    caches.keys()
+      .then((names) =>
+        Promise.all(names.map((name) => {
+          if (name !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          }
+        }))
+      )
+      .then(() => {
+        console.log('[SW] Activated:', CACHE_NAME);
+        // Claim all open tabs immediately so they get the new SW without reload.
+        return self.clients.claim();
+      })
+      .then(() => {
+        // Tell all clients to reload so they pick up fresh JS/CSS.
+        // Without this, open tabs continue running old JS even though the SW
+        // is now serving new files — the page needs to reload to re-execute them.
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          for (const client of clients) {
+            client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
+          }
+        });
+      })
   );
-  self.clients.claim();
 });
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
