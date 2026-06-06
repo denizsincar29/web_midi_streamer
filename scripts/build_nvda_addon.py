@@ -27,7 +27,7 @@ from pathlib import Path
 ADDON_DIR   = Path(__file__).resolve().parent.parent / "nvda_addon" / "addon"
 OUTPUT_DIR  = Path(__file__).resolve().parent.parent / "nvda_addon"
 ADDON_NAME  = "jamrtc_room_monitor"
-VERSION     = "1.0.1"
+VERSION     = "1.0.2"
 OUTPUT_FILE = OUTPUT_DIR / f"{ADDON_NAME}-{VERSION}.nvda-addon"
 
 
