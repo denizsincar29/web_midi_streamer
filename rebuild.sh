@@ -4,7 +4,7 @@
 # What it does:
 #   • Copies every static frontend file (HTML, CSS, JS, assets, SW, manifest)
 #   • Skips the signaler/ directory entirely — restart it manually
-#   • Skips node_modules, .git, scripts/, tests/, *.sh, *.md, *.php, *.py
+#   • Skips node_modules, .git, scripts/, tests/, *.sh, *.md, *.py, *.php (except nvda_addon/download.php)
 #   • chimes.json: never overwritten; auto-created from chimes.example.json if absent
 #   • chimes.example.json: never copied to dest
 #
@@ -41,8 +41,13 @@ fi
 
 # ── Build NVDA addon ───────────────────────────────────────────────────────────
 # Rebuilds the .nvda-addon zip from source so the deployed file is always fresh.
+# Also cleans old versioned files from the deploy target to prevent accumulation.
 echo "  building NVDA addon..."
 python3 "$SRC/scripts/build_nvda_addon.py"
+# Remove any old .nvda-addon files from deploy target before rsync copies the new one
+if [[ -d "$DEST/nvda_addon" ]]; then
+    find "$DEST/nvda_addon" -name "*.nvda-addon" -delete && echo "  cleaned old addon files from $DEST/nvda_addon/"
+fi
 echo
 
 # ── Copy static files with rsync ───────────────────────────────────────────────
@@ -59,6 +64,7 @@ rsync -av --checksum --delete \
     --exclude='test-results/'     \
     --exclude='*.sh'              \
     --exclude='*.md'              \
+    --include='nvda_addon/download.php' \
     --exclude='*.php'             \
     --exclude='*.py'              \
     --exclude='chimes.json'       \
