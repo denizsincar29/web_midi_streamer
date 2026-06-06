@@ -40,6 +40,25 @@ const SAMPLED_MIDI_NOTES = {
 // Sorted MIDI keys for fast nearest-sample lookup
 const SAMPLE_KEYS = Object.keys(SAMPLED_MIDI_NOTES).map(Number).sort((a, b) => a - b);
 
+// ─── iOS AudioContext gesture-unlock ──────────────────────────────────────────
+// iOS Safari requires AudioContext.resume() to be called inside a user-gesture
+// call stack. We keep a weak set of all live contexts and resume them all on
+// the first user interaction. This covers the case where the synth is enabled
+// via localStorage before the user has tapped anything.
+const _allContexts = new Set();
+function _registerGestureUnlock(ctx) {
+    _allContexts.add(ctx);
+}
+function _unlockAllContexts() {
+    for (const c of _allContexts) {
+        if (c.state === 'suspended') c.resume().catch(() => {});
+    }
+}
+// One-time listeners on the document — fires on first real user interaction.
+for (const ev of ['touchstart', 'pointerdown', 'keydown']) {
+    document.addEventListener(ev, _unlockAllContexts, { once: false, passive: true });
+}
+
 // ─── Tuning constants ─────────────────────────────────────────────────────────
 const RELEASE_TIME   = 0.12;  // seconds — gain ramp to 0 on noteOff
 const PEDAL_RELEASE  = 0.25;  // seconds — longer release when pedal lifts
@@ -208,6 +227,19 @@ export class BrowserSynth {
         if (!this._enabled) this.allNotesOff();
     }
 
+    /**
+     * Call this from inside a user-gesture handler (button click, toggle change)
+     * to pre-unlock the AudioContext on iOS Safari before any MIDI arrives.
+     */
+    unlockForGesture() {
+        if (this._ctx) {
+            if (this._ctx.state === 'suspended') this._ctx.resume().catch(() => {});
+        } else {
+            // Context not created yet — _unlockAllContexts will catch it once
+            // created via the document-level listeners registered above.
+        }
+    }
+
     onReady(fn) { this._onReady = fn; }
 
     // ── Loading ───────────────────────────────────────────────────────────────
@@ -230,6 +262,7 @@ export class BrowserSynth {
         this._ctx = new (window.AudioContext || window.webkitAudioContext)({
             latencyHint: 0,
         });
+        _registerGestureUnlock(this._ctx);
 
         await this._resumeCtx();
         _startKeepAlive(this._ctx);

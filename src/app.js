@@ -421,6 +421,7 @@ export class MIDIStreamer {
                         this._synth.load().catch(err => console.warn('[IncomingSynth] load failed:', err));
                     }
                     this._synth.setEnabled(true);
+                    this._synth.unlockForGesture(); // iOS: resume AudioContext inside gesture
                     this.ui.addMessage(t('settings.incomingSynthOn'), 'info');
                 } else {
                     this._synth?.setEnabled(false);
@@ -703,6 +704,7 @@ export class MIDIStreamer {
                     this._synth.load().catch(err => console.warn('[Monitor] synth load failed:', err));
                 }
                 this._synth.setEnabled(true);
+                this._synth.unlockForGesture(); // iOS: resume AudioContext inside gesture
             } else {
                 this._synth?.setEnabled(false);
                 this._synth?.allNotesOff();
