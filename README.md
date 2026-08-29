@@ -1,165 +1,132 @@
 # JamRTC
 
-**Version 1.1.0** - Real-time MIDI streaming over WebRTC
+**Real-time MIDI streaming over WebRTC** — two pianists stream MIDI to each other
+peer-to-peer with ultra-low latency. Rooms shareable by URL, built-in chat,
+browser synth, recorder, chimes, and full screen-reader support (NVDA addon).
 
-A peer-to-peer MIDI streaming application that allows two users to stream MIDI data between their devices in real-time using WebRTC technology.
+## Features
 
-## ✨ Features
+- 🎹 **Real-time MIDI streaming** — low-latency P2P MIDI over WebRTC data channels
+  (compact binary frames, optional high-res timestamps for latency estimation)
+- 🔗 **Room-based connections** — easy setup with shareable URLs
+- 💬 **Built-in chat** — text over the same WebRTC connection
+- 🌍 **Multi-language** — English and Russian interface
+- 🎵 **SysEx support** — professional keyboard features
+- 🔧 **Debug tools** — ping, stability test, message export
+- 📱 **PWA ready** — installable, offline-capable
+- ♿ **Accessible** — full keyboard navigation and screen reader support
+- 🎛️ **MIDI Mini Apps** — Nord Effects Controller (BETA), Chord Display, iRealPro Maker
 
-- 🎹 **Real-time MIDI streaming** - Low latency peer-to-peer MIDI data transfer
-- 🔗 **Room-based connections** - Easy setup with shareable URLs
-- 💬 **Built-in chat** - Text messaging over the same WebRTC connection
-- 🌍 **Multi-language** - English and Russian interface
-- 🎵 **SysEx support** - Professional keyboard features
-- 🔧 **Debug tools** - Connection testing and message export
-- 📱 **PWA ready** - Install as an app, works offline
-- ♿ **Accessible** - Full keyboard navigation and screen reader support
-- 🎛️ **MIDI Mini Apps** - Nord Effects Controller (BETA), Chord Display, and iRealPro Maker for pianists
+## Quick Start
 
-## 🚀 Quick Start
+### For users
 
-### For Users
+1. Connect your MIDI keyboard to the computer **before** opening the page.
+2. Open the app, select your MIDI input/output devices.
+3. Enter a room name and click **Join Room**.
+4. Share the resulting URL with your partner.
+5. Start playing! 🎶
 
-1. **Connect your MIDI keyboard** to your computer first
-2. **Open the app** in your browser (Chrome, Edge, Opera, or Firefox)
-3. **Select your MIDI devices** from the dropdowns
-4. **Enter a room name** and click "Connect to Room"
-5. **Share the URL** with your partner
-6. **Start playing!** 🎶
-
-### For Developers
+### For developers
 
 ```bash
-# Clone the repository
-git clone https://github.com/denizsincar29/web_jamrtc.git
-cd web_jamrtc
+git clone https://github.com/denizsincar29/web_midi_streamer.git
+cd web_midi_streamer
 
-# Run setup script
-uv run scripts/setup.py
+# 1. Build and run the Go signaling server (WebSocket relay)
+cd signaler && go build -o signaler . && ./signaler -addr :8987
+cd ..
 
-# Start development server
-php -S localhost:8080
+# 2. Serve the static frontend
+python3 -m http.server 8080
 
 # Open http://localhost:8080
 ```
 
-## 📋 Requirements
+## Requirements
 
-- Modern web browser with Web MIDI API support
-- MIDI devices (keyboard, controller, etc.)
-- PHP-enabled web server for signaling
-- Internet connection
+- Modern browser with Web MIDI API support (Chrome/Edge/Opera recommended, Firefox works)
+- MIDI keyboard / controller
+- Go toolchain (to build the signaler) — or use a deployed instance
+- Internet connection between players
 
-## 🛠️ Setup
+## Architecture
 
-### Automated Setup (Recommended)
+```
+┌─────────┐    WebRTC P2P (MIDI, chat, control)    ┌─────────┐
+│ User 1  │◄──────────────────────────────────────►│ User 2  │
+└────┬────┘                                        └────┬────┘
+     │          WebSocket signaling (join/SDP/ICE)      │
+     └─────────────────────┐  ┌─────────────────────────┘
+                      ┌────┴──┴────┐
+                      │  signaler  │  Go WebSocket relay (:8987)
+                      └────────────┘
+```
+
+- **Frontend**: plain ES6 modules, no bundler — `src/*.js`, `index.html`
+- **Signaling**: Go server in `signaler/` — relays `join`/`sdp`/`ice` between peers in a room
+- **Data transfer**: direct P2P via WebRTC data channels (mesh)
+- **NAT traversal**: free public STUN servers by default (see `DEFAULT_ICE_SERVERS` in `src/webrtc.js`)
+
+### Protocol
+
+- **Binary MIDI frames** (low latency): `[version][flags][Float64 timestamp?][MIDI bytes]`.
+  Produced by `midi-worker.js`, decoded in `webrtc.js` (`_handleBinaryPacket`).
+- **JSON control messages** over the data channel: `hello`, `chat`, `settings_sync`,
+  `role_change`, `test_note`, `midi`, `ping`/`pong`, `stab_probe`/`stab_result`.
+  Every message carries an explicit `type`; unknown types are dropped, never misread as MIDI.
+- **WebSocket signaling**: `join`, `sdp`, `ice`, `keepalive` (keepalive is swallowed
+  by the server and never relayed).
+
+## Key files
+
+- `index.html` — main application page
+- `src/main.js` — application orchestration, service-worker update handling
+- `src/app.js` — main MIDIStreamer class (MIDI routing, chat, participants, recorder)
+- `src/webrtc.js` — WebRTC connection management (perfect negotiation, binary decode)
+- `src/midi-worker.js` — off-main-thread binary MIDI framing
+- `src/config.js` — shared constants (`APP_VERSION`, `MIDI_FRAME_VERSION`)
+- `src/midi.js` — MIDI device handling, chimes, SMF playback
+- `src/i18n.js` — English/Russian translations
+- `signaler/` — Go WebSocket signaling server
+- `service-worker.js` — PWA offline support
+
+## Deployment
+
+**VPS** (e.g. `vps514.loveprodvds.net`): static files served by Apache reverse
+proxy at `/var/www/html/jamrtc`, Go signaler proxied on the `/signal` WebSocket
+path. The static deploy is a plain `git pull` — no build step.
+
+Local static deploy helper: `./rebuild.sh [target-dir]`.
+
+### Versioning
+
+Cache version and app version must stay in sync:
 
 ```bash
-uv run scripts/setup.py
+python3 scripts/bump.py 2.0.23   # bump both service-worker.js + src/config.js
+python3 scripts/bump.py --check  # verify they match
+npm test                          # syntax-check all JS modules
 ```
 
-This creates:
-- `config.php` with TURN server settings
-- `chimes.json` for MIDI notification sounds
-- `signaling_data/` directory for signaling
+Rule: **every commit that touches JS/HTML/CSS must bump the cache version**
+(`scripts/bump.py`), otherwise the service worker won't reload and players see a
+stale-client warning.
 
-### Manual Setup
+## TURN
 
-```bash
-cp config.example.php config.php
-cp chimes.example.json chimes.json
-mkdir -p signaling_data
-# Edit config.php with your settings
-```
+Free public STUN servers work for most connections. If a direct P2P path can't
+be established (restrictive/symmetric NAT), add a TURN server to
+`DEFAULT_ICE_SERVERS` in `src/webrtc.js` — see [TURN_SETUP.md](TURN_SETUP.md).
 
-## 📖 Documentation
+## Troubleshooting
 
-- **[Help Guide](help-en.html)** - Step-by-step usage instructions (includes version history)
-- **[Russian Guide](help-ru.html)** - Русская справка (включает историю версий)
-- **[TURN Setup](TURN_SETUP.md)** - Configure TURN servers for better connectivity
+- **Takes long to connect**: WebRTC negotiation can take 5–10 s; retries renegotiate.
+- **Cannot connect**: both players must use the same room URL and reach the signaler.
+- **Stale-client warning**: someone is on an older cache version — hard-refresh
+  (`Ctrl+Shift+R` / `Cmd+Shift+R`) or reload to pick up the latest build.
+- **MIDI access denied**: connect the device before opening the page.
 
-## 🏗️ Architecture
+## License
 
-
-```
-┌─────────┐     WebRTC P2P      ┌─────────┐
-│ User 1  │◄──────────────────►│ User 2  │
-└─────────┘                     └─────────┘
-      │                               │
-      └───── signaler/ (WebSocket) ───┘
-```
-
-- **Frontend**: ES6 modules, Web MIDI API, WebRTC
-- **Signaling**: PHP with HTTP polling
-- **Data transfer**: Direct P2P via WebRTC data channels
-- **Fallback**: TURN relay for restricted networks
-
-## 🔧 Key Files
-
-- `index.html` - Main application page
-- `src/main.js` - Application orchestration
-- `src/webrtc.js` - WebRTC connection management
-- `src/midi.js` - MIDI device handling
-- `src/ui.js` - User interface updates
-- `src/i18n.js` - Internationalization translations
-- `signaler/` - WebSocket-based signaling server (recommended)
-- `signaling.php` - Deprecated HTTP-polling signaler (legacy)
-- `service-worker.js` - PWA offline support
-
-## 🌐 Deployment
-
-Deploy to any PHP-enabled hosting:
-- Shared hosting (cPanel, etc.)
-- VPS or cloud servers
-- Platform-as-a-Service providers
-
-The app uses free public STUN servers by default. For production, consider setting up your own TURN server (see [TURN_SETUP.md](TURN_SETUP.md)).
-
-## 🐛 Troubleshooting
-
-### Connection Issues
-
-- **Takes long to connect**: WebRTC negotiation can take 5-10 seconds
-- **Cannot connect**: Check that both users have internet access and use the same room URL
-- **"No ICE candidates" error**: Verify signaling server is running and accessible
-
-### MIDI Issues
-
-- **MIDI access denied**: Connect MIDI devices before opening the website
-- **No audio**: Check MIDI output device selection
-- **Devices not appearing**: Click "Refresh Devices" or reconnect your MIDI device
-
-### Cache Issues
-
-The app uses service workers for offline support. If you see an old version:
-- Hard refresh: `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
-- Or clear browser cache and reload
-
-## 📝 Version 1.0 Highlights
-
-This release marks the first stable version with:
-- ✅ Production-ready WebRTC implementation
-- ✅ Real-time chat functionality
-- ✅ Message export for debugging
-- ✅ Improved caching strategy
-- ✅ Comprehensive documentation
-- ✅ Multi-language support
-
-See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🔗 Links
-
-- **GitHub**: https://github.com/denizsincar29/web_jamrtc
-- **Issues**: https://github.com/denizsincar29/web_jamrtc/issues
-
----
-
-Made with ❤️ for musicians and MIDI enthusiasts
+ISC. Made with ❤️ for musicians and MIDI enthusiasts.

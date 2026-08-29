@@ -174,8 +174,23 @@ func (h *Hub) readPump(c *Client) {
 			}
 			return
 		}
-		h.broadcast(c, msg)
+		if !isKeepalive(msg) {
+			h.broadcast(c, msg)
+		}
 	}
+}
+
+// isKeepalive reports whether msg is a client heartbeat. These are for the
+// server to know the peer is alive — relaying them to every other peer just
+// burns bandwidth and wakes idle clients, so they are swallowed here.
+func isKeepalive(msg []byte) bool {
+	var m struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(msg, &m) != nil {
+		return false
+	}
+	return m.Type == "keepalive"
 }
 
 func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {

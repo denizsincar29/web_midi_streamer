@@ -132,11 +132,6 @@ export class MIDIStreamer {
             if (saved) nicknameInput.value = saved;
         }
 
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('forceTurn') === 'true') {
-            this.ui.addMessage(t('warning.turnRelay'), 'warning');
-        }
-
         window.addEventListener('beforeunload', () => {
             this.midi.allNotesOff();
             this.disconnect();
@@ -794,7 +789,8 @@ export class MIDIStreamer {
             });
         } else {
             const message = this.settings.timestampEnabled
-                ? { data, timestamp: performance.now() } : { data };
+                ? { type: 'midi', data, timestamp: performance.now() }
+                : { type: 'midi', data };
             this.webrtc.send(message);
         }
 
@@ -1050,7 +1046,9 @@ export class MIDIStreamer {
                 this._synth.processMidi(Array.from(midiBytes));
             }
             if (this.settings.midiEchoEnabled && this.webrtc.isConnected()) {
-                const echoMessage = this.settings.timestampEnabled ? { data, timestamp: performance.now() } : { data };
+                const echoMessage = this.settings.timestampEnabled
+                    ? { type: 'midi', data, timestamp: performance.now() }
+                    : { type: 'midi', data };
                 this.webrtc.send(echoMessage);
             }
         }

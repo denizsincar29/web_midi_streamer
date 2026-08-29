@@ -8,10 +8,10 @@ When starting a new chat: `git pull && cat PROGRESS.md`
 ## Stack
 
 - **Frontend:** plain ES6 modules, no bundler — `src/*.js`, `index.html`
-- **Backend:** Go signaler (`signaler/`) on port 8987, stream queuer on 8765
+- **Backend:** Go signaler (`signaler/`) on port 8987
 - **Deploy:** `/var/www/html/jamrtc` (Apache reverse proxy), VPS `vps514.loveprodvds.net`
-- **Repo:** `denizsincar29/web_midi_streamer` (renamed from web_midi_streamer → JamRTC)
-- **Service worker cache:** currently `jamrtc-v2.0.11`
+- **Repo:** `denizsincar29/web_midi_streamer`
+- **Service worker cache:** `jamrtc-v2.0.23` (bump both files with `python3 scripts/bump.py`)
 
 ## Key architectural facts
 
@@ -97,7 +97,8 @@ git pull
 ```
 
 > **Rule:** bump `CACHE_NAME` in `service-worker.js` in every commit that touches JS/HTML/CSS.
-> Current version: `jamrtc-v2.0.12`
+> Use `python3 scripts/bump.py` to bump it together with `src/config.js` APP_VERSION.
+> Current version: `jamrtc-v2.0.23`
 
 ## How to run chimes manager
 
@@ -145,3 +146,48 @@ python3 scripts/chimes_manager.py /path    # custom deploy dir
 
 ### Current SW cache version
 `jamrtc-v2.0.15`
+
+---
+
+## Architecture & protocol cleanup pass (2026-08-29)
+
+One commit touching JS + Go signaler + docs. All `npm test` and `go vet` clean.
+
+### Protocol unified (webrtc.js, app.js)
+- `_handleData` classification rewritten: explicit `KNOWN_APP_TYPES` set; a typed
+  JSON message outside the set is **dropped with a warning**, never misread as MIDI.
+  Previously the allowlist was inverted — anything unlisted silently became a MIDI
+  event (a typo'd `chat` could play a note).
+- Legacy untyped JSON MIDI (`{ data, timestamp }`) still decodes (older clients),
+  but new senders now always send `{ type: 'midi', data, timestamp? }`.
+- Binary MIDI frame got a **protocol version byte** (byte 0 = `MIDI_FRAME_VERSION`,
+  shared const in config.js). Receiver accepts current + legacy (0x00/0x01) frames,
+  drops unknown versions instead of misparsing garbage.
+
+### Perfect negotiation join-race fixed (webrtc.js)
+- Polite/impolite is now deterministic per pair: `myId < remoteId` lexicographic.
+  Previously both sides set `isPolite=false` on join → both ignored crossing offers
+  → no connection.
+- Added proper collision handling: polite side `setLocalDescription({type:'rollback'})`
+  before accepting the impolite side's crossing offer; `onnegotiationneeded` guarded
+  against double offers via `makingOffer`.
+
+### Dead code removed
+- `WebTransportRelay` skeleton (never wired to a server) + all `_wt`/`useWebTransport`
+  branches and `webrtc.wt*` i18n keys.
+- `getTurnCredentials()` + `SIGNALING_CONFIG` from config.js.
+- Half-wired `?forceTurn=true` — only showed a warning, never forced TURN. Removed
+  the misleading warning + `shouldForceTurnRelay()` util + `warning.turnRelay` i18n keys.
+- Deleted stale PHP-era files: `get-turn-credentials.php`, `config.example.php`,
+  `scripts/test_turn_server.py`. SW bypass entry for get-turn-credentials removed.
+
+### Signal server (signaler/main.go)
+- `keepalive` heartbeats are now swallowed server-side (JSON `type == "keepalive"`),
+  no longer broadcast to every peer in the room.
+
+### Versioning
+- `scripts/bump.py` gained `--check` (verify service-worker.js ↔ config.js in sync).
+- `package.json` now points `npm test` at a real syntax check
+  (`scripts/check-syntax.mjs`, node-only, checks all src/*.js + SW).
+- `README.md`, `TURN_SETUP.md`, `PROGRESS.md`, `INSTRUCTIONS_RU.md`, `package.json`
+  rewritten to describe the Go signaler / ES6 stack (no more PHP claims).

@@ -7,8 +7,9 @@
  *  • IPv6 preference: non-IPv6 candidates filtered when disabled
  *  • Binary MIDI path: Uint8Array through DataChannel (no JSON overhead)
  *  • One-way latency estimation via performance.now() timestamps in binary packets
- *  • WebTransport skeleton (datagram mode) with graceful fallback to WebRTC
  */
+
+import { MIDI_FRAME_VERSION } from './config.js';
 
 const SIGNALING_HOST  = location.hostname;
 const SIGNALING_PROTO = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -21,6 +22,10 @@ const DEFAULT_ICE_SERVERS = [
     { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.stunprotocol.org:3478' },
 ];
+
+// JSON message types that the app layer understands. Anything with a `type`
+// outside this set is a protocol error and is dropped — never misread as MIDI.
+const KNOWN_APP_TYPES = new Set(['hello', 'chat', 'settings_sync', 'role_change', 'test_note', 'midi']);
 
 // ── ICE candidate analyser ─────────────────────────────────────────────────────
 
@@ -51,66 +56,6 @@ class PeerConn {
     isOpen() { return this.dataChannel?.readyState === 'open'; }
 }
 
-// ── WebTransport skeleton ──────────────────────────────────────────────────────
-
-/**
- * WebTransportRelay — skeleton for datagram-mode WebTransport.
- *
- * True browser-native WebTransport requires an HTTPS/3 server endpoint
- * (not direct P2P). For a real deployment you would run a QUIC relay (e.g.
- * using Go's quic-go library or Cloudflare Workers) and set webTransportUrl.
- *
- * Until a relay server exists this class self-reports as unavailable so the
- * manager falls back to WebRTC automatically.
- */
-class WebTransportRelay {
-    constructor(url) {
-        this.url       = url;
-        this.transport = null;
-        this.writer    = null;
-        this.available = false;
-    }
-
-    static isSupported() {
-        return typeof WebTransport !== 'undefined';
-    }
-
-    async connect() {
-        if (!WebTransportRelay.isSupported()) throw new Error('WebTransport not supported');
-        if (!this.url) throw new Error('No WebTransport relay URL configured');
-        this.transport = new WebTransport(this.url);
-        await this.transport.ready;
-        this.writer    = this.transport.datagrams.writable.getWriter();
-        this.available = true;
-        console.log('[WebTransport] Connected to relay:', this.url);
-    }
-
-    async send(uint8Array) {
-        if (!this.writer) throw new Error('WebTransport not connected');
-        await this.writer.write(uint8Array);
-    }
-
-    async *receive() {
-        const reader = this.transport.datagrams.readable.getReader();
-        try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                yield value;
-            }
-        } finally {
-            reader.releaseLock();
-        }
-    }
-
-    close() {
-        this.transport?.close();
-        this.transport = null;
-        this.writer    = null;
-        this.available = false;
-    }
-}
-
 // ── WebRTCManager ─────────────────────────────────────────────────────────────
 
 export class WebRTCManager {
@@ -136,11 +81,6 @@ export class WebRTCManager {
         this.reconnectAttempts    = 0;
         this.maxReconnectAttempts = 6;
         this.reconnectTimer       = null;
-
-        // WebTransport (experimental)
-        this.webTransportUrl = null;
-        this._wt             = null;
-        this.useWebTransport = false;
     }
 
     // Translation helper — app passes t() from i18n.js; fallback returns the key as-is
@@ -160,21 +100,6 @@ export class WebRTCManager {
         this.roomName = roomName;
         this.myId     = this._uid();
         this.onStatusUpdate(this._t('webrtc.connecting'), 'info');
-
-        // Try WebTransport if relay URL is configured
-        if (this.webTransportUrl && WebTransportRelay.isSupported()) {
-            try {
-                this._wt = new WebTransportRelay(this.webTransportUrl);
-                await this._wt.connect();
-                this.useWebTransport = true;
-                this.onStatusUpdate(this._t('webrtc.wtActive'), 'success');
-                this._startWebTransportReceiveLoop();
-            } catch (err) {
-                this.onStatusUpdate(this._t('webrtc.wtUnavailable').replace('{error}', err.message), 'warning', false);
-                this.useWebTransport = false;
-                this._wt             = null;
-            }
-        }
 
         await this._wsOpen();
         this._send({ type: 'join', from: this.myId });
@@ -202,10 +127,6 @@ export class WebRTCManager {
     }
 
     send(data) {
-        if (this.useWebTransport && data instanceof Uint8Array) {
-            this._wt?.send(data).catch(e => console.warn('WT send error:', e));
-            return 1;
-        }
         let sent = 0;
         for (const p of this.peers.values()) {
             if (p.isOpen()) {
@@ -238,13 +159,11 @@ export class WebRTCManager {
     }
 
     isConnected() {
-        if (this.useWebTransport) return true;
         for (const p of this.peers.values()) if (p.isOpen()) return true;
         return false;
     }
 
     connectedCount() {
-        if (this.useWebTransport) return 1;
         let n = 0;
         for (const p of this.peers.values()) if (p.isOpen()) n++;
         return n;
@@ -260,7 +179,6 @@ export class WebRTCManager {
         if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
         // Stop any running stability test
         if (this._stabTimer) { clearInterval(this._stabTimer); this._stabTimer = null; }
-        this._wt?.close(); this._wt = null; this.useWebTransport = false;
     }
 
     sendPing() {
@@ -364,20 +282,6 @@ export class WebRTCManager {
         this._lastProbeSeq     = msg.seq;
     }
 
-    // ── WebTransport receive loop ─────────────────────────────────────────────
-
-    async _startWebTransportReceiveLoop() {
-        try {
-            for await (const datagram of this._wt.receive()) {
-                this._handleBinaryPacket(datagram, 'webtransport');
-            }
-        } catch (err) {
-            if (!this.manualDisconnect) {
-                this.onStatusUpdate(this._t('webrtc.wtReceiveError').replace('{error}', err.message), 'warning');
-            }
-        }
-    }
-
     // ── WebSocket ─────────────────────────────────────────────────────────────
 
     _wsOpen() {
@@ -440,8 +344,7 @@ export class WebRTCManager {
         if (msg.to && msg.to !== this.myId) return;
 
         if (msg.type === 'join') {
-            const peer = this._getOrCreatePeer(msg.from, false);
-            peer.isPolite = false;
+            const peer = this._getOrCreatePeer(msg.from, this._isPolite(msg.from));
             this._createDataChannel(peer);
             try {
                 peer.makingOffer = true;
@@ -453,17 +356,26 @@ export class WebRTCManager {
         }
 
         if (msg.type === 'sdp') {
-            const peer = this._getOrCreatePeer(msg.from, true);
+            const peer = this._getOrCreatePeer(msg.from, this._isPolite(msg.from));
             const desc = msg.sdp;
             const collision = desc.type === 'offer' && (peer.makingOffer || peer.pc.signalingState !== 'stable');
             peer.ignoreOffer = !peer.isPolite && collision;
             if (peer.ignoreOffer) return;
-            await peer.pc.setRemoteDescription(desc);
-            for (const c of peer.pendingICE) { try { await peer.pc.addIceCandidate(c); } catch{} }
-            peer.pendingICE = [];
-            if (desc.type === 'offer') {
-                await peer.pc.setLocalDescription();
-                this._send({ type:'sdp', from:this.myId, to:msg.from, sdp:peer.pc.localDescription });
+            try {
+                if (collision) {
+                    // Polite side rolls back its own in-flight offer so the
+                    // impolite peer's crossing offer can be accepted instead.
+                    await peer.pc.setLocalDescription({ type: 'rollback' });
+                }
+                await peer.pc.setRemoteDescription(desc);
+                for (const c of peer.pendingICE) { try { await peer.pc.addIceCandidate(c); } catch{} }
+                peer.pendingICE = [];
+                if (desc.type === 'offer') {
+                    await peer.pc.setLocalDescription();
+                    this._send({ type:'sdp', from:this.myId, to:msg.from, sdp:peer.pc.localDescription });
+                }
+            } catch(e) {
+                if (!peer.ignoreOffer) console.error('sdp handling:', e);
             }
             return;
         }
@@ -495,6 +407,7 @@ export class WebRTCManager {
         peer.pc = pc;
 
         pc.onnegotiationneeded = async () => {
+            if (peer.makingOffer) return;   // an offer is already in flight
             try {
                 peer.makingOffer = true;
                 await pc.setLocalDescription();
@@ -689,6 +602,12 @@ export class WebRTCManager {
         }).catch(() => {});
     }
 
+    // Deterministic polite/impolite assignment so exactly one peer per pair is
+    // polite. This prevents both sides from ignoring each other's crossing offers.
+    _isPolite(remoteId) {
+        return this.myId < remoteId;
+    }
+
     // ── Data handler ───────────────────────────────────────────────────────────
 
     _handleData(raw, fromId) {
@@ -728,29 +647,66 @@ export class WebRTCManager {
             return;
         }
 
-        const structured = ['test_note','settings_sync','chat','hello','role_change'].includes(msg.type)
-            ? { type:msg.type, data:msg.data, from:fromId }
-            : { type:'midi', data:msg, from:fromId };
-        this.onMessage(structured);
+        // Typed application message — forward only known types. Anything else
+        // is a protocol error and is dropped, never misread as MIDI.
+        if (typeof msg.type === 'string') {
+            if (KNOWN_APP_TYPES.has(msg.type)) {
+                this.onMessage({ type: msg.type, data: msg.data ?? msg, from: fromId });
+            } else {
+                console.warn('[RTC] dropping unknown message type:', msg.type);
+            }
+            return;
+        }
+
+        // No `type` field — legacy JSON MIDI payload (`{ data, timestamp }`).
+        // New senders always set an explicit `type:'midi'`; this path keeps
+        // older clients interoperable until everyone is on the current build.
+        if (msg.data !== undefined) {
+            this.onMessage({ type: 'midi', data: msg, from: fromId });
+        } else {
+            console.warn('[RTC] dropping unrecognised JSON message:', raw);
+        }
     }
 
     /**
      * Decode compact binary MIDI packet produced by midi-worker.js.
      *
-     * Layout:
-     *   byte 0      flags  (bit 0 = has timestamp)
-     *   bytes 1-8   Float64 timestamp big-endian — only if flag set
+     * Layout (current):
+     *   byte 0      protocol version (MIDI_FRAME_VERSION)
+     *   byte 1      flags  (bit 0 = has timestamp)
+     *   bytes 2-9   Float64 timestamp big-endian — only if flag set
      *   remaining   raw MIDI bytes
+     *
+     * Legacy frames from older clients had no version byte — byte 0 was the
+     * flags. Flags only ever set bit 0, so byte values 0x00/0x01 are
+     * unambiguous and decode correctly on both paths.
      */
     _handleBinaryPacket(bytes, fromId) {
-        const view       = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        const hasTs      = (view.getUint8(0) & 0x01) !== 0;
-        const dataOffset = hasTs ? 9 : 1;
-        const midiBytes  = bytes.slice(dataOffset);
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        if (view.byteLength < 1) return;
+
+        const first = view.getUint8(0);
+        let flags, tsOffset;
+        if (first === MIDI_FRAME_VERSION) {
+            if (view.byteLength < 2) return;
+            flags    = view.getUint8(1);
+            tsOffset = 2;
+        } else if (first === 0x00 || first === 0x01) {
+            flags    = first;            // legacy frame: byte 0 was the flags
+            tsOffset = 1;
+        } else {
+            console.warn(`[MIDI binary] unknown frame version 0x${first.toString(16)} — dropping`);
+            return;
+        }
+
+        const hasTs      = (flags & 0x01) !== 0;
+        const dataOffset = tsOffset + (hasTs ? 8 : 0);
+        if (view.byteLength < dataOffset) return;
+        const midiBytes = bytes.slice(dataOffset);
 
         let timestamp = null;
         if (hasTs) {
-            timestamp = view.getFloat64(1, false);
+            timestamp = view.getFloat64(tsOffset, false);
             const oneWay = performance.now() - timestamp;
             if (oneWay >= 0 && oneWay < 30000) {
                 console.debug(`[MIDI binary] est. one-way latency: ${oneWay.toFixed(2)} ms`);

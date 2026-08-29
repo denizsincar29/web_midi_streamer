@@ -10,6 +10,7 @@ Usage:
     python3 scripts/bump.py              # auto-increment patch (2.0.18 → 2.0.19)
     python3 scripts/bump.py 2.1.0        # set explicit version
     python3 scripts/bump.py --dry-run    # show what would change, don't write
+    python3 scripts/bump.py --check      # verify both files are in sync, exit 0/1
 
 Claude: run this script instead of manually editing either file.
 The two files MUST always have the same version string.
@@ -55,9 +56,26 @@ def apply(path: Path, pattern: re.Pattern, new_version: str, dry: bool) -> str:
     return old
 
 
+def versions():
+    sw_m     = SW_RE.search(SW.read_text())
+    cfg_m    = CONFIG_RE.search(CONFIG.read_text())
+    if not sw_m or not cfg_m:
+        raise RuntimeError("CACHE_NAME or APP_VERSION not found")
+    return sw_m.group(2), cfg_m.group(2)
+
+
 def main():
+    if '--check' in sys.argv:
+        sw, cfg = versions()
+        if sw == cfg:
+            print(f"OK: service-worker.js and src/config.js both at v{sw}")
+            sys.exit(0)
+        print(f"MISMATCH: service-worker.js v{sw} != src/config.js v{cfg}")
+        print("Run: python3 scripts/bump.py [X.Y.Z]")
+        sys.exit(1)
+
     dry  = '--dry-run' in sys.argv
-    args = [a for a in sys.argv[1:] if a not in ('--dry-run', '--help', '-h')]
+    args = [a for a in sys.argv[1:] if a not in ('--dry-run', '--check', '--help', '-h')]
 
     if '--help' in sys.argv or '-h' in sys.argv:
         print(__doc__)

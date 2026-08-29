@@ -14,6 +14,8 @@
  *   { type: 'dropped',    reason: string }
  */
 
+import { MIDI_FRAME_VERSION } from './config.js';
+
 let sysexEnabled = false;
 let timestampEnabled = false;
 
@@ -37,27 +39,32 @@ self.onmessage = (e) => {
     }
 
     // ── Build binary payload ────────────────────────────────────────────────
-    // Layout:
-    //   [0]         flags  (bit 0 = timestampEnabled)
-    //   [1..8]      Float64 timestamp (performance.now()) — only if flag set
-    //   [1 or 9..N] MIDI bytes
+    // Layout (versioned):
+    //   [0]         protocol version (MIDI_FRAME_VERSION)
+    //   [1]         flags  (bit 0 = timestampEnabled)
+    //   [2..9]      Float64 timestamp (performance.now()) — only if flag set
+    //   [2 or 10..N] MIDI bytes
     //
     // Using a compact binary format avoids JSON stringification overhead.
+    // The version byte lets receivers reject frames from a different framing
+    // protocol instead of misinterpreting the bytes as MIDI.
 
     const ts = performance.now();
 
     let buf;
     if (timestampEnabled) {
-        buf = new ArrayBuffer(1 + 8 + bytes.length);
+        buf = new ArrayBuffer(2 + 8 + bytes.length);
         const view = new DataView(buf);
-        view.setUint8(0, 0x01);           // flag: has timestamp
-        view.setFloat64(1, ts, false);    // big-endian f64
-        new Uint8Array(buf, 9).set(bytes);
+        view.setUint8(0, MIDI_FRAME_VERSION);
+        view.setUint8(1, 0x01);           // flag: has timestamp
+        view.setFloat64(2, ts, false);    // big-endian f64
+        new Uint8Array(buf, 10).set(bytes);
     } else {
-        buf = new ArrayBuffer(1 + bytes.length);
+        buf = new ArrayBuffer(2 + bytes.length);
         const view = new DataView(buf);
-        view.setUint8(0, 0x00);           // flag: no timestamp
-        new Uint8Array(buf, 1).set(bytes);
+        view.setUint8(0, MIDI_FRAME_VERSION);
+        view.setUint8(1, 0x00);           // flag: no timestamp
+        new Uint8Array(buf, 2).set(bytes);
     }
 
     // Transfer the buffer (zero-copy) back to the main thread

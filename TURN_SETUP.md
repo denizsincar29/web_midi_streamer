@@ -2,20 +2,36 @@
 
 ## Overview
 
-The app includes **free public TURN servers** by default, so no setup is required for basic use. However, for production deployments or better performance, you can set up your own TURN server.
+The app ships with **free public STUN servers** only (see `DEFAULT_ICE_SERVERS` in
+`src/webrtc.js`). STUN handles most cases — it finds the public address behind a
+router. TURN is a relay and is only needed when both players sit behind
+restrictive NATs or symmetric NATs that STUN cannot punch through.
 
-## Do You Need This?
+Most users never need TURN. If a direct connection genuinely fails even after
+retries, consider adding a TURN relay.
 
-**You probably don't!** The app works globally out of the box with included TURN servers.
+## Add a TURN server
 
-Set up your own TURN server only if:
-- You're deploying for production use
-- You need better performance or reliability
-- You want full control over your infrastructure
+There is no PHP or config file involved — ICE servers live in one place:
 
-## Quick Setup (Optional)
+`src/webrtc.js`:
 
-### 1. Install coturn
+```js
+const DEFAULT_ICE_SERVERS = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    // ... existing STUN servers ...
+    {
+        urls: 'turn:your-domain.com:3479?transport=udp',
+        username: 'YOUR_USERNAME',
+        credential: 'YOUR_PASSWORD',
+    },
+];
+```
+
+With a TURN server listed, the browser uses it automatically as a fallback when
+a direct (host/STUN) path is unavailable. No app changes beyond this list.
+
+## Run your own coturn (optional)
 
 ```bash
 sudo apt update
@@ -23,45 +39,22 @@ sudo apt install coturn
 sudo systemctl enable coturn
 ```
 
-### 2. Generate Credentials
-
-```bash
-# Generate a secure secret
-openssl rand -base64 32
-
-# Copy the output - you'll need it for both coturn and PHP config
-```
-
-### 3. Configure coturn
-
 Edit `/etc/turnserver.conf`:
 
-```bash
-# Use time-limited credentials
-use-auth-secret
-static-auth-secret=YOUR_GENERATED_SECRET
-
-# Your domain
+```text
+lt-cred-mech
+user=YOUR_USERNAME:YOUR_PASSWORD
 realm=your-domain.com
 
-# Ports
 listening-port=3479
 tls-listening-port=5350
-
-# External IP
 external-ip=YOUR_SERVER_PUBLIC_IP
 
-# Security
-lt-cred-mech
-no-multicast-peers
-no-loopback-peers
-
-# Relay ports
 min-port=49152
 max-port=65535
 ```
 
-### 4. Configure Firewall
+Firewall:
 
 ```bash
 sudo ufw allow 3479/tcp
@@ -70,76 +63,35 @@ sudo ufw allow 5350/tcp
 sudo ufw allow 49152:65535/udp
 ```
 
-### 5. Configure Application
-
-```bash
-# Copy example config
-cp config.example.php config.php
-```
-
-Edit `config.php`:
-
-```php
-return [
-    'turnServer' => 'your-domain.com',
-    'turnSecret' => 'YOUR_GENERATED_SECRET',  // Same secret as coturn
-    'ttl' => 3600,
-    'allowedOrigins' => ['https://yourdomain.com']
-];
-```
-
-### 6. Restart and Test
+Then put the matching `username`/`credential` into `DEFAULT_ICE_SERVERS` and
+restart coturn:
 
 ```bash
 sudo systemctl restart coturn
-
-# Test with the included script
-python3 test_turn_server.py https://yourdomain.com/get-turn-credentials.php
 ```
 
-## Testing
+> For a private jam between two known people, a static username/password is
+> fine. For a public deployment, prefer time-limited credentials.
 
-### Test TURN Relay Mode
+## Verify the connection type
 
-Add `?forceTurn=true` to your URL to force TURN relay:
-```
-https://yourdomain.com/?forceTurn=true
-```
+Open the browser console — the app logs the winning path for each peer:
 
-This disables direct P2P and forces all connections through TURN server.
+- `🏠 Host` — direct LAN
+- `🌐 STUN (srflx)` — public internet path via STUN
+- `🔁 TURN (relay)` — relayed through your TURN server
 
-### Verify Connection Type
+## Commercial TURN services (alternative)
 
-Open browser console and check for these messages:
-- `🔁 Using TURN relay connection` - TURN is working
-- `🏠 Using host connection` - Direct P2P (local network)
-- `🌐 Found public internet path` - STUN working
+- **Twilio** — pay-as-you-go, reliable
+- **Xirsys** — WebRTC focused
+- **Metered** — free tier available
 
-## Troubleshooting
+Add their `turn:` URL, username and credential to `DEFAULT_ICE_SERVERS` the
+same way.
 
-| Issue | Solution |
-|-------|----------|
-| Port blocked | Check firewall: `sudo ufw status` |
-| Connection refused | Verify coturn is running: `sudo systemctl status coturn` |
-| Credentials invalid | Check secret matches in both coturn and config.php |
-| Still using fallback TURN | Your TURN server is working! Free TURN is just backup |
+## Security notes
 
-## Commercial TURN Services (Alternative)
-
-Instead of running your own TURN server, you can use:
-- **Twilio** - Pay as you go, reliable
-- **Xirsys** - WebRTC focused
-- **Metered** - Free tier available
-
-Update `get-turn-credentials.php` to return your commercial TURN credentials.
-
-## Security Notes
-
-- `config.php` is gitignored - never commit secrets
-- Time-limited credentials expire after TTL (default: 1 hour)
-- Use HTTPS for production
-- Restrict `allowedOrigins` in production
-
-## More Information
-
-For detailed coturn configuration and advanced options, see the [official coturn documentation](https://github.com/coturn/coturn).
+- Never commit real TURN credentials. Keep them in the ICE server list only on
+  the deployed copy, or use a build-time substitution.
+- Use HTTPS in production so `wss://` signaling is used automatically.

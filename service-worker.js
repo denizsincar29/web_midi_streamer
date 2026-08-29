@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.22';  // feat: stale-cache peer warning + easter egg nick fix
+const CACHE_NAME = 'jamrtc-v2.0.23';  // feat: stale-cache peer warning + easter egg nick fix
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
@@ -106,8 +106,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('/rooms') ||
     url.pathname.endsWith('/health') ||
     url.pathname.endsWith('/hide-room') ||
-    url.pathname.endsWith('/show-room') ||
-    url.pathname.includes('get-turn-credentials')
+    url.pathname.endsWith('/show-room')
   ) {
     return; // let browser handle it natively
   }

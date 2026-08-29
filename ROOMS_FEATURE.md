@@ -138,7 +138,7 @@ Added new translation keys:
 ## Testing Checklist
 
 - [ ] Build Go signaler: `cd signaler && go build -o signaler .`
-- [ ] Run signaler: `./signaler -addr :8765`
+- [ ] Run signaler: `./signaler -addr :8987`
 - [ ] Open browser to application
 - [ ] Verify "Available Rooms" section appears
 - [ ] Verify "Refresh Rooms" button works
