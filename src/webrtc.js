@@ -126,6 +126,16 @@ export class WebRTCManager {
                     this._scheduleReconnect();
                 }
             });
+            // Laptops suspend on lid close and resume on a completely different
+            // network. The signaling socket usually reconnects on its own, but a
+            // failed DataChannel is left behind — the rebuild timers were frozen
+            // with the machine, so the link sits dead until the user reloads.
+            // Re-check every peer on wake and rebuild the dead ones immediately.
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && !this.manualDisconnect) {
+                    this._recoverDeadPeers();
+                }
+            });
         }
 
         return `${location.origin}${location.pathname}?room=${encodeURIComponent(roomName)}`;
@@ -617,9 +627,10 @@ export class WebRTCManager {
                 peer._watchdogTimer = setTimeout(() => {
                     peer._watchdogTimer = null;
                     if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-                        // Still gone after 20 s — treat as failed
+                        // Still gone after 20 s — treat as failed, but rebuild
+                        // rather than retire: the peer is still in the room.
                         this.onStatusUpdate(this._t('webrtc.lostAfter20s').replace('{peer}', remoteId.slice(0,6)), 'warning', false);
-                        this._removePeer(remoteId);
+                        this._scheduleRebuild(peer, remoteId, 30_000);
                     }
                 }, 20000);
             }
@@ -629,12 +640,21 @@ export class WebRTCManager {
                 peer._iceRestartCount = (peer._iceRestartCount ?? 0) + 1;
                 // Per spec: only the IMPOLITE peer initiates ICE restart.
                 // Polite peer waits for the re-offer triggered by the other side.
-                if (!peer.isPolite && peer._iceRestartCount <= 2) {
+                if (!peer.isPolite && peer._iceRestartCount <= 3) {
                     this.onStatusUpdate(this._t('webrtc.reconnecting').replace('{peer}', remoteId.slice(0,6)).replace('{n}', peer._iceRestartCount), 'warning', false);
-                    try { pc.restartIce(); }
-                    catch(e) {
-                        this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
-                        this._removePeer(remoteId);
+                    // restartIce() only produces a fresh offer if something
+                    // renegotiates. The very first 'failed' usually arrives while
+                    // the description exchange below is still in flight, and that
+                    // offer then carries createOffer({iceRestart:true}) — but if
+                    // it was already sent, restartIce() alone is a no-op and the
+                    // link would sit in 'failed' forever with no way back. Ask for
+                    // a fresh description explicitly; negotiationneeded fires the
+                    // real re-offer. Guarded, because setLocalDescription with no
+                    // assigned channels and a stable description must never race
+                    // the normal offer flow.
+                    if (pc.signalingState === 'stable' && !peer.makingOffer) {
+                        try { pc.restartIce(); } catch (_) {}
+                        pc.setLocalDescription().catch(() => {});
                     }
                 } else if (peer.isPolite) {
                     // Polite side: wait up to 8 s for impolite peer to send re-offer
@@ -642,14 +662,21 @@ export class WebRTCManager {
                         peer._failedWaitTimer = setTimeout(() => {
                             peer._failedWaitTimer = null;
                             if (pc.connectionState === 'failed') {
-                                this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
-                                this._removePeer(remoteId);
+                                // Recovers the common case: both sides failed at
+                                // the same instant (a shared NAT blip), the impolite
+                                // side's re-offer was consumed and eaten, and we sat
+                                // waiting on a re-offer that was never coming.
+                                this._scheduleRebuild(peer, remoteId, 8000);
                             }
                         }, 8000);
                     }
                 } else {
-                    this.onStatusUpdate(this._t('webrtc.connectionLost').replace('{peer}', remoteId.slice(0,6)), 'error');
-                    this._removePeer(remoteId);
+                    // ICE restarts (both the fast pair above and the slow
+                    // watchdog below) have run out. Wait one final 30 s window
+                    // before deciding — typically the other side is rebooting
+                    // their machine or their network, and their client will
+                    // re-offer on its own once it is back.
+                    this._scheduleRebuild(peer, remoteId, peer._iceRestartCount === 3 ? 60_000 : 30_000);
                 }
             }
 
@@ -697,6 +724,47 @@ export class WebRTCManager {
         dc.onerror   = e  => this.onStatusUpdate(this._t('webrtc.dcError').replace('{error}', e), 'error');
     }
 
+    /**
+     * Tear a peer down and negotiate it again from scratch, a short while later.
+     *
+     * Retiring the link outright is the wrong answer to a hard failure: the
+     * other side is usually still in the room and still in the roster, so
+     * reconcilePeers puts it straight back and the two ends thrash — offer,
+     * fail, remove, offer. Dropping it, stamping a cooldown and letting the
+     * next roster tick (or the other side's own offer) revive it gives the
+     * network time to come back without ever leaving the user stranded.
+     */
+    _scheduleRebuild(peer, remoteId, delayMs) {
+        if (peer._rebuildTimer) return;
+        this.onStatusUpdate(this._t('webrtc.rebuilding').replace('{peer}', remoteId.slice(0,6)), 'warning', false);
+        // Stamp _everConnected so reconcilePeers skips it during the cooldown
+        // instead of re-offering in a loop.
+        peer._everConnected = true;
+        peer._rebuildTimer = setTimeout(() => {
+            peer._rebuildTimer = null;
+            this._removePeer(remoteId);
+            // Only the impolite side re-offers; the polite side waits for it.
+            // Skipping this would leave the polite end waiting on an offer the
+            // other side considers to be already pending.
+            if (!peer.isPolite && this.roomName && !this.manualDisconnect) this._negotiateWith(remoteId);
+        }, delayMs);
+    }
+
+    /**
+     * On wake (or network return) the machine may have been asleep for hours:
+     * every link is dead but nothing is left running to notice. Rebuild the
+     * dead ones now instead of at the end of a frozen timer.
+     */
+    _recoverDeadPeers() {
+        for (const [remoteId, peer] of [...this.peers]) {
+            const state = peer.pc?.connectionState;
+            if (peer.isOpen() || state === 'connecting' || peer._rebuildTimer) continue;
+            if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+                this._scheduleRebuild(peer, remoteId, 0);
+            }
+        }
+    }
+
     _removePeer(remoteId) {
         const peer = this.peers.get(remoteId);
         if (!peer) return;
@@ -704,6 +772,7 @@ export class WebRTCManager {
         if (peer._iceRestartTimer)  { clearTimeout(peer._iceRestartTimer);  peer._iceRestartTimer  = null; }
         if (peer._watchdogTimer)    { clearTimeout(peer._watchdogTimer);    peer._watchdogTimer    = null; }
         if (peer._failedWaitTimer)  { clearTimeout(peer._failedWaitTimer);  peer._failedWaitTimer  = null; }
+        if (peer._rebuildTimer)     { clearTimeout(peer._rebuildTimer);     peer._rebuildTimer     = null; }
         peer.dataChannel?.close();
         peer.pc?.close();
         this.peers.delete(remoteId);
