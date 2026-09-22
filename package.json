@@ -12,7 +12,14 @@
     "type": "git",
     "url": "git+https://github.com/denizsincar29/web_midi_streamer.git"
   },
-  "keywords": ["midi", "webrtc", "p2p", "music", "jamrtc", "piano"],
+  "keywords": [
+    "midi",
+    "webrtc",
+    "p2p",
+    "music",
+    "jamrtc",
+    "piano"
+  ],
   "author": "denizsincar29",
   "license": "ISC",
   "bugs": {
@@ -23,6 +30,7 @@
     "@playwright/test": "^1.60.0"
   },
   "dependencies": {
-    "acorn": "^8.16.0"
+    "acorn": "^8.16.0",
+    "ws": "^8.21.3"
   }
 }

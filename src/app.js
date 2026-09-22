@@ -246,6 +246,12 @@ export class MIDIStreamer {
                     // Pre-fill room name so user just needs to type nickname and hit Connect
                     const roomInput = document.getElementById('roomNameInput');
                     if (roomInput) roomInput.value = this.roomName;
+                    // Focus sits in the nickname field, so Enter must submit the
+                    // form rather than do nothing — this is a blind-user flow and
+                    // reaching for the mouse to hit Join Room is the worst case.
+                    nicknameInput2.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); this.connect(); }
+                    }, { once: true });
                 }
                 this.ui.addMessage(t('participants.nicknameRequired') || 'Please enter a nickname to join the room.', 'info');
             } else {
@@ -537,7 +543,10 @@ export class MIDIStreamer {
     }
 
     async refreshAvailableRooms() {
-        if (this.webrtc.isConnected()) {
+        // Already announcing a room: the roster is hidden and there is nothing
+        // to pick, so skip the round trip entirely. A failed /rooms fetch here
+        // lands on the debug log as a scary TypeError for a normal state.
+        if (this.currentRoomName || this.webrtc.isConnected()) {
             this.setRoomsVisibility(false);
             return;
         }
@@ -618,6 +627,11 @@ export class MIDIStreamer {
     }
 
     async connect() {
+        // A second connect while one is live would open a second signaling
+        // socket under a fresh peer id, leaving the first one as a ghost that
+        // keeps its DataChannel (and its audio) alive. Guard the re-entry.
+        if (this.webrtc.isConnected() || this._connecting) return;
+        this._connecting = true;
         try {
             const roomNameInput = document.getElementById('roomNameInput');
             if (!roomNameInput) { this.ui.addMessage(t('connection.roomInputNotFound'), 'error'); return; }
@@ -658,6 +672,8 @@ export class MIDIStreamer {
             if (hideBtn) hideBtn.disabled = false;
         } catch (error) {
             this.ui.addMessage(`${t('connection.failed')}: ${error.message}`, 'error');
+        } finally {
+            this._connecting = false;
         }
     }
 

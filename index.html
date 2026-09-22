@@ -318,6 +318,9 @@
     </div>
     
     <script type="module">
+        // Relative, not root-absolute: the app supports being mounted under a
+        // sub-path (the service worker derives its own scope the same way), and
+        // '/src/main.js' would jump to the site root and 404 there.
         import './src/main.js';
     </script>
     

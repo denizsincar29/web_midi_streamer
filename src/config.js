@@ -4,7 +4,7 @@
 // Bump them together with:  python3 scripts/bump.py [X.Y.Z]
 
 // Used in the hello handshake so peers can detect stale clients.
-export const APP_VERSION = 'jamrtc-v2.0.23';
+export const APP_VERSION = 'jamrtc-v2.0.24';
 
 // Version of the compact binary MIDI frame on the DataChannel.
 // Bump only when the framing layout changes — see webrtc.js _handleBinaryPacket.

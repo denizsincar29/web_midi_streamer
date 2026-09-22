@@ -60,3 +60,5 @@ signaling_data/
 README.md.old
 node_modules/
 *.nvda-addon
+test-results/
+playwright-report/

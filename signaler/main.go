@@ -52,9 +52,47 @@ func (h *Hub) join(c *Client) {
 	if h.rooms[c.room] == nil {
 		h.rooms[c.room] = make(map[string]*Client)
 	}
+	// A peer that reconnects with the same id replaces its old entry, so the
+	// membership map never holds a dead socket under a live id.
 	h.rooms[c.room][c.id] = c
+	peerIds := make([]string, 0, len(h.rooms[c.room]))
+	for id := range h.rooms[c.room] {
+		if id != c.id {
+			peerIds = append(peerIds, id)
+		}
+	}
 	count := len(h.rooms[c.room])
 	log.Printf("join  room=%-20s peer=%s  peers_now=%d", c.room, c.id, count)
+
+	// Tell the newcomer who is already here. This is the only way a peer learns
+	// about the opposition — the server never generates offers itself. Without
+	// it, two peers in a room sit waiting and nothing connects.
+	hello, _ := json.Marshal(map[string]interface{}{
+		"type":  "peers",
+		"peers": peerIds,
+	})
+	for _, id := range peerIds {
+		if p := h.rooms[c.room][id]; p != nil {
+			select {
+			case p.send <- hello:
+			default:
+				log.Printf("drop  peer=%s (send buffer full)", id)
+			}
+		}
+	}
+
+	// And tell everyone already here that a new peer arrived.
+	joined, _ := json.Marshal(map[string]string{"type": "join", "from": c.id})
+	for _, id := range peerIds {
+		if p := h.rooms[c.room][id]; p != nil {
+			select {
+			case p.send <- joined:
+			default:
+				log.Printf("drop  peer=%s (send buffer full)", id)
+			}
+		}
+	}
+
 	switch count {
 	case 1:
 		// First peer — room just opened
@@ -174,10 +212,60 @@ func (h *Hub) readPump(c *Client) {
 			}
 			return
 		}
-		if !isKeepalive(msg) {
+		if !isKeepalive(msg) && !h.handleServerMessage(c, msg) {
 			h.broadcast(c, msg)
 		}
 	}
+}
+
+type peersMsg struct {
+	Type  string   `json:"type"`
+	Peers []string `json:"peers"`
+}
+
+// handleServerMessage handles the messages the server consumes rather than
+// relays. It returns true when the message was handled here.
+//
+// "peers" is the client telling us which of its P2P links it still considers
+// live — e.g. a peer that stayed connected over WebRTC while its signaling
+// socket dropped and came back. Peers the sender dropped are invited to
+// re-announce, which restarts negotiation for exactly the broken pairs.
+func (h *Hub) handleServerMessage(sender *Client, msg []byte) bool {
+	var pm peersMsg
+	if json.Unmarshal(msg, &pm) != nil || pm.Type != "peers" {
+		return false
+	}
+
+	keep := make(map[string]bool, len(pm.Peers))
+	for _, id := range pm.Peers {
+		keep[id] = true
+	}
+
+	// Peers we know in this room that the sender says it no longer talks to.
+	h.mu.RLock()
+	var reannounce []*Client
+	for id, c := range h.rooms[sender.room] {
+		if id != sender.id && !keep[id] {
+			reannounce = append(reannounce, c)
+		}
+	}
+	h.mu.RUnlock()
+
+	if len(reannounce) == 0 {
+		return true
+	}
+
+	// Ask each dropped peer to re-announce itself to the sender.
+	poke, _ := json.Marshal(map[string]string{"type": "reannounce", "to": sender.id})
+	for _, c := range reannounce {
+		select {
+		case c.send <- poke:
+		default:
+			log.Printf("drop  peer=%s (send buffer full)", c.id)
+		}
+	}
+	log.Printf("peers room=%-20s sender=%s  keep=%d  reannounce=%d", sender.room, sender.id, len(keep), len(reannounce))
+	return true
 }
 
 // isKeepalive reports whether msg is a client heartbeat. These are for the

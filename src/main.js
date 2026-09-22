@@ -11,6 +11,12 @@ if ('serviceWorker' in navigator) {
         if (event.data?.type === 'SW_UPDATED') {
             const newVer = event.data.version ?? '';
             console.log('[SW] New version active:', newVer, '— reloading page');
+            // Tear the session down before reloading. An unload alone leaves the
+            // signaling socket to be reaped by the server's read timeout, so the
+            // reloaded page would announce itself alongside its own still-live
+            // ghost — the ghost keeps answering as a peer and its DataChannel
+            // never closes. An explicit disconnect retires both first.
+            try { window.__jamrtc?.webrtc?.disconnect(); } catch {}
             // Small delay so the SW finishes claiming before we reload.
             setTimeout(() => window.location.reload(), 100);
         }
@@ -54,7 +60,7 @@ function boot() {
         taglineEl.innerHTML = t('app.tagline');
     }
 
-    new MIDIStreamer();
+    window.__jamrtc = new MIDIStreamer();   // handle for e2e tests / debugging
 }
 
 if (document.readyState === 'loading') {

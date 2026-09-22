@@ -11,10 +11,15 @@
 
 import { MIDI_FRAME_VERSION } from './config.js';
 
-const SIGNALING_HOST  = location.hostname;
+// location.host, not .hostname: the signaler is reached on the same origin the
+// page was served from, so an explicit port (a dev server, a test harness, any
+// deployment that is not plain 80/443) must be carried through. Losing it makes
+// the socket silently target whatever answers on the default port instead.
+const SIGNALING_HOST  = location.host;
 const SIGNALING_PROTO = location.protocol === 'https:' ? 'wss' : 'ws';
+const SIGNALING_PATH  = new URL('./signal', document.baseURI).pathname;
 const SIGNALING_URL   = (room, peer) =>
-    `${SIGNALING_PROTO}://${SIGNALING_HOST}/signal?room=${encodeURIComponent(room)}&peer=${encodeURIComponent(peer)}`;
+    `${SIGNALING_PROTO}://${SIGNALING_HOST}${SIGNALING_PATH}?room=${encodeURIComponent(room)}&peer=${encodeURIComponent(peer)}`;
 
 const DEFAULT_ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -290,6 +295,16 @@ export class WebRTCManager {
             if (this.reconnectAttempts > 0) {
                 console.log(`[WS] reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} → ${url}`);
             }
+            const prev = this.ws;
+            if (prev) {
+                // A live socket from a previous connect() would keep its peers
+                // and DataChannels alive as ghosts under an id nobody talks to
+                // any more. Retire it before taking over its role.
+                prev.onclose = null;
+                prev.onerror = null;
+                prev.onmessage = null;
+                try { prev.close(); } catch {}
+            }
             const ws  = new WebSocket(url);
             this.ws   = ws;
             let settled = false;
@@ -302,7 +317,15 @@ export class WebRTCManager {
             ws.onopen    = () => { this.reconnectAttempts = 0; this._reconnectPending = false; this._startHeartbeat(); settle(resolve); };
             ws.onmessage = async ({ data }) => { try { await this._handleSignal(JSON.parse(data)); } catch(e){ console.error('[WS] signal parse error:', e); } };
             ws.onerror   = (e) => { console.error('[WS] error:', e); settle(reject, new Error('WebSocket error')); };
-            ws.onclose   = (ev) => { this._stopHeartbeat(); if (!settled) settle(reject, new Error(`WS closed: ${ev.code}`)); if (!this.manualDisconnect) this._scheduleReconnect(); };
+            ws.onclose   = (ev) => {
+                this._stopHeartbeat();
+                // Drop the dead socket: leaving it reachable means every later
+                // read of `this.ws` sees CLOSING/CLOSED and a caller cannot tell
+                // "not connected yet" from "the link died".
+                if (this.ws === ws) this.ws = null;
+                if (!settled) settle(reject, new Error(`WS closed: ${ev.code}`));
+                if (!this.manualDisconnect) this._scheduleReconnect();
+            };
         });
     }
 
@@ -320,15 +343,37 @@ export class WebRTCManager {
 
     _scheduleReconnect() {
         if (this.manualDisconnect) return;
+        // A closed socket after disconnect() must not resurrect the session: the
+        // reconnect timer would join the room under a null id and hold a nameless
+        // peer slot that every other client in the room then tries to offer to.
+        if (!this.myId) return;
         if (this._reconnectPending) return;   // already scheduled — don't double-up
+        // Give up on the fast retries, but never permanently: a failed boot
+        // (bad mount path, server restarting, captive portal) would otherwise
+        // leave the user in a room that never connects and never says why.
+        // Keep a slow heartbeat retry going so the app heals without a reload.
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            this.onStatusUpdate(this._t('webrtc.signalFailed'), 'error'); return;
+            this.onStatusUpdate(this._t('webrtc.signalFailed'), 'error');
+            this._reconnectPending = true;
+            this.reconnectTimer = setTimeout(() => {
+                this._reconnectPending = false;
+                this.reconnectAttempts = 0;    // fresh burst of fast retries
+                this._scheduleReconnect();
+            }, 30_000);
+            return;
         }
         const delay = Math.min(30000, 1000 * Math.pow(2, ++this.reconnectAttempts));
         this._reconnectPending = true;
         this.reconnectTimer = setTimeout(async () => {
             this._reconnectPending = false;
-            try { await this._wsOpen(); this._send({ type:'join', from:this.myId }); }
+            try {
+                await this._wsOpen();
+                this._send({ type: 'join', from: this.myId });
+                // Our existing DataChannels survived the socket outage — tell the
+                // server which links are still live so it only re-announces the
+                // ones that actually dropped, instead of re-offering everything.
+                this.notifyPeers(this.peers.keys());
+            }
             catch { this._scheduleReconnect(); }
         }, delay);
     }
@@ -343,8 +388,44 @@ export class WebRTCManager {
         if (msg.from === this.myId) return;
         if (msg.to && msg.to !== this.myId) return;
 
+        // Server's view of the room: everyone except us. Any listed peer we have
+        // no live link to is someone we missed (typically because we were
+        // already in the room when they arrived). Start negotiating with them.
+        if (msg.type === 'peers') {
+            this.reconcilePeers(msg.peers ?? []);
+            return;
+        }
+
+        // Server asking us to re-announce: we are the peer it knows about, but
+        // our link to whoever asked is gone. Say hello again so they offer.
+        if (msg.type === 'reannounce') {
+            this._send({ type:'join', from:this.myId, to: msg.to ?? undefined });
+            return;
+        }
+
         if (msg.type === 'join') {
             const peer = this._getOrCreatePeer(msg.from, this._isPolite(msg.from));
+
+            // If we already have a live negotiation with this peer, the re-join
+            // is just them reconnecting their signaling socket. Re-offering
+            // would tear down a working P2P link — ignore it. (The peer re-sends
+            // 'join' on every signaling reconnect and on every page reload.)
+            if (peer.pc && peer.pc.signalingState !== 'stable') {
+                // mid-negotiation, ignore
+                return;
+            }
+            if (peer._everConnected) {
+                // They were connected; the link may still be alive independent of
+                // the signaling socket. Give it a moment; if it fails, the failed
+                // handler drives an ICE restart from the impolite side.
+                if (peer.pc.connectionState === 'connected' || peer.pc.connectionState === 'connecting') {
+                    return;
+                }
+                // Genuinely gone — drop and rebuild from scratch.
+                this._removePeer(msg.from);
+                return;
+            }
+
             this._createDataChannel(peer);
             try {
                 peer.makingOffer = true;
@@ -371,6 +452,12 @@ export class WebRTCManager {
                 for (const c of peer.pendingICE) { try { await peer.pc.addIceCandidate(c); } catch{} }
                 peer.pendingICE = [];
                 if (desc.type === 'offer') {
+                    // Only the impolite side creates the data channel; the polite
+                    // side receives it. If both created one, the answerer would
+                    // silently drop the offerer's channel (SCTP uses the first
+                    // stream id) and no MIDI would ever flow — the DC would look
+                    // 'open' locally while being dead remotely.
+                    if (!peer.isPolite && !peer.dataChannel) this._createDataChannel(peer);
                     await peer.pc.setLocalDescription();
                     this._send({ type:'sdp', from:this.myId, to:msg.from, sdp:peer.pc.localDescription });
                 }
@@ -387,6 +474,75 @@ export class WebRTCManager {
                 if (peer.pc.remoteDescription) await peer.pc.addIceCandidate(msg.candidate ?? null);
                 else if (msg.candidate) peer.pendingICE.push(msg.candidate);
             } catch(e){ if (!peer.ignoreOffer) console.error('addIceCandidate:', e); }
+        }
+    }
+
+    // Called after a signaling reconnect so the server knows which P2P links
+    // survived the socket outage. Everything not listed gets re-offered.
+    notifyPeers(peerIds) {
+        this._send({ type: 'peers', from: this.myId, peers: [...peerIds] });
+    }
+
+    /**
+     * Reconcile the server's room roster against our own peer set.
+     *
+     * A peer the server knows about but we have no connection to is one we
+     * missed — we were already in the room when they joined, so they never sent
+     * us a 'join' and we never offered. Offer to them now.
+     */
+    reconcilePeers(peerIds) {
+        const known = new Set(peerIds);
+
+        // A roster that does not even list us is the server telling us it
+        // already dropped our previous connection — typically the reload right
+        // after a service-worker update. Everything we still hold is a ghost
+        // from that connection: retire it rather than re-offering into the void.
+        if (!known.has(this.myId)) {
+            for (const id of [...this.peers.keys()]) this._removePeer(id);
+            return;
+        }
+
+        for (const id of peerIds) {
+            if (id === this.myId) continue;
+            const peer = this.peers.get(id);
+            if (peer && (peer.isOpen() || peer.pc?.connectionState === 'connected')) continue;
+            if (peer && peer._everConnected) continue;   // stalled link: failed-handler owns recovery
+            if (peer) continue;                          // negotiation already in flight
+
+            this._negotiateWith(id);
+        }
+    }
+
+    async _negotiateWith(remoteId) {
+        const peer = this._getOrCreatePeer(remoteId, this._isPolite(remoteId));
+        if (peer.makingOffer) return;
+
+        try {
+            peer.makingOffer = true;
+            // Only the impolite side offers; the polite side waits for the offer
+            // and then creates its own channel (see _handleSignal 'sdp').
+            if (!peer.isPolite) this._createDataChannel(peer);
+            await peer.pc.setLocalDescription();
+            this._send({ type:'sdp', from:this.myId, to:remoteId, sdp:peer.pc.localDescription });
+        } catch(e) {
+            console.error('negotiate:', e);
+        } finally {
+            // The guard lives inside the try so that _removePeer — which stamps
+            // _everConnected — runs while the offer is still marked in flight.
+            // Retiring the peer from outside would delete the entry mid-flight
+            // and the next roster would just recreate it: delete, re-add, delete.
+            if (peer.pc.connectionState === 'new' && peer.pc.signalingState === 'stable' &&
+                ++peer._attempts >= 3 && !peer._everConnected) {
+                // A brand-new PC starts in 'new' and only leaves it once ICE
+                // gathering or an SDP exchange begins. Still 'new' after several
+                // offers means every attempt died before it started: the id is
+                // not live. Each signaling reconnect re-offers it and the roster
+                // re-adds it, so a ghost block accumulates forever otherwise.
+                console.warn(`[RTC] dropping unresponsive peer ${remoteId.slice(0, 6)}`);
+                this._removePeer(remoteId);
+                return;
+            }
+            peer.makingOffer = false;
         }
     }
 
@@ -512,6 +668,7 @@ export class WebRTCManager {
     }
 
     _createDataChannel(peer) {
+        if (peer.dataChannel) return;   // never create a second one for a pair
         // Low-Latency Mode: unordered + no retransmits = minimal queuing delay
         // Trade-off: occasional packet loss (acceptable for real-time MIDI).
         const dcOptions = this.lowLatencyMode
