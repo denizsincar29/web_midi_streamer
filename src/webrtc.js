@@ -82,6 +82,13 @@ export class WebRTCManager {
         this.ipv6Enabled      = true;
         this.lowLatencyMode   = false;   // Experimental Low-Latency Mode
 
+        // Anonymous observer mode (set from «=roomname=» in the URL): join with
+        // an id larger than any player's so the politeness rule makes us the
+        // polite side — we answer their offers and never offer ourselves, which
+        // is what keeps a listener from being offered a connection by everyone
+        // in the room.
+        this.anonymous        = false;
+
         this.pingStats            = this._resetPing();
         this.reconnectAttempts    = 0;
         this.maxReconnectAttempts = 6;
@@ -103,7 +110,9 @@ export class WebRTCManager {
         if (!roomName) throw new Error('Room name required');
         this.manualDisconnect = false;
         this.roomName = roomName;
-        this.myId     = this._uid();
+        // «zz» leads every ordinary id ('midi-…'), so an anonymous observer is
+        // polite towards all of them: it answers offers instead of making them.
+        this.myId     = this.anonymous ? `zz-anon-${this._uid()}` : this._uid();
         this.onStatusUpdate(this._t('webrtc.connecting'), 'info');
 
         await this._wsOpen();

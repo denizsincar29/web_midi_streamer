@@ -2,7 +2,28 @@ import { NOTE_NAMES } from './config.js';
 
 export function getRoomNameFromURL() {
     const params = new URLSearchParams(window.location.search);
-    return params.get('room') || null;
+    const query = params.get('room');
+    if (query) return query;
+
+    // Observer shorthand: «=roomname=» anywhere in the address — a bare
+    // host/=studio= is what the admin types to lurk in a room, and the equals
+    // signs are what mark the name out from a path. Checked in the hash and
+    // the raw search string because neither survives the other cleanly.
+    const shorthand = matchObserverRoom(window.location.hash) ||
+                      matchObserverRoom(window.location.search);
+    return shorthand || null;
+}
+
+function matchObserverRoom(source) {
+    if (!source) return null;
+    const match = /=(.+?)=/.exec(decodeURIComponent(source));
+    return match ? match[1].trim() || null : null;
+}
+
+export function isObserverURL() {
+    return !!(matchObserverRoom(window.location.hash) ||
+              matchObserverRoom(window.location.search)) &&
+           !new URLSearchParams(window.location.search).get('room');
 }
 
 export function getNameFromURL() {

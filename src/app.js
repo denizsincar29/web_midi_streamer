@@ -1,4 +1,4 @@
-import { getRoomNameFromURL, getNameFromURL, copyToClipboard } from './utils.js';
+import { getRoomNameFromURL, getNameFromURL, copyToClipboard, isObserverURL } from './utils.js';
 import { APP_VERSION } from './config.js';
 import { MIDIManager } from './midi.js';
 import { UIManager } from './ui.js';
@@ -13,6 +13,11 @@ import { BrowserSynth } from './synth.js';
 export class MIDIStreamer {
     constructor() {
         this.roomName = getRoomNameFromURL();
+        // «=roomname=» opens the room as an anonymous listener: no nickname, no
+        // presence announcement, and an id that sorts above every player so we
+        // answer their offers rather than offering to them.
+        this.isObserver = isObserverURL();
+        this.webrtcAnonymous = this.isObserver;
         this.settings = {
             sysexEnabled: false,
             timestampEnabled: false,
@@ -94,6 +99,7 @@ export class MIDIStreamer {
         };
 
         this.webrtc.onPeerConnect = (peerId) => {
+            if (this.isObserver) return;   // a listener announces nothing
             this.midi.playStatusChime('peer_connection');
             this.webrtc.sendTo(peerId, {
                 type: 'hello',
@@ -635,19 +641,27 @@ export class MIDIStreamer {
         try {
             const roomNameInput = document.getElementById('roomNameInput');
             if (!roomNameInput) { this.ui.addMessage(t('connection.roomInputNotFound'), 'error'); return; }
+            // «host/=studio=» carries the room in the address itself: fill the
+            // field from it so the connect button works without retyping.
+            if (this.roomName && !roomNameInput.value.trim()) roomNameInput.value = this.roomName;
             const roomName = roomNameInput.value.trim();
             if (!roomName) { this.ui.addMessage(t('connection.enterRoomNamePrompt'), 'error'); return; }
 
-            // Require a nickname before connecting
-            const nicknameInput = document.getElementById('nicknameInput');
-            const nickname = nicknameInput?.value?.trim();
-            if (!nickname) {
-                nicknameInput?.focus();
-                this.ui.addMessage(t('participants.nicknameRequired') || 'Please enter a nickname before connecting.', 'error');
-                return;
+            // A listener has no identity to give the room, so the nickname gate
+            // does not apply to it — asking for one would be asking it to lie.
+            if (!this.isObserver) {
+                const nicknameInput = document.getElementById('nicknameInput');
+                const nickname = nicknameInput?.value?.trim();
+                if (!nickname) {
+                    nicknameInput?.focus();
+                    this.ui.addMessage(t('participants.nicknameRequired') || 'Please enter a nickname before connecting.', 'error');
+                    return;
+                }
+                localStorage.setItem('midi_nickname', nickname);
             }
-            // Save nickname to localStorage
-            localStorage.setItem('midi_nickname', nickname);
+            // The flag has to be on the peer before it connects: the id it
+            // generates (`zz-…`) is what makes it polite towards every player.
+            this.webrtc.anonymous = this.isObserver;
             const shareUrl = await this.webrtc.connect(roomName);
             if (shareUrl) {
                 this.currentRoomName = roomName;
