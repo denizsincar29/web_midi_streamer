@@ -71,14 +71,10 @@ func (h *Hub) join(c *Client) {
 		"type":  "peers",
 		"peers": peerIds,
 	})
-	for _, id := range peerIds {
-		if p := h.rooms[c.room][id]; p != nil {
-			select {
-			case p.send <- hello:
-			default:
-				log.Printf("drop  peer=%s (send buffer full)", id)
-			}
-		}
+	select {
+	case c.send <- hello:
+	default:
+		log.Printf("drop  peer=%s (send buffer full)", c.id)
 	}
 
 	// And tell everyone already here that a new peer arrived.
