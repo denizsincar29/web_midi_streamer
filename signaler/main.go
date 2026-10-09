@@ -439,7 +439,9 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": ok, "room": room, "hidden": false})
 	})
 
-	mux.HandleFunc("/docs", serveDocs)
+	// Trailing slash: /docs/ matches the subtree, /docs alone would only
+	// match itself and every /docs/<page> request would fall through to 404.
+	mux.HandleFunc("/docs/", serveDocs)
 
 	initNtfy()
 	log.Printf("signaler listening on %s", *addr)
