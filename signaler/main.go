@@ -14,6 +14,9 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -295,6 +298,100 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	h.readPump(c)
 }
 
+// docsRoot is the directory the /docs endpoint reads from. It is resolved
+// from the deployed layout: the signaler runs from /var/www/html/jamrtc/signaler
+// next to the frontend it serves, and the Python package docs live in
+// /var/www/html/jamrtc/python. Overridable with -docs for local runs.
+var docsRoot = flag.String("docs", "", "directory served by /docs (default: ../python next to the signaler)")
+
+// docsFile is one publishable document: its URL path and the file behind it.
+type docsFile struct {
+	path string // path under /docs/, e.g. "README" or "src/peer"
+	file string // file on disk relative to docsRoot
+	kind string // "md" or "py"
+}
+
+var docsFiles = []docsFile{
+	{"README", "README.md", "md"},
+	{"", "README.md", "md"},
+	{"src/protocol", "jamrtc/protocol.py", "py"},
+	{"src/peer", "jamrtc/peer.py", "py"},
+	{"src/observer", "jamrtc/observer.py", "py"},
+	{"src/midi_backend", "jamrtc/midi_backend.py", "py"},
+	{"src/__main__", "jamrtc/__main__.py", "py"},
+	{"src/__init__", "jamrtc/__init__.py", "py"},
+}
+
+// docPaths lists the published paths as JSON, so the docs page can build its
+// navigation without hard-coding the file list on the client.
+func docPaths(w http.ResponseWriter) {
+	corsJSON(w)
+	type entry struct {
+		Path string `json:"path"`
+		Kind string `json:"kind"`
+	}
+	out := make([]entry, 0, len(docsFiles))
+	for _, d := range docsFiles {
+		if d.path == "" {
+			continue
+		}
+		out = append(out, entry{Path: d.path, Kind: d.kind})
+	}
+	json.NewEncoder(w).Encode(out)
+}
+
+// serveDocs publishes the Python package's documentation and source as plain
+// text for the docs page at jamrtc.denizsincar.ru/python. Only files named in
+// docsFiles are reachable — the path is looked up in that table, never joined
+// from user input, so there is no way to walk out of docsRoot.
+func serveDocs(w http.ResponseWriter, r *http.Request) {
+	rel := strings.Trim(strings.TrimPrefix(r.URL.Path, "/docs"), "/")
+	if rel == "index.json" {
+		docPaths(w)
+		return
+	}
+
+	root := *docsRoot
+	if root == "" {
+		dir, err := os.Getwd()
+		if err != nil {
+			dir = "."
+		}
+		// The signaler runs from its own directory; python/ is a sibling.
+		root = filepath.Join(filepath.Dir(dir), "python")
+		if _, err := os.Stat(root); err != nil {
+			root = filepath.Join(dir, "python")
+		}
+	}
+
+	var hit *docsFile
+	for i := range docsFiles {
+		if docsFiles[i].path == rel {
+			hit = &docsFiles[i]
+			break
+		}
+	}
+	if hit == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, hit.file))
+	if err != nil {
+		http.Error(w, "docs unavailable: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if hit.kind == "md" {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	} else {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	}
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Write(data)
+}
+
 func corsJSON(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -341,6 +438,8 @@ func main() {
 		ok := hub.setHidden(room, false)
 		json.NewEncoder(w).Encode(map[string]interface{}{"ok": ok, "room": room, "hidden": false})
 	})
+
+	mux.HandleFunc("/docs", serveDocs)
 
 	initNtfy()
 	log.Printf("signaler listening on %s", *addr)

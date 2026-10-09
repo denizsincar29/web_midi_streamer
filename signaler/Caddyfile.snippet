@@ -15,6 +15,10 @@ jamrtc.denizsincar.ru {
     handle /show-room* { reverse_proxy localhost:8987 }
     handle /health     { reverse_proxy localhost:8987 }
 
+    # Python client docs: README.md and the package sources as plain text,
+    # rendered by /python/index.html.
+    handle /docs/*     { reverse_proxy localhost:8987 }
+
     # NVDA addon download — never cache so users always get the latest build
     handle /nvda_addon/*.nvda-addon {
         root * /var/www/html/jamrtc

@@ -5,7 +5,7 @@
 //   - JS / CSS / fonts / icons: CACHE FIRST → network (fast, versioned by cache name)
 //   - /rooms, /signal, API: BYPASS (always network)
 
-const CACHE_NAME = 'jamrtc-v2.0.26';  // feat: stale-cache peer warning + easter egg nick fix
+const CACHE_NAME = 'jamrtc-v2.0.27';  // feat: Python client docs at /python
 
 const getBasePath = () => {
   const swPath = self.location.pathname;
