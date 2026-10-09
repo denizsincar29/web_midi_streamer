@@ -314,6 +314,7 @@ type docsFile struct {
 var docsFiles = []docsFile{
 	{"README", "README.md", "md"},
 	{"", "README.md", "md"},
+	{"pyproject.toml", "pyproject.toml", "gen"},
 	{"src/protocol", "jamrtc/protocol.py", "py"},
 	{"src/peer", "jamrtc/peer.py", "py"},
 	{"src/observer", "jamrtc/observer.py", "py"},
@@ -332,7 +333,7 @@ func docPaths(w http.ResponseWriter) {
 	}
 	out := make([]entry, 0, len(docsFiles))
 	for _, d := range docsFiles {
-		if d.path == "" {
+		if d.path == "" || d.kind == "gen" {
 			continue
 		}
 		out = append(out, entry{Path: d.path, Kind: d.kind})

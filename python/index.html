@@ -327,8 +327,15 @@ async function load(path) {
     doc.innerHTML = path.startsWith('src/') || path.endsWith('.py')
       ? renderSource(text)
       : renderMarkdown(text);
-    const m = /v?(\d+\.\d+\.\d+)/.exec(text.slice(0, 4000));
-    if (path === 'README' && m) document.getElementById('pkgVersion').textContent = `v${m[1]}`;
+    if (path === 'README') {
+      let v = /v?(\d+\.\d+(?:\.\d+)?)/.exec(text);
+      // The README's install command has no version in it; pyproject.toml does.
+      try {
+        const meta = await fetch('/docs/pyproject.toml');
+        if (meta.ok) v = /version\s*=\s*"([^"]+)"/.exec(await meta.text()) || v;
+      } catch { /* header version is cosmetic; the README one will do */ }
+      if (v) document.getElementById('pkgVersion').textContent = `v${v[1]}`;
+    }
     doc.setAttribute('aria-busy', 'false');
     window.scrollTo({ top: 0 });
     document.getElementById('main').focus({ preventScroll: true });
